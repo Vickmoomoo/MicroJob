@@ -19,7 +19,6 @@ class HomeViewModel : ViewModel() {
 
     /** All jobs loaded from the (fake) repository. */
     private val _jobs = MutableStateFlow<List<Job>>(emptyList())
-    val jobs: StateFlow<List<Job>> = _jobs.asStateFlow()
 
     /** Text typed into the search bar. */
     private val _searchQuery = MutableStateFlow("")

@@ -42,7 +42,6 @@ import com.example.microjob.viewmodel.HomeViewModel
 @Composable
 fun HomeScreen(
     onJobClick: () -> Unit,
-    onPostJobClick: () -> Unit,
     vm: HomeViewModel = viewModel(),
 ) {
     val filteredJobs by vm.filteredJobs.collectAsStateWithLifecycle()

@@ -56,8 +56,7 @@ fun MicroJobApp() {
         ) {
             composable(MicroJobRoutes.HOME) {
                 HomeScreen(
-                    onJobClick = { /* TODO: navigate to Job Details */ },
-                    onPostJobClick = { navController.navigate(MicroJobRoutes.POST_JOB) }
+                    onJobClick = { /* TODO: navigate to Job Details */ }
                 )
             }
             composable(MicroJobRoutes.COURSE) {
