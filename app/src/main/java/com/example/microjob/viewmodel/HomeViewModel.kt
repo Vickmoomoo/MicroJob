@@ -27,7 +27,6 @@ class HomeViewModel(
 
     /** All jobs loaded from the repository. */
     private val _jobs = MutableStateFlow<List<Job>>(emptyList())
-    val jobs: StateFlow<List<Job>> = _jobs.asStateFlow()
 
     /** All categories loaded from the repository. */
     private val _categories = MutableStateFlow<List<Category>>(SampleData.categories)
