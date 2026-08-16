@@ -18,10 +18,18 @@ data class Job(
     val title: String,
     val price: Double,
     val category: String,
-    /** State selected by the poster (e.g. "Pulau Pinang"). */
+    /** Full postal address shown on the detail page. */
+    val location: String,
+    /** State used for filtering only (e.g. "Pulau Pinang"). */
     val state: String,
-    /** Area within the state selected by the poster (e.g. "George Town"). */
+    /** Area within the state used for filtering only (e.g. "George Town"). */
     val area: String,
+    /**
+     * Work mode: "remote" (work from home) or "onsite" (go to the location).
+     * Shown as a badge on the card image.
+     */
+    @SerialName("job_type")
+    val jobType: String = "onsite",
     val description: String,
     @SerialName("image_color")
     val imageColor: Long,

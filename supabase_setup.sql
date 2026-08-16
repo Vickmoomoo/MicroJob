@@ -17,8 +17,10 @@ create table jobs (
   title text not null,
   price double precision not null,
   category text not null,
-  state text not null,                          -- 州（poster 选择）
-  area text not null,                           -- 地区（poster 选择）
+  location text not null,                       -- 完整地址（详情页展示）
+  state text not null,                          -- 州（仅用于筛选）
+  area text not null,                           -- 地区（仅用于筛选）
+  job_type text not null default 'onsite',      -- remote（在家）/ onsite（到现场）
   description text not null,
   image_color bigint not null,
 
@@ -91,19 +93,19 @@ insert into users (name, bio) values
   ('Wei Qi', 'Marketing student, can design social media posts.'),
   ('Ravi Kumar', 'Courier rider, delivery anywhere in Penang island.');
 
-insert into jobs (title, price, category, state, area, description, image_color,
+insert into jobs (title, price, category, location, state, area, job_type, description, image_color,
                   poster_id, status, require_gps, tools_required, payment_method, language) values
-  ('Pet Bathing', 30.49, 'Cleaning Housework', 'Pulau Pinang', 'Batu Ferringhi', 'Looking for a gentle and friendly individual to help give our dog a complete bath and basic grooming.', 9281651,
+  ('Pet Bathing', 30.49, 'Cleaning Housework', '88, Jalan Batu Ferringhi, 11100 Batu Ferringhi, Pulau Pinang, Malaysia', 'Pulau Pinang', 'Batu Ferringhi', 'onsite', 'Looking for a gentle and friendly individual to help give our dog a complete bath and basic grooming.', 9281651,
    1, 'OPEN', true, 'None (supplies provided)', 'Cash', 'English'),
-  ('Kitchen Deep Cleaning', 60.99, 'Cleaning Housework', 'Pulau Pinang', 'George Town', 'Need help with a thorough kitchen deep cleaning.', 5533306,
+  ('Kitchen Deep Cleaning', 60.99, 'Cleaning Housework', '12, Lorong Melayu, 10200 George Town, Pulau Pinang, Malaysia', 'Pulau Pinang', 'George Town', 'onsite', 'Need help with a thorough kitchen deep cleaning.', 5533306,
    1, 'IN_PROGRESS', false, 'Cleaning gloves', 'TNG eWallet', 'Bahasa Malaysia'),
-  ('Food Delivery (Lunch)', 12.00, 'Delivery Courier', 'Pulau Pinang', 'George Town', 'Collect 3 lunch orders from the hawker centre and deliver to an office at Gurney Plaza.', 16367141,
+  ('Food Delivery (Lunch)', 12.00, 'Delivery Courier', 'Food Street Hawker Centre, 10400 George Town, Pulau Pinang, Malaysia', 'Pulau Pinang', 'George Town', 'onsite', 'Collect 3 lunch orders from the hawker centre and deliver to an office at Gurney Plaza.', 16367141,
    4, 'OPEN', true, '', 'Cash', 'English'),
-  ('Social Media Post Design', 45.00, 'Digital Marketing', 'Kuala Lumpur', 'Bukit Bintang', 'Create 4 simple promotional posts for a local bakery.', 3756252,
+  ('Social Media Post Design', 45.00, 'Digital Marketing', 'Remote / Online', 'Kuala Lumpur', 'Bukit Bintang', 'remote', 'Create 4 simple promotional posts for a local bakery.', 3756252,
    3, 'OPEN', false, '', 'Bank Transfer', 'Chinese / English'),
-  ('Simple Logo Design', 80.00, 'Graphic Design', 'Selangor', 'Petaling Jaya', 'Design a simple logo for a small printing shop.', 897547,
+  ('Simple Logo Design', 80.00, 'Graphic Design', 'Remote / Online', 'Selangor', 'Petaling Jaya', 'remote', 'Design a simple logo for a small printing shop.', 897547,
    3, 'OPEN', false, 'Adobe Illustrator', 'Online Banking', 'English'),
-  ('Garden Weeding', 35.00, 'Cleaning Housework', 'Pulau Pinang', 'Tanjung Bungah', 'Clear weeds from the front garden and trim the hedge.', 8173378,
+  ('Garden Weeding', 35.00, 'Cleaning Housework', '45, Jalan Sultan Ahmad Shah, 10050 George Town, Pulau Pinang, Malaysia', 'Pulau Pinang', 'Tanjung Bungah', 'onsite', 'Clear weeds from the front garden and trim the hedge.', 8173378,
    2, 'COMPLETED', true, 'Garden gloves', 'Cash', 'Bahasa Malaysia');
 
 insert into reviews (reviewed_user_id, reviewer_user_id, rating, comment, job_id) values

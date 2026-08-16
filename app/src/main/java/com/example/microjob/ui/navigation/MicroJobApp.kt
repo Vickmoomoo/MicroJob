@@ -91,7 +91,16 @@ fun MicroJobApp() {
                 val jobId = entry.arguments?.getInt("jobId") ?: return@composable
                 JobDetailScreen(
                     jobId = jobId,
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
+                    onContactPoster = {
+                        // TODO: open the actual chat thread with this poster.
+                        // For now, jump to the Messages tab (placeholder page).
+                        navController.navigate(MicroJobRoutes.MESSAGES) {
+                            popUpTo(MicroJobRoutes.HOME) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
                 )
             }
         }

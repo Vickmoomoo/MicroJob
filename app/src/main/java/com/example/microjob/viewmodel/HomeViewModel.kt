@@ -21,12 +21,28 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.milliseconds
 
+/** How the filtered job list is sorted. */
+enum class SortOption(val label: String) {
+    NONE("All"),
+    PRICE_LOW_TO_HIGH("Lowest to Highest"),
+    PRICE_HIGH_TO_LOW("Highest to Lowest")
+}
+
+/** All filter-panel selections bundled into one flow (combine supports ≤5 flows). */
+private data class FilterState(
+    val state: String? = null,
+    val area: String? = null,
+    val jobType: String? = null,
+    val sort: SortOption = SortOption.NONE
+)
+
 class HomeViewModel(
     private val repository: JobRepository = SupabaseJobRepository()
 ) : ViewModel() {
 
     /** All jobs loaded from the repository. */
     private val _jobs = MutableStateFlow<List<Job>>(emptyList())
+    val jobs: StateFlow<List<Job>> = _jobs.asStateFlow()
 
     /** All categories loaded from the repository. */
     private val _categories = MutableStateFlow<List<Category>>(SampleData.categories)
@@ -40,22 +56,54 @@ class HomeViewModel(
     private val _selectedCategory = MutableStateFlow<String?>(null)
     val selectedCategory: StateFlow<String?> = _selectedCategory.asStateFlow()
 
+    // --- Filter panel state (set via the bottom sheet) ---
+
+    /** Selected state for filtering, null = all states. */
+    private val _filterState = MutableStateFlow<String?>(null)
+    val filterState: StateFlow<String?> = _filterState.asStateFlow()
+
+    /** Selected area for filtering, null = all areas. */
+    private val _filterArea = MutableStateFlow<String?>(null)
+    val filterArea: StateFlow<String?> = _filterArea.asStateFlow()
+
+    /** Selected work mode for filtering, null = both. "remote" or "onsite". */
+    private val _filterJobType = MutableStateFlow<String?>(null)
+    val filterJobType: StateFlow<String?> = _filterJobType.asStateFlow()
+
+    /** Sort option applied to the filtered jobs. */
+    private val _sortOption = MutableStateFlow(SortOption.NONE)
+    val sortOption: StateFlow<SortOption> = _sortOption.asStateFlow()
+
     /** Loading flag shown as a progress bar while fetching from the backend. */
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     /**
-     * Jobs filtered by the search query and the selected category.
-     * combine() re-emits whenever any of the three sources changes.
+     * Jobs filtered by search query, category, state, area and job type,
+     * then sorted by the selected sort option.
      */
     val filteredJobs: StateFlow<List<Job>> =
-        combine(_jobs, _searchQuery, _selectedCategory) { jobs, query, category ->
+        combine(
+            _jobs, _searchQuery, _selectedCategory,
+            combine(_filterState, _filterArea, _filterJobType, _sortOption) { state, area, jobType, sort ->
+                FilterState(state, area, jobType, sort)
+            }
+        ) { jobs, query, category, filter ->
             jobs.filter { job ->
                 val matchesQuery = query.isBlank() ||
                     job.title.contains(query, ignoreCase = true) ||
                     job.description.contains(query, ignoreCase = true)
                 val matchesCategory = category == null || job.category == category
-                matchesQuery && matchesCategory
+                val matchesState = filter.state == null || job.state == filter.state
+                val matchesArea = filter.area == null || job.area == filter.area
+                val matchesJobType = filter.jobType == null || job.jobType == filter.jobType
+                matchesQuery && matchesCategory && matchesState && matchesArea && matchesJobType
+            }.let { filtered ->
+                when (filter.sort) {
+                    SortOption.PRICE_LOW_TO_HIGH -> filtered.sortedBy { it.price }
+                    SortOption.PRICE_HIGH_TO_LOW -> filtered.sortedByDescending { it.price }
+                    SortOption.NONE -> filtered
+                }
             }
         }.stateIn(
             scope = viewModelScope,
@@ -96,5 +144,31 @@ class HomeViewModel(
 
     fun onCategorySelect(category: String?) {
         _selectedCategory.value = category
+    }
+
+    fun onFilterStateChange(state: String?) {
+        _filterState.value = state
+        // Changing the state resets the area to avoid impossible combos.
+        _filterArea.value = null
+    }
+
+    fun onFilterAreaChange(area: String?) {
+        _filterArea.value = area
+    }
+
+    fun onFilterJobTypeChange(jobType: String?) {
+        _filterJobType.value = jobType
+    }
+
+    fun onSortOptionChange(option: SortOption) {
+        _sortOption.value = option
+    }
+
+    /** Clears every filter panel selection (category chips are kept separate). */
+    fun clearFilters() {
+        _filterState.value = null
+        _filterArea.value = null
+        _filterJobType.value = null
+        _sortOption.value = SortOption.NONE
     }
 }

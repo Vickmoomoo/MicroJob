@@ -19,6 +19,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -53,11 +55,6 @@ private fun categoryEmoji(job: Job): String =
 private fun formatDate(iso: String): String =
     runCatching { OffsetDateTime.parse(iso).toLocalDate().toString() }.getOrDefault(iso)
 
-/** "George Town" + "Pulau Pinang" → "George Town, Pulau Pinang". */
-private fun jobLocation(job: Job): String = listOf(job.area, job.state)
-    .filter { it.isNotBlank() }
-    .joinToString(", ")
-
 /**
  * Full-screen job detail page. Shows every field of the job plus a
  * poster row (avatar + name). Bottom navigation is hidden on this page.
@@ -67,6 +64,7 @@ private fun jobLocation(job: Job): String = listOf(job.area, job.state)
 fun JobDetailScreen(
     jobId: Int,
     onBack: () -> Unit,
+    onContactPoster: () -> Unit,
     vm: JobDetailViewModel = viewModel(),
 ) {
     val uiState by vm.uiState.collectAsStateWithLifecycle()
@@ -94,7 +92,8 @@ fun JobDetailScreen(
             is JobDetailUiState.Success -> JobDetailContent(
                 job = state.job,
                 poster = state.poster,
-                innerPadding = innerPadding
+                innerPadding = innerPadding,
+                onContactPoster = onContactPoster
             )
         }
     }
@@ -136,6 +135,7 @@ private fun JobDetailContent(
     job: Job,
     poster: User?,
     innerPadding: androidx.compose.foundation.layout.PaddingValues,
+    onContactPoster: () -> Unit,
 ) {
     val context = LocalContext.current
     val hasRequirements = job.requireGps || job.toolsRequired.isNotBlank()
@@ -197,9 +197,9 @@ private fun JobDetailContent(
             InfoRow(
                 icon = "📍",
                 label = "Location",
-                value = jobLocation(job),
+                value = job.location,
                 onClick = {
-                    val query = Uri.encode(jobLocation(job))
+                    val query = Uri.encode(job.location)
                     val intent = Intent(
                         Intent.ACTION_VIEW,
                         Uri.parse("https://www.google.com/maps/dir/?api=1&destination=$query")
@@ -258,6 +258,23 @@ private fun JobDetailContent(
                 text = job.description,
                 style = MaterialTheme.typography.bodyMedium
             )
+
+            Spacer(Modifier.height(24.dp))
+
+            // Contact the job poster — lets a worker ask questions before accepting.
+            Button(
+                onClick = onContactPoster,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Chat,
+                    contentDescription = null
+                )
+                Spacer(Modifier.width(8.dp))
+                Text("Contact Job Poster")
+            }
         }
     }
 }
