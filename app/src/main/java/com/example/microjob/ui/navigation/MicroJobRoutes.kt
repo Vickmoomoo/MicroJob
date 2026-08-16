@@ -7,4 +7,10 @@ object MicroJobRoutes {
     const val MESSAGES = "messages"
     const val PROFILE = "profile"
     const val POST_JOB = "post_job"
+
+    /** Job detail page. Route pattern: "job/{jobId}" */
+    const val JOB_DETAIL = "job/{jobId}"
+
+    /** Builds the concrete route for a given job id. */
+    fun jobDetail(jobId: Int) = "job/$jobId"
 }

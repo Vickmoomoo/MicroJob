@@ -48,7 +48,7 @@ fun JobCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(90.dp)
+                    .height(180.dp)
                     .background(Color(job.imageColor))
                     .padding(12.dp),
                 contentAlignment = Alignment.Center
@@ -71,26 +71,20 @@ fun JobCard(
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "RM%.2f".format(job.price),
+                        text = "${job.currency}%.2f".format(job.price),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(
-                        text = if (job.distanceKm > 0) "%.1fKM".format(job.distanceKm) else "Online",
+                        text = job.area,
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = job.category,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
             }
         }
     }

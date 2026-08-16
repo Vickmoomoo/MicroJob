@@ -10,9 +10,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
@@ -32,7 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.microjob.model.SampleData
+import com.example.microjob.model.Job
 import com.example.microjob.viewmodel.HomeViewModel
 
 /**
@@ -41,16 +40,17 @@ import com.example.microjob.viewmodel.HomeViewModel
  */
 @Composable
 fun HomeScreen(
-    onJobClick: () -> Unit,
+    onJobClick: (Job) -> Unit,
     vm: HomeViewModel = viewModel(),
 ) {
     val filteredJobs by vm.filteredJobs.collectAsStateWithLifecycle()
+    val categories by vm.categories.collectAsStateWithLifecycle()
     val searchQuery by vm.searchQuery.collectAsStateWithLifecycle()
     val selectedCategory by vm.selectedCategory.collectAsStateWithLifecycle()
     val isLoading by vm.isLoading.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
-        vm.loadSampleJobs()
+        vm.loadJobs()
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -61,6 +61,13 @@ fun HomeScreen(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            IconButton(onClick = { /* TODO: filter screen */ }) {
+                Icon(
+                    imageVector = Icons.Filled.Menu,
+                    contentDescription = "Filter"
+                )
+            }
+            Spacer(Modifier.width(8.dp))
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = vm::onSearchQueryChange,
@@ -72,13 +79,6 @@ fun HomeScreen(
                 shape = RoundedCornerShape(24.dp),
                 singleLine = true
             )
-            Spacer(Modifier.width(8.dp))
-            IconButton(onClick = { /* TODO: filter screen */ }) {
-                Icon(
-                    imageVector = Icons.Filled.Menu,
-                    contentDescription = "Filter"
-                )
-            }
         }
 
         if (isLoading) {
@@ -91,7 +91,7 @@ fun HomeScreen(
         // Categories
         Spacer(Modifier.height(12.dp))
         CategoryRow(
-            categories = SampleData.categories,
+            categories = categories,
             selectedCategory = selectedCategory,
             onCategorySelect = vm::onCategorySelect
         )
@@ -116,13 +116,11 @@ fun HomeScreen(
             )
         }
 
-        // Two-column lazy grid — renders only the visible items regardless
+        // Single-column lazy list — renders only the visible items regardless
         // of how many jobs are posted.
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
+        LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(
@@ -131,7 +129,7 @@ fun HomeScreen(
             ) { job ->
                 JobCard(
                     job = job,
-                    onClick = onJobClick
+                    onClick = { onJobClick(job) }
                 )
             }
         }

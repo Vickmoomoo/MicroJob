@@ -2,8 +2,13 @@ package com.example.microjob.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.microjob.data.JobRepository
+import com.example.microjob.data.SupabaseJobRepository
+import com.example.microjob.model.Category
 import com.example.microjob.model.Job
 import com.example.microjob.model.SampleData
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -13,12 +18,20 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.milliseconds
 
-class HomeViewModel : ViewModel() {
+class HomeViewModel(
+    private val repository: JobRepository = SupabaseJobRepository()
+) : ViewModel() {
 
-    /** All jobs loaded from the (fake) repository. */
+    /** All jobs loaded from the repository. */
     private val _jobs = MutableStateFlow<List<Job>>(emptyList())
+    val jobs: StateFlow<List<Job>> = _jobs.asStateFlow()
+
+    /** All categories loaded from the repository. */
+    private val _categories = MutableStateFlow<List<Category>>(SampleData.categories)
+    val categories: StateFlow<List<Category>> = _categories.asStateFlow()
 
     /** Text typed into the search bar. */
     private val _searchQuery = MutableStateFlow("")
@@ -28,7 +41,7 @@ class HomeViewModel : ViewModel() {
     private val _selectedCategory = MutableStateFlow<String?>(null)
     val selectedCategory: StateFlow<String?> = _selectedCategory.asStateFlow()
 
-    /** Simulated network load flag, mirrors the sample project's pattern. */
+    /** Loading flag shown as a progress bar while fetching from the backend. */
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
@@ -51,13 +64,30 @@ class HomeViewModel : ViewModel() {
             initialValue = emptyList()
         )
 
-    /** Loads the sample jobs as if fetching from a backend. */
-    fun loadSampleJobs() {
+    /**
+     * Loads jobs and categories from the repository.
+     * On any failure (wrong credentials, offline, table missing) it falls
+     * back to SampleData so the app never shows an empty screen.
+     */
+    fun loadJobs() {
         viewModelScope.launch {
             _isLoading.value = true
-            delay(1200.milliseconds)
-            _jobs.update { SampleData.jobs }
-            _isLoading.value = false
+            try {
+                // Simulated latency, mirrors the original sample pattern.
+                delay(1200.milliseconds)
+                val remoteJobs = withContext(Dispatchers.IO) { repository.getJobs() }
+                val remoteCategories = withContext(Dispatchers.IO) { repository.getCategories() }
+                _jobs.update { remoteJobs }
+                _categories.update { remoteCategories }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Fallback to fake data so the UI still has content to show.
+                _jobs.update { SampleData.jobs }
+                _categories.update { SampleData.categories }
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 
