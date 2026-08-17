@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -20,9 +21,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.example.microjob.model.Job
 import com.example.microjob.model.SampleData
 import java.time.Duration
@@ -105,19 +108,28 @@ fun JobCard(
         color = MaterialTheme.colorScheme.surface
     ) {
         Column {
-            // Placeholder image area (real photos come with the database later)
+            // Image area: first job photo when available, otherwise the
+            // placeholder color block with the category emoji.
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(180.dp)
-                    .background(Color(job.imageColor))
-                    .padding(12.dp),
+                    .background(Color(job.imageColor)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = categoryEmoji(job),
-                    style = MaterialTheme.typography.displaySmall,
-                )
+                if (job.images.isNotEmpty()) {
+                    AsyncImage(
+                        model = job.images.first(),
+                        contentDescription = job.title,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Text(
+                        text = categoryEmoji(job),
+                        style = MaterialTheme.typography.displaySmall,
+                    )
+                }
 
                 // Remote / On-site badge, top-right corner of the image.
                 Surface(
@@ -159,8 +171,9 @@ fun JobCard(
                 Spacer(Modifier.height(4.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Worker's take-home price: budget minus the 5% platform fee.
                     Text(
-                        text = "${job.currency}%.2f".format(job.price),
+                        text = "${job.currency}%.2f".format(job.price * 0.95),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary

@@ -24,4 +24,44 @@ interface JobRepository {
 
     /** Returns a single user by id, or null when it does not exist. */
     suspend fun getUser(id: Long): User?
+
+    /**
+     * Publishes a new job. The job must already carry its final values
+     * (status = "OPEN", payment_status = "ESCROWED" — escrow is simulated).
+     * Returns the created job (with its server-assigned id), or throws on failure.
+     */
+    suspend fun postJob(job: Job): Job
+
+    /**
+     * Uploads a job photo to Supabase Storage and returns its public URL.
+     * `path` should be unique per photo (e.g. "jobs/<timestamp>-<counter>.jpg").
+     */
+    suspend fun uploadJobImage(path: String, bytes: ByteArray): String
+
+    /**
+     * Registers a new user. Throws if the username is already taken.
+     * Returns the created user (with its assigned id).
+     */
+    suspend fun registerUser(
+        username: String,
+        password: String,
+        email: String,
+        securityQuestion: String,
+        securityAnswer: String
+    ): User
+
+    /**
+     * Logs in with username + password.
+     * Returns the matching user, or null when credentials are wrong.
+     */
+    suspend fun login(username: String, password: String): User?
+
+    /**
+     * Accepts a job: assigns [workerId] and moves status to IN_PROGRESS.
+     * Returns the updated job, or null when the job id does not exist.
+     */
+    suspend fun acceptJob(jobId: Int, workerId: Long): Job?
+
+    /** Deletes a job by id (used by the publish "Undo" action). */
+    suspend fun deleteJob(jobId: Int)
 }

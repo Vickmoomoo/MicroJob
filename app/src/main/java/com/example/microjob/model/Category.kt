@@ -1,6 +1,5 @@
 package com.example.microjob.model
 
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /** Job categories shown on the Home screen. */

@@ -110,14 +110,6 @@ fun HomeScreen(
         // SDG banner
         HomeBanner(modifier = Modifier.padding(horizontal = 16.dp))
 
-        // Categories
-        Spacer(Modifier.height(12.dp))
-        CategoryRow(
-            categories = categories,
-            selectedCategory = selectedCategory,
-            onCategorySelect = vm::onCategorySelect
-        )
-
         // Available Jobs + filter icon
         Row(
             modifier = Modifier

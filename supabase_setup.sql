@@ -23,6 +23,7 @@ create table jobs (
   job_type text not null default 'onsite',      -- remote（在家）/ onsite（到现场）
   description text not null,
   image_color bigint not null,
+  images text[] not null default '{}',          -- 上传图片 URL 列表（Supabase Storage）
 
   -- 平台流程字段
   poster_id bigint not null default 0,          -- 发布者 id（关联 users.id）
@@ -38,6 +39,8 @@ create table jobs (
   -- 支付托管（escrow）
   payment_method text not null default 'Cash',  -- Cash / TNG eWallet / Bank Transfer / Online Banking
   payment_status text not null default 'ESCROWED', -- ESCROWED → RELEASED / REFUNDED
+  donate boolean not null default false,        -- 发布者是否选择捐赠 MicroJob 基金（用于制作免费课程）
+  donation_amount double precision not null default 0, -- 捐赠金额（未开启为 0）
 
   -- 曝光与展示
   boost_until timestamptz,                      -- 曝光券到期（null = 无 boost）
@@ -77,6 +80,7 @@ create policy "public read categories" on categories for select using (true);
 create policy "public read jobs" on jobs for select using (true);
 create policy "public read users" on users for select using (true);
 create policy "public read reviews" on reviews for select using (true);
+create policy "public insert jobs" on jobs for insert with check (true);
 
 -- ============================================================
 -- 测试数据（可选）
@@ -85,7 +89,17 @@ insert into categories (name, emoji) values
   ('Cleaning Housework', '🧹'),
   ('Delivery Courier', '🛵'),
   ('Digital Marketing', '📱'),
-  ('Graphic Design', '🎨');
+  ('Graphic Design', '🎨'),
+  ('Gardening & Outdoor', '🌿'),
+  ('Home Repairs', '🔧'),
+  ('Moving & Heavy Lifting', '📦'),
+  ('Tutoring & Lessons', '📚'),
+  ('Event Help', '🎉'),
+  ('Cooking & Catering', '🍳'),
+  ('Photography & Video', '📸'),
+  ('Pet Care', '🐾'),
+  ('IT & Programming', '💻'),
+  ('Assembly & Furniture', '🛠️');
 
 insert into users (name, bio) values
   ('Ahmad bin Ali', 'House owner in Batu Ferringhi, looking for helpers.'),
@@ -119,4 +133,17 @@ insert into reviews (reviewed_user_id, reviewer_user_id, rating, comment, job_id
 -- drop table if exists users;
 -- drop table if exists jobs;
 -- drop table if exists categories;
+-- ============================================================
+
+-- ============================================================
+-- 图片存储（Supabase Storage）：
+-- 1. Dashboard → Storage → New bucket，名称填 "job-images"
+-- 2. 设为 Public（公开读）
+-- 3. 在 Storage → Policies 为 job-images 添加：
+--      INSERT 策略（允许匿名上传，authenticated 也可）：
+--        create policy "public upload job images"
+--          on storage.objects for insert with check (bucket_id = 'job-images');
+--      SELECT 策略（公开读）：
+--        create policy "public read job images"
+--          on storage.objects for select using (bucket_id = 'job-images');
 -- ============================================================

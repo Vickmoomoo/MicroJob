@@ -1,9 +1,10 @@
 package com.example.microjob.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.microjob.data.JobRepository
-import com.example.microjob.data.SupabaseJobRepository
+import com.example.microjob.data.LocalJobRepository
 import com.example.microjob.model.Job
 import com.example.microjob.model.SampleData
 import com.example.microjob.model.User
@@ -23,8 +24,15 @@ sealed interface JobDetailUiState {
 }
 
 class JobDetailViewModel(
-    private val repository: JobRepository = SupabaseJobRepository()
-) : ViewModel() {
+    application: Application,
+    private val repository: JobRepository = LocalJobRepository(application)
+) : AndroidViewModel(application) {
+
+    /**
+     * Constructor used by Compose's default `viewModel()` factory
+     * (AndroidViewModelFactory reflects on an (Application) constructor).
+     */
+    constructor(application: Application) : this(application, LocalJobRepository(application))
 
     private val _uiState = MutableStateFlow<JobDetailUiState>(JobDetailUiState.Loading)
     val uiState: StateFlow<JobDetailUiState> = _uiState.asStateFlow()

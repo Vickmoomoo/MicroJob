@@ -4,6 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,6 +15,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -34,12 +37,15 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.example.microjob.model.Job
 import com.example.microjob.model.SampleData
 import com.example.microjob.model.User
@@ -146,18 +152,23 @@ private fun JobDetailContent(
             .padding(innerPadding)
             .verticalScroll(rememberScrollState())
     ) {
-        // Banner image area (placeholder color, real photos come later)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(180.dp)
-                .background(Color(job.imageColor)),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = categoryEmoji(job),
-                style = MaterialTheme.typography.displayLarge,
-            )
+        // Photo area: swipeable pager when photos exist, otherwise the
+        // placeholder color block (same pattern as the home banner).
+        if (job.images.isNotEmpty()) {
+            PhotoPager(job = job)
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(180.dp)
+                    .background(Color(job.imageColor)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = categoryEmoji(job),
+                    style = MaterialTheme.typography.displayLarge,
+                )
+            }
         }
 
         Column(modifier = Modifier.padding(16.dp)) {
@@ -169,10 +180,10 @@ private fun JobDetailContent(
 
             Spacer(Modifier.height(8.dp))
 
-            // Price
+            // Price — worker's take-home amount (budget minus 5% platform fee).
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "${job.currency}%.2f".format(job.price),
+                    text = "${job.currency}%.2f".format(job.price * 0.95),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -274,6 +285,53 @@ private fun JobDetailContent(
                 )
                 Spacer(Modifier.width(8.dp))
                 Text("Contact Job Poster")
+            }
+        }
+    }
+}
+
+/**
+ * Swipeable photo pager for the job detail header — same interaction as the
+ * home banner, with indicator dots. Each image loads from its URL via Coil.
+ */
+@Composable
+private fun PhotoPager(job: Job) {
+    val pagerState = rememberPagerState(pageCount = { job.images.size })
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        HorizontalPager(state = pagerState) { page ->
+            AsyncImage(
+                model = job.images[page],
+                contentDescription = "Job photo ${page + 1}",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(180.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentScale = ContentScale.Crop
+            )
+        }
+
+        // Indicator dots
+        if (job.images.size > 1) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 6.dp),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                repeat(job.images.size) { index ->
+                    val selected = pagerState.currentPage == index
+                    Box(
+                        modifier = Modifier
+                            .padding(horizontal = 3.dp)
+                            .size(if (selected) 8.dp else 6.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (selected) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.outlineVariant
+                            )
+                    )
+                }
             }
         }
     }

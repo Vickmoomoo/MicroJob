@@ -8,6 +8,9 @@ object MicroJobRoutes {
     const val PROFILE = "profile"
     const val POST_JOB = "post_job"
 
+    /** Login / register page. */
+    const val LOGIN = "login"
+
     /** Job detail page. Route pattern: "job/{jobId}" */
     const val JOB_DETAIL = "job/{jobId}"
 

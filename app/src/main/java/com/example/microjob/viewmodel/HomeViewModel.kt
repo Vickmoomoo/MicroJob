@@ -1,9 +1,10 @@
 package com.example.microjob.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.microjob.data.JobRepository
-import com.example.microjob.data.SupabaseJobRepository
+import com.example.microjob.data.LocalJobRepository
 import com.example.microjob.model.Category
 import com.example.microjob.model.Job
 import com.example.microjob.model.SampleData
@@ -37,8 +38,20 @@ private data class FilterState(
 )
 
 class HomeViewModel(
-    private val repository: JobRepository = SupabaseJobRepository()
-) : ViewModel() {
+    application: Application,
+    private val repository: JobRepository = LocalJobRepository(application)
+) : AndroidViewModel(application) {
+
+    /**
+     * Constructor used by Compose's default `viewModel()` factory
+     * (AndroidViewModelFactory reflects on an (Application) constructor).
+     */
+    constructor(application: Application) : this(application, LocalJobRepository(application))
+
+    init {
+        // Seed SampleData into local JSON files on first launch.
+        (repository as? LocalJobRepository)?.seedIfEmpty()
+    }
 
     /** All jobs loaded from the repository. */
     private val _jobs = MutableStateFlow<List<Job>>(emptyList())
