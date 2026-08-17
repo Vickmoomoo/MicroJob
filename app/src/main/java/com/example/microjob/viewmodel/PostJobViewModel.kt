@@ -91,12 +91,12 @@ class PostJobViewModel(
     private val serviceFeeRate = 0.05
 
     /**
-     * Platform matches user donations 1:1, capped at the smaller of
-     * 2.5% of the job price (per the md plan: owner match quota) and RM 10.
-     * Example: budget RM 10 → cap RM 0.25; budget RM 1000 → cap RM 10.
+     * Platform matches user donations 1:1, capped at 2.5% of the job price
+     * (per the md plan §2.1: owner / worker each match up to 2.5%, independent,
+     * with no additional RM 10 cap). Example: budget RM 100 → cap RM 2.50.
      */
     val matchCap: Double
-        get() = minOf(priceValue * 0.025, 10.00)
+        get() = priceValue * 0.025
 
     /** Max number of photos a poster can attach. */
     val maxPhotos = 6
@@ -201,16 +201,20 @@ class PostJobViewModel(
             return
         }
 
-        val location = "${addressDetail.value.trim()}, ${area.value}, ${state.value}"
+        val location = listOf(
+            addressDetail.value.trim(),
+            area.value.orEmpty(),
+            state.value.orEmpty()
+        ).filter { it.isNotBlank() }.joinToString(", ")
 
         val job = Job(
             id = 0, // server-assigned on insert
             title = title.value.trim(),
             price = price.value.toDouble(),
-            category = category.value!!,
+            category = category.value.orEmpty(),
             location = location,
-            state = state.value!!,
-            area = area.value!!,
+            state = state.value.orEmpty(),
+            area = area.value.orEmpty(),
             jobType = jobType.value,
             description = description.value.trim(),
             imageColor = defaultImageColor,

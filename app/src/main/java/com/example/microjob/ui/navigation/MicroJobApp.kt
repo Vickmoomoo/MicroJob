@@ -42,9 +42,13 @@ import com.example.microjob.ui.screens.PlaceholderScreen
 import com.example.microjob.ui.screens.detail.JobDetailScreen
 import com.example.microjob.ui.screens.home.HomeScreen
 import com.example.microjob.ui.screens.login.LoginScreen
+import com.example.microjob.ui.screens.messages.ChatDetailScreen
+import com.example.microjob.ui.screens.messages.ChatListScreen
 import com.example.microjob.ui.screens.post.PostJobScreen
 import com.example.microjob.ui.screens.profile.ProfileScreen
 import com.example.microjob.viewmodel.AuthViewModel
+import com.example.microjob.viewmodel.ChatViewModel
+import com.example.microjob.viewmodel.HomeViewModel
 import com.example.microjob.viewmodel.PostJobViewModel
 import com.example.microjob.viewmodel.postJobViewModelFactory
 import kotlinx.coroutines.launch
@@ -55,6 +59,8 @@ fun MicroJobApp() {
     val navController = rememberNavController()
     val authVm: AuthViewModel = viewModel()
     val postJobVm: PostJobViewModel = viewModel(factory = postJobViewModelFactory())
+    val chatVm: ChatViewModel = viewModel()
+    val homeVm: HomeViewModel = viewModel()
     val currentUser by authVm.currentUser.collectAsStateWithLifecycle()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
@@ -76,13 +82,22 @@ fun MicroJobApp() {
         }
     }
 
+    // Refresh Home whenever we arrive back on it, so jobs that were accepted
+    // (OPEN → IN_PROGRESS) stop showing on the feed.
+    LaunchedEffect(currentRoute) {
+        if (currentRoute == MicroJobRoutes.HOME) {
+            homeVm.loadJobs()
+        }
+    }
+
     // Full-screen pages (job detail, post job, login) hide the bottom bar, the
     // FAB and the outer Scaffold padding — they have their own TopAppBar and
     // must not inherit the status-bar inset a second time.
     val isFullScreen =
         currentRoute == MicroJobRoutes.JOB_DETAIL ||
             currentRoute == MicroJobRoutes.POST_JOB ||
-            currentRoute == MicroJobRoutes.LOGIN
+            currentRoute == MicroJobRoutes.LOGIN ||
+            currentRoute == MicroJobRoutes.CHAT_DETAIL
     val showChrome = !isFullScreen
 
     /** Navigates to [route]; if the user is not logged in, goes to login first. */
@@ -113,7 +128,8 @@ fun MicroJobApp() {
             }
         },
         floatingActionButton = {
-            if (showChrome) {
+            // The + (post job) button only appears on the Home tab.
+            if (showChrome && currentRoute == MicroJobRoutes.HOME) {
                 FloatingActionButton(onClick = { requireLogin(MicroJobRoutes.POST_JOB) }) {
                     Icon(imageVector = Icons.Filled.Add, contentDescription = "Post Job")
                 }
@@ -129,6 +145,7 @@ fun MicroJobApp() {
         ) {
             composable(MicroJobRoutes.HOME) {
                 HomeScreen(
+                    vm = homeVm,
                     onJobClick = { job -> navController.navigate(MicroJobRoutes.jobDetail(job.id)) }
                 )
             }
@@ -136,7 +153,23 @@ fun MicroJobApp() {
                 PlaceholderScreen("Course & Certification")
             }
             composable(MicroJobRoutes.MESSAGES) {
-                PlaceholderScreen("Messages")
+                ChatListScreen(
+                    vm = chatVm,
+                    onChatClick = { otherUserId ->
+                        navController.navigate(MicroJobRoutes.chatDetail(otherUserId))
+                    }
+                )
+            }
+            composable(
+                route = MicroJobRoutes.CHAT_DETAIL,
+                arguments = listOf(navArgument("otherUserId") { type = NavType.LongType })
+            ) { entry ->
+                val otherUserId = entry.arguments?.getLong("otherUserId") ?: return@composable
+                ChatDetailScreen(
+                    otherUserId = otherUserId,
+                    onBack = { navController.popBackStack() },
+                    vm = chatVm
+                )
             }
             composable(MicroJobRoutes.PROFILE) {
                 ProfileScreen(
@@ -180,9 +213,22 @@ fun MicroJobApp() {
                 JobDetailScreen(
                     jobId = jobId,
                     onBack = { navController.popBackStack() },
-                    onContactPoster = {
-                        // Chat is not built yet; go to Messages (requires login).
-                        requireLogin(MicroJobRoutes.MESSAGES)
+                    onContactPoster = { poster ->
+                        val posterId = poster?.id
+                        val me = authVm.currentUser.value?.id
+                        if (posterId == null) {
+                            // Unknown poster — nothing to chat with.
+                            scope.launch { snackbarHostState.showSnackbar("Poster is unavailable.") }
+                        } else if (posterId == me) {
+                            // Can't contact yourself.
+                            scope.launch { snackbarHostState.showSnackbar("This is your own job.") }
+                        } else {
+                            if (currentUser == null) {
+                                navController.navigate(MicroJobRoutes.LOGIN)
+                            } else {
+                                navController.navigate(MicroJobRoutes.chatDetail(posterId))
+                            }
+                        }
                     }
                 )
             }
@@ -203,9 +249,15 @@ fun MicroJobApp() {
         // does not get pushed above the floating action button.
         SnackbarHost(
             hostState = snackbarHostState,
+            // Keep the snackbar above the bottom navigation (Home/Course/...
+            // never covering it), while still drawing on top of the FAB.
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(16.dp)
+                .padding(
+                    start = 16.dp,
+                    end = 16.dp,
+                    bottom = if (showChrome) 96.dp else 16.dp
+                )
         )
     }
 }

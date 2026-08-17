@@ -340,8 +340,7 @@ fun PostJobScreen(
             if (vm.donation > vm.matchCap) {
                 Text(
                     text = "Donation over the match limit (RM ${"%.2f".format(vm.matchCap)} = " +
-                        "2.5% of the budget, capped at RM 10) — the excess is still donated " +
-                        "but not matched.",
+                        "2.5% of the budget) — the excess is still donated but not matched.",
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall
                 )
@@ -355,50 +354,10 @@ fun PostJobScreen(
                     text = {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
-                                "What is the MicroJob Fund?",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold
+                                "Donations fund free courses for people who want to learn new skills."
                             )
                             Text(
-                                "The MicroJob Fund helps provide free courses for people who want " +
-                                "to learn new skills and find job opportunities. It is part of " +
-                                "MicroJob's mission to support SDG 1: No Poverty."
-                            )
-
-                            Text(
-                                "Where does the money come from?",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                "Every job contributes automatically to the MicroJob Fund through " +
-                                "the platform service fee.\n\n" +
-                                "Users can also choose to make an extra donation to support the fund. " +
-                                "MicroJob will match the donation 1:1, capped at RM ${"%.2f".format(vm.matchCap)} " +
-                                "(2.5% of the job budget, up to RM 10)."
-                            )
-
-                            Text(
-                                "Example",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                "If you donate RM5, MicroJob will add another RM5, giving the fund " +
-                                "RM10 in total.\n\n" +
-                                "If you donate RM20, MicroJob will match RM10, which is the maximum " +
-                                "matching amount. The fund will receive RM30 in total."
-                            )
-
-                            Text(
-                                "Full Transparency",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                "All donations and MicroJob's matching contributions will be shown " +
-                                "on the Social Impact page. You can see how much was donated, when " +
-                                "it was donated, which job it came from, and whether MicroJob matched it."
+                                "MicroJob matches your donation 1:1, capped at 2.5% of this job's price."
                             )
                         }
                     },
@@ -516,7 +475,7 @@ private fun PaymentStatusScreen(
 private fun PriceBreakdownCard(price: Double, donation: Double, matchCap: Double) {
     val serviceFee = price * 0.05            // 5% charged to the poster
     val workerReceive = price * 0.95         // worker keeps 95% of the posted price
-    val donationMatch = minOf(donation, matchCap) // platform 1:1 match, capped (2.5% or RM10)
+    val donationMatch = minOf(donation, matchCap) // platform 1:1 match, capped at 2.5%
     val total = price + serviceFee + donation
 
     Surface(

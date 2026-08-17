@@ -70,7 +70,7 @@ private fun formatDate(iso: String): String =
 fun JobDetailScreen(
     jobId: Int,
     onBack: () -> Unit,
-    onContactPoster: () -> Unit,
+    onContactPoster: (com.example.microjob.model.User?) -> Unit,
     vm: JobDetailViewModel = viewModel(),
 ) {
     val uiState by vm.uiState.collectAsStateWithLifecycle()
@@ -141,7 +141,7 @@ private fun JobDetailContent(
     job: Job,
     poster: User?,
     innerPadding: androidx.compose.foundation.layout.PaddingValues,
-    onContactPoster: () -> Unit,
+    onContactPoster: (com.example.microjob.model.User?) -> Unit,
 ) {
     val context = LocalContext.current
     val hasRequirements = job.requireGps || job.toolsRequired.isNotBlank()
@@ -150,8 +150,14 @@ private fun JobDetailContent(
         modifier = Modifier
             .fillMaxSize()
             .padding(innerPadding)
-            .verticalScroll(rememberScrollState())
     ) {
+        // Scrollable details column on top.
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+        ) {
         // Photo area: swipeable pager when photos exist, otherwise the
         // placeholder color block (same pattern as the home banner).
         if (job.images.isNotEmpty()) {
@@ -271,21 +277,23 @@ private fun JobDetailContent(
             )
 
             Spacer(Modifier.height(24.dp))
-
-            // Contact the job poster — lets a worker ask questions before accepting.
-            Button(
-                onClick = onContactPoster,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Chat,
-                    contentDescription = null
-                )
-                Spacer(Modifier.width(8.dp))
-                Text("Contact Job Poster")
             }
+        }
+
+        // Contact the job poster — pinned to the bottom, not scrolled with content.
+        Button(
+            onClick = { onContactPoster(poster) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+                .height(52.dp)
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.Chat,
+                contentDescription = null
+            )
+            Spacer(Modifier.width(8.dp))
+            Text("Contact Job Poster")
         }
     }
 }

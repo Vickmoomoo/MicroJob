@@ -11,9 +11,18 @@ object MicroJobRoutes {
     /** Login / register page. */
     const val LOGIN = "login"
 
-    /** Job detail page. Route pattern: "job/{jobId}" */
+    /** Jobs detail page. Route pattern: "job/{jobId}" */
     const val JOB_DETAIL = "job/{jobId}"
 
     /** Builds the concrete route for a given job id. */
     fun jobDetail(jobId: Int) = "job/$jobId"
+
+    /**
+     * Chat with one other user. Route pattern: "chat/{otherUserId}".
+     * The chat is scoped to a single conversation partner.
+     */
+    const val CHAT_DETAIL = "chat/{otherUserId}"
+
+    /** Builds the concrete chat route for a given other user id. */
+    fun chatDetail(otherUserId: Long) = "chat/$otherUserId"
 }

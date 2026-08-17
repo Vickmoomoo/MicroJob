@@ -115,6 +115,20 @@ class LocalJobRepository(private val context: Context) : JobRepository {
         return updated
     }
 
+    /** Marks a job as fully settled: paid out to the worker and completed. */
+    fun releasePayment(jobId: Int): Job? {
+        val jobs = readJobs().toMutableList()
+        val index = jobs.indexOfFirst { it.id == jobId }
+        if (index == -1) return null
+        val updated = jobs[index].copy(
+            status = "COMPLETED",
+            paymentStatus = "RELEASED"
+        )
+        jobs[index] = updated
+        writeList("jobs.json", jobs)
+        return updated
+    }
+
     override suspend fun deleteJob(jobId: Int) {
         val jobs = readJobs().filterNot { it.id == jobId }
         writeList("jobs.json", jobs)

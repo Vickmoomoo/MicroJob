@@ -103,9 +103,12 @@ class HomeViewModel(
             }
         ) { jobs, query, category, filter ->
             jobs.filter { job ->
-                val matchesQuery = query.isBlank() ||
+                // Only open (still available) jobs appear on the feed; accepted or
+                // settled jobs drop off once accepted / paid out.
+                val matchesQuery = job.status == "OPEN" && (
+                    query.isBlank() ||
                     job.title.contains(query, ignoreCase = true) ||
-                    job.description.contains(query, ignoreCase = true)
+                    job.description.contains(query, ignoreCase = true))
                 val matchesCategory = category == null || job.category == category
                 val matchesState = filter.state == null || job.state == filter.state
                 val matchesArea = filter.area == null || job.area == filter.area
