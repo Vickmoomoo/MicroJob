@@ -4,6 +4,12 @@ import com.example.microjob.model.Category
 import com.example.microjob.model.Job
 import com.example.microjob.model.User
 
+enum class PasswordResetResult {
+    SUCCESS,
+    INVALID_DETAILS,
+    SAME_AS_CURRENT_PASSWORD
+}
+
 /**
  * Data source for jobs, categories and users.
  *
@@ -55,6 +61,14 @@ interface JobRepository {
      * Returns the matching user, or null when credentials are wrong.
      */
     suspend fun login(username: String, password: String): User?
+
+    /** Resets a password after the account recovery details are verified. */
+    suspend fun resetPassword(
+        usernameOrEmail: String,
+        securityQuestion: String,
+        securityAnswer: String,
+        newPassword: String
+    ): PasswordResetResult
 
     /**
      * Accepts a job: assigns [workerId] and moves status to IN_PROGRESS.

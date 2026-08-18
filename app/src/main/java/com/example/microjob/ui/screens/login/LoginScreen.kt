@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -13,6 +14,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -33,8 +35,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -65,6 +69,7 @@ fun LoginScreen(
     val securityQuestion by vm.securityQuestion.collectAsStateWithLifecycle()
     val securityAnswer by vm.securityAnswer.collectAsStateWithLifecycle()
     val isRegisterMode by vm.isRegisterMode.collectAsStateWithLifecycle()
+    val isForgotPasswordMode by vm.isForgotPasswordMode.collectAsStateWithLifecycle()
 
     var showPassword by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -84,15 +89,36 @@ fun LoginScreen(
             vm.switchToLoginAfterRegister()
             snackbarHostState.showSnackbar("Account created! Please log in.")
             vm.clearUiState()
+        } else if (uiState is AuthUiState.PasswordReset) {
+            vm.switchToLoginAfterPasswordReset()
+            snackbarHostState.showSnackbar("Password reset successfully.")
+            vm.clearUiState()
         }
     }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+         snackbarHost = {
+             SnackbarHost(snackbarHostState) { data ->
+                 Snackbar(
+                     snackbarData = data,
+                     containerColor = Color.Black,
+                     contentColor = Color.White,
+                     shape = RoundedCornerShape(0.dp)
+                 )
+             }
+         },
         topBar = {
             TopAppBar(
-                title = { Text(if (isRegisterMode) "Create Account" else "Login") },
+                title = {
+                    Text(
+                        when {
+                            isForgotPasswordMode -> "Reset Password"
+                            isRegisterMode -> "Create Account"
+                            else -> "Login"
+                        }
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -106,11 +132,16 @@ fun LoginScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
+                .imePadding()
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Text(
-                text = if (isRegisterMode) "Join MicroJob" else "Welcome back",
+                text = when {
+                    isForgotPasswordMode -> "Recover your account"
+                    isRegisterMode -> "Join MicroJob"
+                    else -> "Welcome back"
+                },
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
@@ -129,7 +160,7 @@ fun LoginScreen(
             OutlinedTextField(
                 value = username,
                 onValueChange = { vm.username.value = it },
-                label = { Text("Username") },
+                label = { Text(if (isForgotPasswordMode) "Username or email" else "Username") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
@@ -137,7 +168,7 @@ fun LoginScreen(
             OutlinedTextField(
                 value = password,
                 onValueChange = { vm.password.value = it },
-                label = { Text("Password") },
+                label = { Text(if (isForgotPasswordMode) "New password" else "Password") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 visualTransformation = if (showPassword) VisualTransformation.None
@@ -150,11 +181,11 @@ fun LoginScreen(
                 }
             )
 
-            if (isRegisterMode) {
+            if (isRegisterMode || isForgotPasswordMode) {
                 OutlinedTextField(
                     value = confirmPassword,
                     onValueChange = { vm.confirmPassword.value = it },
-                    label = { Text("Re-enter password") },
+                    label = { Text("Confirm new password") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     visualTransformation = if (showPassword) VisualTransformation.None
@@ -162,7 +193,10 @@ fun LoginScreen(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
                 )
 
-                // Security question dropdown (reloaded every time the screen opens).
+            }
+
+            if (isRegisterMode || isForgotPasswordMode) {
+                // The same question list is used during registration and recovery.
                 SecurityQuestionDropdown(
                     options = vm.securityQuestions,
                     current = securityQuestion,
@@ -170,7 +204,11 @@ fun LoginScreen(
                 )
 
                 Text(
-                    text = "This question will be used to reset your password if you forget it.",
+                    text = if (isForgotPasswordMode) {
+                        "Choose the question you selected when you registered."
+                    } else {
+                        "This question will be used to reset your password if you forget it."
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -178,7 +216,7 @@ fun LoginScreen(
                 OutlinedTextField(
                     value = securityAnswer,
                     onValueChange = { vm.securityAnswer.value = it },
-                    label = { Text("Answer (for password reset)") },
+                    label = { Text("Security answer") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -204,20 +242,44 @@ fun LoginScreen(
                 Text(
                     when {
                         uiState is AuthUiState.Submitting -> "Please wait..."
+                        isForgotPasswordMode -> "Reset Password"
                         isRegisterMode -> "Create Account"
                         else -> "Login"
                     }
                 )
             }
 
-            TextButton(
-                onClick = { vm.toggleMode() },
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            ) {
-                Text(
-                    if (isRegisterMode) "Already have an account? Login"
-                    else "New here? Create an account"
-                )
+            if (isForgotPasswordMode) {
+                TextButton(
+                    onClick = { vm.cancelForgotPassword() },
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                ) {
+                    Text("Back to login")
+                }
+            } else {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(0.dp)
+                ) {
+                    TextButton(
+                        onClick = { vm.toggleMode() },
+                        modifier = Modifier.height(40.dp)
+                    ) {
+                        Text(
+                            if (isRegisterMode) "Already have an account? Login"
+                            else "New here? Create an account"
+                        )
+                    }
+                    if (!isRegisterMode) {
+                        TextButton(
+                            onClick = { vm.startForgotPassword() },
+                            modifier = Modifier.height(40.dp)
+                        ) {
+                            Text("Forgot password?")
+                        }
+                    }
+                }
             }
         }
     }

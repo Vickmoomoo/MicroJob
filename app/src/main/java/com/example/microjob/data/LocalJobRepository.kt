@@ -7,6 +7,7 @@ import com.example.microjob.model.Job
 import com.example.microjob.model.Review
 import com.example.microjob.model.SampleData
 import com.example.microjob.model.User
+import com.example.microjob.data.PasswordResetResult
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -102,11 +103,39 @@ class LocalJobRepository(private val context: Context) : JobRepository {
             it.username.equals(username, ignoreCase = true) && it.password == password
         }
 
+    override suspend fun resetPassword(
+        usernameOrEmail: String,
+        securityQuestion: String,
+        securityAnswer: String,
+        newPassword: String
+    ): PasswordResetResult {
+        val users = readUsers().toMutableList()
+        val index = users.indexOfFirst {
+            (it.username.equals(usernameOrEmail.trim(), ignoreCase = true) ||
+                it.email.equals(usernameOrEmail.trim(), ignoreCase = true)) &&
+                it.securityQuestion == securityQuestion &&
+                it.securityAnswer.equals(securityAnswer.trim(), ignoreCase = true)
+        }
+        if (index == -1) return PasswordResetResult.INVALID_DETAILS
+
+        if (users[index].password == newPassword) {
+            return PasswordResetResult.SAME_AS_CURRENT_PASSWORD
+        }
+
+        users[index] = users[index].copy(password = newPassword)
+        writeUsers(users)
+        return PasswordResetResult.SUCCESS
+    }
+
     override suspend fun acceptJob(jobId: Int, workerId: Long): Job? {
         val jobs = readJobs().toMutableList()
         val index = jobs.indexOfFirst { it.id == jobId }
         if (index == -1) return null
-        val updated = jobs[index].copy(
+        val current = jobs[index]
+        // Only an OPEN (not yet accepted / settled) job can be accepted — this
+        // stops a second worker from claiming a job already taken by someone.
+        if (current.status != "OPEN") return null
+        val updated = current.copy(
             workerId = workerId,
             status = "IN_PROGRESS"
         )

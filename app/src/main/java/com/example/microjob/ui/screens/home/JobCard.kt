@@ -63,7 +63,7 @@ private fun timeAgo(iso: String): String {
 @Composable
 private fun JobInfoChips(job: Job) {
     val items = buildList {
-        add("💳 ${job.paymentMethod}")
+        // Payment method is intentionally not shown on the home feed.
         if (job.language.isNotBlank()) add("🗣️ ${job.language}")
         if (job.requireGps) add("🛰️ GPS")
         if (job.toolsRequired.isNotBlank()) add("🧰 ${job.toolsRequired}")

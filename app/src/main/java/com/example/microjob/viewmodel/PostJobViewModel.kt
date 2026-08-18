@@ -34,6 +34,24 @@ sealed interface PostJobUiState {
     data class Error(val message: String) : PostJobUiState
 }
 
+/** Snapshot of the form, kept so "Undo" can restore it after publishing. */
+data class PostFormSnapshot(
+    val title: String,
+    val description: String,
+    val price: String,
+    val category: String?,
+    val state: String?,
+    val area: String?,
+    val jobType: String,
+    val paymentMethod: String,
+    val bank: String,
+    val requireGps: Boolean,
+    val toolsRequired: String,
+    val donationAmount: String,
+    val addressDetail: String,
+    val photoUris: List<android.net.Uri>,
+)
+
 /** Creates a PostJobViewModel backed by the local repository (avoids reflection). */
 fun postJobViewModelFactory(): ViewModelProvider.Factory = viewModelFactory {
     initializer {
@@ -248,6 +266,8 @@ class PostJobViewModel(
                 // 3. Publish the job with the photo paths attached.
                 val finalJob = job.copy(images = imageUrls)
                 val created = withContext(Dispatchers.IO) { repository.postJob(finalJob) }
+                // Keep the submitted form so "Undo" can bring it back for editing.
+                saveForm()
                 _uiState.value = PostJobUiState.Success(created.id)
             } catch (e: CancellationException) {
                 throw e
@@ -272,13 +292,55 @@ class PostJobViewModel(
         return result
     }
 
+    /** Snapshot saved right before publishing, so "Undo" can restore the form. */
+    private var savedForm: PostFormSnapshot? = null
+
+    /** Copies the current form into [savedForm] just before the job is published. */
+    private fun saveForm() {
+        savedForm = PostFormSnapshot(
+            title = title.value,
+            description = description.value,
+            price = price.value,
+            category = category.value,
+            state = state.value,
+            area = area.value,
+            jobType = jobType.value,
+            paymentMethod = paymentMethod.value,
+            bank = bank.value,
+            requireGps = requireGps.value,
+            toolsRequired = toolsRequired.value,
+            donationAmount = donationAmount.value,
+            addressDetail = addressDetail.value,
+            photoUris = _photoUris.value
+        )
+    }
+
+    /** Restores the last-saved form so the user can keep editing after Undo. */
+    private fun restoreForm() {
+        val f = savedForm ?: return
+        title.value = f.title
+        description.value = f.description
+        price.value = f.price
+        category.value = f.category
+        state.value = f.state
+        area.value = f.area
+        jobType.value = f.jobType
+        paymentMethod.value = f.paymentMethod
+        bank.value = f.bank
+        requireGps.value = f.requireGps
+        toolsRequired.value = f.toolsRequired
+        donationAmount.value = f.donationAmount
+        addressDetail.value = f.addressDetail
+        _photoUris.value = f.photoUris
+    }
+
     /** Removes a just-published job (the "Undo" action on the snackbar). */
     fun undoPublish(jobId: Int) {
         viewModelScope.launch {
             try {
                 withContext(Dispatchers.IO) { repository.deleteJob(jobId) }
-                // Reset the form state so the screen shows the editable form
-                // (not the success page) when the user comes back to it.
+                // Restore the form so the user can keep editing what they typed.
+                restoreForm()
                 _uiState.value = PostJobUiState.Idle
             } catch (e: CancellationException) {
                 throw e
@@ -288,9 +350,24 @@ class PostJobViewModel(
         }
     }
 
-    /** Clears the success state and the form after the job has been published
-     *  and the user has left the screen (prevents re-triggering onPublished). */
+    /** Clears the success state and every form field after the job is
+     *  published and the user has left the screen, so the next time + is
+     *  pressed the form starts fresh (unless Undo restores it). */
     fun resetForm() {
         _uiState.value = PostJobUiState.Idle
+        title.value = ""
+        description.value = ""
+        price.value = ""
+        category.value = null
+        state.value = null
+        area.value = null
+        jobType.value = "onsite"
+        paymentMethod.value = "TNG eWallet"
+        bank.value = ""
+        requireGps.value = false
+        toolsRequired.value = ""
+        donationAmount.value = ""
+        addressDetail.value = ""
+        _photoUris.value = emptyList()
     }
 }

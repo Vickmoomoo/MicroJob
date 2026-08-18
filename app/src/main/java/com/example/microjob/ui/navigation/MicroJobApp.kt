@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -46,6 +47,7 @@ import com.example.microjob.ui.screens.messages.ChatDetailScreen
 import com.example.microjob.ui.screens.messages.ChatListScreen
 import com.example.microjob.ui.screens.post.PostJobScreen
 import com.example.microjob.ui.screens.profile.ProfileScreen
+import com.example.microjob.ui.screens.translation.VoiceTranslationScreen
 import com.example.microjob.viewmodel.AuthViewModel
 import com.example.microjob.viewmodel.ChatViewModel
 import com.example.microjob.viewmodel.HomeViewModel
@@ -96,6 +98,7 @@ fun MicroJobApp() {
     val isFullScreen =
         currentRoute == MicroJobRoutes.JOB_DETAIL ||
             currentRoute == MicroJobRoutes.POST_JOB ||
+            currentRoute == MicroJobRoutes.VOICE_TRANSLATION ||
             currentRoute == MicroJobRoutes.LOGIN ||
             currentRoute == MicroJobRoutes.CHAT_DETAIL
     val showChrome = !isFullScreen
@@ -117,8 +120,8 @@ fun MicroJobApp() {
                 MicroJobBottomBar(
                     currentRoute = currentRoute,
                     onNavigate = { route ->
-                        // Profile needs a login; other tabs navigate normally.
-                        if (route == MicroJobRoutes.PROFILE) {
+                        // Profile and Messages need a login; other tabs navigate normally.
+                        if (route == MicroJobRoutes.PROFILE || route == MicroJobRoutes.MESSAGES) {
                             requireLogin(route)
                         } else {
                             navController.navigateToTab(route)
@@ -128,10 +131,15 @@ fun MicroJobApp() {
             }
         },
         floatingActionButton = {
-            // The + (post job) button only appears on the Home tab.
             if (showChrome && currentRoute == MicroJobRoutes.HOME) {
                 FloatingActionButton(onClick = { requireLogin(MicroJobRoutes.POST_JOB) }) {
                     Icon(imageVector = Icons.Filled.Add, contentDescription = "Post Job")
+                }
+            } else if (showChrome && currentRoute == MicroJobRoutes.MESSAGES) {
+                FloatingActionButton(
+                    onClick = { navController.navigate(MicroJobRoutes.VOICE_TRANSLATION) }
+                ) {
+                    Icon(imageVector = Icons.Filled.Translate, contentDescription = "Voice translation")
                 }
             }
         },
@@ -239,6 +247,11 @@ fun MicroJobApp() {
                     // Navigation back to Home is handled by the welcome snackbar
                     // LaunchedEffect above (it also pops the back stack).
                     onLoggedIn = {}
+                )
+            }
+            composable(MicroJobRoutes.VOICE_TRANSLATION) {
+                VoiceTranslationScreen(
+                    onBack = { navController.popBackStack() }
                 )
             }
         }

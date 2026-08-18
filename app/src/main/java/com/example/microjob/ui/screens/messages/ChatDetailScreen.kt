@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -32,7 +33,10 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -102,6 +106,15 @@ fun ChatDetailScreen(
         }
     }
     val jobCache by vm.jobCache.collectAsState()
+    // Re-fetch any card job that isn't loaded yet, so invite/payment cards never
+    // stay stuck on "Loading..." (e.g. right after an accept updates the cache).
+    LaunchedEffect(messages, jobCache) {
+        val need = messages
+            .mapNotNull { it.jobId.takeIf { job -> job > 0 } }
+            .toSet()
+        val missing = need - jobCache.keys
+        if (missing.isNotEmpty()) vm.ensureJobsLoaded(missing)
+    }
 
     var text by remember { mutableStateOf("") }
     var menuOpen by remember { mutableStateOf(false) }
@@ -136,7 +149,12 @@ fun ChatDetailScreen(
             )
         }
     ) { innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .imePadding()
+        ) {
             LazyColumn(
                 state = listState,
                 modifier = Modifier.weight(1f),
@@ -146,7 +164,7 @@ fun ChatDetailScreen(
                 items(messages) { message ->
                     val isAlreadyAccepted =
                         message.jobId in acceptedJobIds ||
-                            (jobCache[message.jobId]?.status == "IN_PROGRESS")
+                            (jobCache[message.jobId]?.status != null && jobCache[message.jobId]?.status != "OPEN")
                     MessageBubble(
                         message = message,
                         isMine = message.senderId == myId,
@@ -240,8 +258,9 @@ fun ChatDetailScreen(
     // ---- Job picker (choose which job to send as invite / payment card) ----
     if (showJobPicker) {
         JobPickerDialog(
-            // Release Payment only for jobs a worker has already accepted.
-            jobs = if (pickerKind == JobPickerKind.INVITE) myJobs
+            // Job Invite: only OPEN jobs (accepted/settled ones are hidden).
+            // Release Payment: only jobs a worker has already accepted.
+            jobs = if (pickerKind == JobPickerKind.INVITE) myJobs.filter { it.status == "OPEN" }
                     else myJobs.filter { it.status == "IN_PROGRESS" },
             emptyMessage = if (pickerKind == JobPickerKind.INVITE)
                     "You have no posted jobs."
@@ -297,14 +316,16 @@ fun ChatDetailScreen(
     confirmAcceptJob?.let { job ->
         AlertDialog(
             onDismissRequest = { confirmAcceptJob = null },
-            title = { Text("Accept this job?") },
+            title = { Text("Confirm Accept") },
             text = {
                 Column {
-                    Text("You're about to accept \"${job.title}\".")
+                    Text("Are you sure you want to accept \"${job.title}\"?")
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        "You'll receive RM%.2f once the poster releases payment."
-                            .format(job.price * 0.95),
+                        buildString {
+                            append("You'll receive RM%.2f once the poster releases payment. ")
+                            append("This job can only be accepted by one worker.")
+                        }.format(job.price * 0.95),
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
@@ -398,6 +419,17 @@ private fun MessageBubble(
         "PAYMENT_CARD" -> Box(modifier = Modifier.fillMaxWidth(), contentAlignment = alignment) {
             PaymentCardBubble(job = job, isMine = isMine, onOpenPayment = onOpenPayment)
         }
+        "SYSTEM" -> Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = message.text,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 4.dp)
+            )
+        }
         else -> Box(modifier = Modifier.fillMaxWidth(), contentAlignment = alignment) {
             Text(
                 text = message.text,
@@ -408,6 +440,30 @@ private fun MessageBubble(
                 style = MaterialTheme.typography.bodyMedium
             )
         }
+    }
+
+    // Permanent status line under invite / payment cards so both sides can see
+    // the outcome (accepted / released) at a glance.
+    when (message.type) {
+        "JOB_INVITE" -> if (alreadyAccepted) {
+            CardStatusLine("This job invite has been accepted.")
+        }
+        "PAYMENT_CARD" -> if (job?.paymentStatus == "RELEASED") {
+            CardStatusLine("This release payment has been paid out.")
+        }
+    }
+}
+
+/** A permanent small status caption shown under invite / payment cards. */
+@Composable
+private fun CardStatusLine(text: String) {
+    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(vertical = 4.dp)
+        )
     }
 }
 
@@ -427,15 +483,22 @@ private fun JobInviteCard(
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .padding(14.dp)
     ) {
-        Text("📌 Job Invite", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-        Spacer(Modifier.height(6.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("📌 Job Invite", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+        }
+        Spacer(Modifier.height(8.dp))
         if (job != null) {
-            Text(job.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-            Text("RM%.2f".format(job.price), style = MaterialTheme.typography.bodySmall)
+            Text(job.title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(2.dp))
+            Text(
+                "You'll receive RM%.2f (after 5%% fee)".format(job.price * 0.95),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         } else {
             Text("Loading...", style = MaterialTheme.typography.bodySmall)
         }
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(12.dp))
         when {
             alreadyAccepted -> Text(
                 "✓ Accepted",
@@ -469,10 +532,16 @@ private fun PaymentCardBubble(job: Job?, isMine: Boolean, onOpenPayment: () -> U
             .clickable(enabled = !isMine, onClick = onOpenPayment)
             .padding(14.dp)
     ) {
-        Text("💳 Release Payment", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-        Spacer(Modifier.height(6.dp))
+        Text("💳 Release Payment", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.height(8.dp))
         if (job != null) {
-            Text(job.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+            Text(job.title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(2.dp))
+            Text(
+                "RM%.2f will be released (after 5%% fee)".format(job.price * 0.95),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
         Spacer(Modifier.height(6.dp))
         Text(
@@ -482,7 +551,8 @@ private fun PaymentCardBubble(job: Job?, isMine: Boolean, onOpenPayment: () -> U
     }
 }
 
-/** Dialog to pick one of the user's posted jobs for a card. */
+/** Dialog to pick one of the user's posted jobs via a dropdown + OK/Cancel. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun JobPickerDialog(
     jobs: List<Job>,
@@ -491,32 +561,69 @@ private fun JobPickerDialog(
     onPick: (Job) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    var selectedJob by remember { mutableStateOf<Job?>(null) }
+    var expanded by remember { mutableStateOf(false) }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
-            if (jobs.isEmpty()) {
-                Text(emptyMessage)
-            } else {
-                Column {
-                    jobs.forEach { job ->
-                        Row(
+            Column {
+                if (jobs.isEmpty()) {
+                    Text(emptyMessage)
+                } else {
+                    ExposedDropdownMenuBox(
+                        expanded = expanded,
+                        onExpandedChange = { expanded = it }
+                    ) {
+                        OutlinedTextField(
+                            value = selectedJob?.title ?: "",
+                            onValueChange = {},
+                            readOnly = true,
+                            trailingIcon = {
+                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                            },
+                            label = { Text(if (selectedJob == null) "Select a job (none)" else "Selected job") },
+                            placeholder = { Text("Select a job (none)") },
+                            singleLine = true,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { onPick(job) }
-                                .padding(vertical = 10.dp)
+                                .menuAnchor()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false }
                         ) {
-                            Text(job.title, modifier = Modifier.weight(1f))
-                            Text("RM%.2f".format(job.price))
+                            jobs.forEach { job ->
+                                DropdownMenuItem(
+                                    text = { Text(job.title) },
+                                    trailingIcon = { Text("RM%.2f".format(job.price * 0.95)) },
+                                    onClick = {
+                                        selectedJob = job
+                                        expanded = false
+                                    }
+                                )
+                            }
                         }
-                        HorizontalDivider()
                     }
+                    Text(
+                        "Price shown is before platform fee.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         },
-        confirmButton = {},
+        confirmButton = {
+            Button(
+                onClick = { selectedJob?.let(onPick) },
+                enabled = selectedJob != null
+            ) {
+                Text("OK")
+            }
+        },
         dismissButton = {
-            Button(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text("Cancel") }
         }
     )
 }
@@ -617,7 +724,12 @@ private fun SettlePaymentDialog(
         OutlinedTextField(
             value = donationInput,
             onValueChange = {
-                if (it.matches(Regex("^\\d*\\.?\\d{0,2}")) ) donationInput = it
+                // Donation can't exceed what the worker actually takes home,
+                // or their payment would go negative.
+                if (it.matches(Regex("^\\d*\\.?\\d{0,2}")) ) {
+                    val typed = it.toDoubleOrNull() ?: 0.0
+                    if (typed <= grossPay) donationInput = it
+                }
             },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Donation amount (RM)") },

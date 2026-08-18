@@ -7,6 +7,7 @@ object MicroJobRoutes {
     const val MESSAGES = "messages"
     const val PROFILE = "profile"
     const val POST_JOB = "post_job"
+    const val VOICE_TRANSLATION = "voice_translation"
 
     /** Login / register page. */
     const val LOGIN = "login"

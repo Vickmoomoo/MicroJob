@@ -224,10 +224,18 @@ class ChatViewModel(
             try {
                 val updated = withContext(Dispatchers.IO) { repository.acceptJob(jobId, me) }
                 if (updated != null) {
-                    // Drop the stale cache entry so the invite card re-reads the
-                    // new IN_PROGRESS status (Accept button disappears on return).
-                    _jobCache.value = _jobCache.value - jobId
+                    // Put the fresh IN_PROGRESS job into the cache so invite cards
+                    // immediately drop the Accept button and show "accepted".
+                    _jobCache.value = _jobCache.value + (jobId to updated)
                     onAccepted()
+                } else {
+                    // Another worker already claimed it — refresh the cached job so
+                    // the card reflects that (switching to the "accepted" state).
+                    val fresh = withContext(Dispatchers.IO) { repository.getJob(jobId) }
+                    if (fresh != null) {
+                        _jobCache.value = _jobCache.value + (jobId to fresh)
+                        _error.value = "This job has already been accepted."
+                    }
                 }
             } catch (e: Exception) {
                 _error.value = "Could not accept the job."

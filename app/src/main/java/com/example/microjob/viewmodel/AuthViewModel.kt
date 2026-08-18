@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.microjob.data.JobRepository
 import com.example.microjob.data.LocalJobRepository
+import com.example.microjob.data.PasswordResetResult
 import com.example.microjob.data.SessionManager
 import com.example.microjob.model.SampleData
 import com.example.microjob.model.User
@@ -23,6 +24,8 @@ sealed interface AuthUiState {
     data class Error(val message: String) : AuthUiState
     /** Registration finished successfully (switch back to login mode). */
     data object Registered : AuthUiState
+    /** Password reset finished successfully (switch back to login mode). */
+    data object PasswordReset : AuthUiState
 }
 
 class AuthViewModel(
@@ -41,6 +44,7 @@ class AuthViewModel(
     val securityQuestion = MutableStateFlow("")
     val securityAnswer = MutableStateFlow("")
     val isRegisterMode = MutableStateFlow(false)
+    val isForgotPasswordMode = MutableStateFlow(false)
 
     private val _uiState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
@@ -78,8 +82,13 @@ class AuthViewModel(
     fun submit() {
         val error = when {
             username.value.isBlank() -> "Please enter a username."
-            username.value.contains(" ") -> "Username cannot contain spaces."
+            !isForgotPasswordMode.value && username.value.contains(" ") -> "Username cannot contain spaces."
             password.value.isBlank() -> "Please enter a password."
+            isForgotPasswordMode.value && confirmPassword.value != password.value -> "Passwords do not match."
+            isForgotPasswordMode.value && securityQuestion.value.isBlank() ->
+                "Please choose a security question."
+            isForgotPasswordMode.value && securityAnswer.value.isBlank() ->
+                "Please answer the security question."
             !isRegisterMode.value -> null
             confirmPassword.value != password.value -> "Passwords do not match."
             !isValidEmail(email.value) -> "Please enter a valid email address."
@@ -95,7 +104,31 @@ class AuthViewModel(
         viewModelScope.launch {
             _uiState.value = AuthUiState.Submitting
             try {
-                if (isRegisterMode.value) {
+                if (isForgotPasswordMode.value) {
+                    val reset = withContext(Dispatchers.IO) {
+                        repository.resetPassword(
+                            usernameOrEmail = username.value,
+                            securityQuestion = securityQuestion.value,
+                            securityAnswer = securityAnswer.value,
+                            newPassword = password.value
+                        )
+                    }
+                    when (reset) {
+                        PasswordResetResult.SUCCESS -> {
+                            _uiState.value = AuthUiState.PasswordReset
+                        }
+                        PasswordResetResult.INVALID_DETAILS -> {
+                            throw IllegalArgumentException(
+                                "The account details or security answer are incorrect."
+                            )
+                        }
+                        PasswordResetResult.SAME_AS_CURRENT_PASSWORD -> {
+                            throw IllegalArgumentException(
+                                "New password cannot be the same as your current password."
+                            )
+                        }
+                    }
+                } else if (isRegisterMode.value) {
                     // Register, then switch back to login mode with feedback.
                     withContext(Dispatchers.IO) {
                         repository.registerUser(
@@ -139,6 +172,39 @@ class AuthViewModel(
         password.value = ""
     }
 
+    /** Returns to the login form after the password reset confirmation. */
+    fun switchToLoginAfterPasswordReset() {
+        isForgotPasswordMode.value = false
+        username.value = ""
+        password.value = ""
+        confirmPassword.value = ""
+        securityQuestion.value = ""
+        securityAnswer.value = ""
+    }
+
+    /** Opens the password recovery form. */
+    fun startForgotPassword() {
+        isForgotPasswordMode.value = true
+        isRegisterMode.value = false
+        username.value = ""
+        password.value = ""
+        confirmPassword.value = ""
+        securityQuestion.value = ""
+        securityAnswer.value = ""
+        _uiState.value = AuthUiState.Idle
+    }
+
+    /** Leaves password recovery without changing the account. */
+    fun cancelForgotPassword() {
+        isForgotPasswordMode.value = false
+        username.value = ""
+        password.value = ""
+        confirmPassword.value = ""
+        securityQuestion.value = ""
+        securityAnswer.value = ""
+        _uiState.value = AuthUiState.Idle
+    }
+
     /** Clears any pending auth state (called after the registered snackbar). */
     fun clearUiState() {
         _uiState.value = AuthUiState.Idle
@@ -150,6 +216,7 @@ class AuthViewModel(
      */
     fun toggleMode() {
         isRegisterMode.value = !isRegisterMode.value
+        isForgotPasswordMode.value = false
         username.value = ""
         password.value = ""
         confirmPassword.value = ""
@@ -171,6 +238,7 @@ class AuthViewModel(
         securityQuestion.value = ""
         securityAnswer.value = ""
         isRegisterMode.value = false
+        isForgotPasswordMode.value = false
         _uiState.value = AuthUiState.Idle
     }
 
