@@ -1,7 +1,9 @@
 package com.example.microjob.ui.screens.translation
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
@@ -9,7 +11,6 @@ import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,7 +26,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -37,7 +37,6 @@ import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,7 +45,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -58,10 +56,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -69,6 +65,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.microjob.model.TranslationLanguage
 import com.example.microjob.viewmodel.TranslationUiState
 import com.example.microjob.viewmodel.TranslationViewModel
+import org.json.JSONArray
+import org.json.JSONObject
 import java.util.Locale
 
 private enum class TranslationMode {
@@ -80,6 +78,57 @@ private val OriginalBlue = Color(0xFFE3F2FD)
 private val OriginalBlueText = Color(0xFF0D47A1)
 private val TranslatedGreen = Color(0xFFE8F5E9)
 private val TranslatedGreenText = Color(0xFF1B5E20)
+
+private const val PREFS_NAME = "voice_translation_prefs"
+private const val KEY_SOURCE_LANG = "source_lang"
+private const val KEY_TARGET_LANG = "target_lang"
+private const val KEY_HISTORY = "history_json"
+
+private fun savePrefs(
+    context: Context,
+    source: TranslationLanguage,
+    target: TranslationLanguage,
+    history: List<TranslationRecord>,
+) {
+    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    val historyArray = JSONArray()
+    history.forEach { record ->
+        historyArray.put(
+            JSONObject()
+                .put("original", record.original)
+                .put("translated", record.translated)
+        )
+    }
+    prefs.edit()
+        .putString(KEY_SOURCE_LANG, source.name)
+        .putString(KEY_TARGET_LANG, target.name)
+        .putString(KEY_HISTORY, historyArray.toString())
+        .apply()
+}
+
+private fun loadSourceLang(context: Context): TranslationLanguage {
+    val name = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        .getString(KEY_SOURCE_LANG, TranslationLanguage.ENGLISH.name)
+    return try { TranslationLanguage.valueOf(name!!) } catch (_: Exception) { TranslationLanguage.ENGLISH }
+}
+
+private fun loadTargetLang(context: Context): TranslationLanguage {
+    val name = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        .getString(KEY_TARGET_LANG, TranslationLanguage.MALAY.name)
+    return try { TranslationLanguage.valueOf(name!!) } catch (_: Exception) { TranslationLanguage.MALAY }
+}
+
+private fun loadHistory(context: Context): List<TranslationRecord> {
+    val json = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        .getString(KEY_HISTORY, "[]") ?: "[]"
+    val array = JSONArray(json)
+    val result = mutableListOf<TranslationRecord>()
+    for (i in 0 until array.length()) {
+        val obj = array.getJSONObject(i)
+        result.add(TranslationRecord(obj.getString("original"), obj.getString("translated")))
+    }
+    return result
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -95,7 +144,14 @@ fun VoiceTranslationScreen(
     var textInput by remember { mutableStateOf("") }
     var ttsReady by remember { mutableStateOf(false) }
     var ttsWarning by remember { mutableStateOf<String?>(null) }
-    var history by remember { mutableStateOf<List<TranslationRecord>>(emptyList()) }
+    var history by remember { mutableStateOf(loadHistory(context)) }
+    var isListening by remember { mutableStateOf(false) }
+
+    // Restore saved languages on first load
+    LaunchedEffect(Unit) {
+        vm.setSourceLanguage(loadSourceLang(context))
+        vm.setTargetLanguage(loadTargetLang(context))
+    }
 
     val textToSpeech = remember(context) {
         TextToSpeech(context) { status ->
@@ -118,6 +174,11 @@ fun VoiceTranslationScreen(
         }
     }
 
+    // Save prefs whenever language or history changes
+    LaunchedEffect(sourceLanguage, targetLanguage, history) {
+        savePrefs(context, sourceLanguage, targetLanguage, history)
+    }
+
     LaunchedEffect(uiState) {
         val success = uiState as? TranslationUiState.Success ?: return@LaunchedEffect
         if (history.none { it.original == success.original && it.translated == success.translated }) {
@@ -125,9 +186,9 @@ fun VoiceTranslationScreen(
         }
     }
 
-    LaunchedEffect(uiState, ttsReady, targetLanguage, mode) {
+    LaunchedEffect(uiState, ttsReady, targetLanguage) {
         val success = uiState as? TranslationUiState.Success ?: return@LaunchedEffect
-        if (!ttsReady || mode != TranslationMode.VOICE) return@LaunchedEffect
+        if (!ttsReady) return@LaunchedEffect
 
         val result = textToSpeech.setLanguage(Locale.forLanguageTag(targetLanguage.localeTag))
         if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
@@ -149,7 +210,14 @@ fun VoiceTranslationScreen(
         if (!granted) vm.showError("Microphone permission is required for voice mode.")
     }
 
-    fun startListening() {
+    fun toggleListening() {
+        if (isListening) {
+            // Stop listening
+            speechRecognizer?.stopListening()
+            isListening = false
+            return
+        }
+
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) !=
             PackageManager.PERMISSION_GRANTED
         ) {
@@ -168,16 +236,31 @@ fun VoiceTranslationScreen(
             override fun onBeginningOfSpeech() = Unit
             override fun onRmsChanged(rmsdB: Float) = Unit
             override fun onBufferReceived(buffer: ByteArray?) = Unit
-            override fun onEndOfSpeech() = Unit
             override fun onPartialResults(partialResults: android.os.Bundle?) = Unit
             override fun onEvent(eventType: Int, params: android.os.Bundle?) = Unit
+
+            override fun onEndOfSpeech() {
+                // Don't auto-stop — let the user control when to stop.
+                // If the user hasn't manually stopped, keep listening.
+                if (!isListening) {
+                    // User already clicked stop, so this is expected.
+                    // onResults will fire next.
+                }
+                // If isListening is still true, the speech engine stopped on its own
+                // (silence detected). We still wait for onResults.
+            }
+
             override fun onError(error: Int) {
+                isListening = false
+                if (error == SpeechRecognizer.ERROR_NO_MATCH) {
+                    // No speech detected — don't show error, just reset silently.
+                    return
+                }
                 vm.showError(
                     when (error) {
                         SpeechRecognizer.ERROR_NETWORK,
                         SpeechRecognizer.ERROR_NETWORK_TIMEOUT ->
                             "Speech recognition needs an Internet connection."
-                        SpeechRecognizer.ERROR_NO_MATCH -> "No speech was detected. Try again."
                         SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS ->
                             "Microphone permission is required."
                         else -> "Could not recognize speech. Try again."
@@ -186,10 +269,13 @@ fun VoiceTranslationScreen(
             }
 
             override fun onResults(results: android.os.Bundle?) {
+                isListening = false
                 val text = results
                     ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                     ?.firstOrNull()
-                vm.translate(text.orEmpty())
+                if (!text.isNullOrBlank()) {
+                    vm.translate(text)
+                }
             }
         })
 
@@ -199,7 +285,9 @@ fun VoiceTranslationScreen(
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, sourceLanguage.localeTag)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, sourceLanguage.localeTag)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
         }
+        isListening = true
         vm.beginListening()
         recognizer.startListening(intent)
     }
@@ -226,7 +314,7 @@ fun VoiceTranslationScreen(
             val listState = androidx.compose.foundation.lazy.rememberLazyListState()
             LaunchedEffect(history.size) {
                 if (history.isNotEmpty()) {
-                    listState.animateScrollToItem(history.size - 1)
+                    listState.animateScrollToItem(history.size * 2 - 1)
                 }
             }
             LazyColumn(
@@ -252,7 +340,8 @@ fun VoiceTranslationScreen(
                     Spacer(Modifier.height(8.dp))
                 }
 
-                items(history) { record ->
+                items(history.size) { index ->
+                    val record = history[index]
                     MessageBubble(
                         label = "Original",
                         text = record.original,
@@ -328,9 +417,10 @@ fun VoiceTranslationScreen(
                 )
             } else {
                 VoiceModeBar(
-                    uiState = uiState,
+                    isListening = isListening,
+                    isTranslating = uiState is TranslationUiState.Translating,
                     onSwitchMode = { mode = TranslationMode.TEXT },
-                    onRecord = ::startListening
+                    onToggle = ::toggleListening
                 )
             }
         }
@@ -401,13 +491,11 @@ private fun TextModeBar(
 
 @Composable
 private fun VoiceModeBar(
-    uiState: TranslationUiState,
+    isListening: Boolean,
+    isTranslating: Boolean,
     onSwitchMode: () -> Unit,
-    onRecord: () -> Unit,
+    onToggle: () -> Unit,
 ) {
-    val isListening = uiState is TranslationUiState.Listening
-    val isTranslating = uiState is TranslationUiState.Translating
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -431,17 +519,13 @@ private fun VoiceModeBar(
         Surface(
             modifier = Modifier
                 .weight(1f)
-                .height(44.dp)
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onPress = { onRecord() }
-                    )
-                },
+                .height(44.dp),
             shape = RoundedCornerShape(22.dp),
             color = if (isListening) MaterialTheme.colorScheme.primary
             else MaterialTheme.colorScheme.surfaceVariant,
             contentColor = if (isListening) MaterialTheme.colorScheme.onPrimary
-            else MaterialTheme.colorScheme.onSurfaceVariant
+            else MaterialTheme.colorScheme.onSurfaceVariant,
+            onClick = onToggle
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Row(
@@ -547,7 +631,7 @@ private fun LanguageDropdown(
                     )
                 }
                 Icon(
-                    Icons.Filled.Keyboard,
+                    imageVector = if (expanded) Icons.Filled.Keyboard else Icons.Filled.Keyboard,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
