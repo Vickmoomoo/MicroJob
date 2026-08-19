@@ -9,7 +9,9 @@ import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,11 +20,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -34,6 +38,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +46,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -52,8 +58,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -87,6 +95,7 @@ fun VoiceTranslationScreen(
     var textInput by remember { mutableStateOf("") }
     var ttsReady by remember { mutableStateOf(false) }
     var ttsWarning by remember { mutableStateOf<String?>(null) }
+    var history by remember { mutableStateOf<List<TranslationRecord>>(emptyList()) }
 
     val textToSpeech = remember(context) {
         TextToSpeech(context) { status ->
@@ -106,6 +115,13 @@ fun VoiceTranslationScreen(
             textToSpeech.stop()
             textToSpeech.shutdown()
             speechRecognizer?.destroy()
+        }
+    }
+
+    LaunchedEffect(uiState) {
+        val success = uiState as? TranslationUiState.Success ?: return@LaunchedEffect
+        if (history.none { it.original == success.original && it.translated == success.translated }) {
+            history = history + TranslationRecord(success.original, success.translated)
         }
     }
 
@@ -204,23 +220,76 @@ fun VoiceTranslationScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
                 .imePadding()
-                .padding(horizontal = 18.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = "Speak across languages",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = "Choose two languages, then speak or type your message.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            // ---- Scrollable messages area ----
+            val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+            LaunchedEffect(history.size) {
+                if (history.isNotEmpty()) {
+                    listState.animateScrollToItem(history.size - 1)
+                }
+            }
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 14.dp)
+            ) {
+                item {
+                    Text(
+                        text = "Speak across languages",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = "Choose two languages, then speak or type your message.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(8.dp))
+                }
 
+                items(history) { record ->
+                    MessageBubble(
+                        label = "Original",
+                        text = record.original,
+                        background = OriginalBlue,
+                        contentColor = OriginalBlueText,
+                        alignment = Alignment.End
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    MessageBubble(
+                        label = "Translated",
+                        text = record.translated,
+                        background = TranslatedGreen,
+                        contentColor = TranslatedGreenText,
+                        alignment = Alignment.Start
+                    )
+                }
+
+                if (uiState is TranslationUiState.Error) {
+                    item {
+                        Text(
+                            text = (uiState as TranslationUiState.Error).message,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+                if (ttsWarning != null) {
+                    item {
+                        Text(ttsWarning!!, color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            }
+
+            // ---- Language selector row ----
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -241,124 +310,171 @@ fun VoiceTranslationScreen(
                 )
             }
 
-            TranslationMessages(uiState)
+            HorizontalDivider()
 
-            Spacer(Modifier.height(8.dp))
-
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant
-            ) {
-                Column(
-                    modifier = Modifier.padding(10.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        ModeIconButton(
-                            selected = mode == TranslationMode.TEXT,
-                            contentDescription = "Text mode",
-                            onClick = { mode = TranslationMode.TEXT }
-                        ) {
-                            Icon(Icons.Filled.Keyboard, contentDescription = null)
+            // ---- Bottom input bar (WeChat style) ----
+            if (mode == TranslationMode.TEXT) {
+                TextModeBar(
+                    text = textInput,
+                    onTextChange = { textInput = it },
+                    onSend = {
+                        if (textInput.isNotBlank()) {
+                            vm.translate(textInput)
+                            textInput = ""
                         }
-                        ModeIconButton(
-                            selected = mode == TranslationMode.VOICE,
-                            contentDescription = "Voice mode",
-                            onClick = { mode = TranslationMode.VOICE }
-                        ) {
-                            Icon(Icons.Filled.Mic, contentDescription = null)
-                        }
-                    }
-
-                    if (mode == TranslationMode.TEXT) {
-                        Row(verticalAlignment = Alignment.Bottom) {
-                            OutlinedTextField(
-                                value = textInput,
-                                onValueChange = { textInput = it },
-                                modifier = Modifier.weight(1f),
-                                placeholder = { Text("Type a message...") },
-                                maxLines = 4
-                            )
-                            ModeIconButton(
-                                selected = false,
-                                contentDescription = "Translate typed message",
-                                enabled = textInput.isNotBlank() &&
-                                    uiState !is TranslationUiState.Translating,
-                                onClick = { vm.translate(textInput) }
-                            ) {
-                                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null)
-                            }
-                        }
-                    } else {
-                        ModeIconButton(
-                            selected = uiState is TranslationUiState.Listening,
-                            contentDescription = "Speak now",
-                            enabled = uiState !is TranslationUiState.Translating,
-                            onClick = ::startListening,
-                            large = true
-                        ) {
-                            Icon(
-                                imageVector = if (uiState is TranslationUiState.Listening) {
-                                    Icons.Filled.Stop
-                                } else {
-                                    Icons.Filled.Mic
-                                },
-                                contentDescription = null
-                            )
-                        }
-                        Text(
-                            text = when (uiState) {
-                                TranslationUiState.Listening -> "Listening..."
-                                TranslationUiState.Translating -> "Translating..."
-                                else -> "Tap the microphone to speak"
-                            },
-                            modifier = Modifier.align(Alignment.CenterHorizontally),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-
-            if (uiState is TranslationUiState.Error) {
-                Text(
-                    text = (uiState as TranslationUiState.Error).message,
-                    color = MaterialTheme.colorScheme.error
+                    },
+                    onSwitchMode = { mode = TranslationMode.VOICE },
+                    isTranslating = uiState is TranslationUiState.Translating
                 )
-            }
-            ttsWarning?.let { warning ->
-                Text(warning, color = MaterialTheme.colorScheme.error)
+            } else {
+                VoiceModeBar(
+                    uiState = uiState,
+                    onSwitchMode = { mode = TranslationMode.TEXT },
+                    onRecord = ::startListening
+                )
             }
         }
     }
 }
 
+// ---------- WeChat style input bars ----------
+
 @Composable
-private fun TranslationMessages(uiState: TranslationUiState) {
-    val success = uiState as? TranslationUiState.Success ?: return
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+private fun TextModeBar(
+    text: String,
+    onTextChange: (String) -> Unit,
+    onSend: () -> Unit,
+    onSwitchMode: () -> Unit,
+    isTranslating: Boolean,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.Bottom,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        MessageBubble(
-            label = "Original",
-            text = success.original,
-            background = OriginalBlue,
-            contentColor = OriginalBlueText,
-            alignment = Alignment.End
+        // Switch mode button (circle, shows mic to switch to voice)
+        IconButton(
+            onClick = onSwitchMode,
+            modifier = Modifier
+                .size(44.dp)
+                .align(Alignment.Bottom)
+        ) {
+            Icon(
+                Icons.Filled.Mic,
+                contentDescription = "Switch to voice",
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
+
+        // Text field (rounded rectangle, fills space)
+        OutlinedTextField(
+            value = text,
+            onValueChange = onTextChange,
+            modifier = Modifier.weight(1f),
+            placeholder = { Text("Type a message...") },
+            shape = RoundedCornerShape(22.dp),
+            maxLines = 4
         )
-        MessageBubble(
-            label = "Translated",
-            text = success.translated,
-            background = TranslatedGreen,
-            contentColor = TranslatedGreenText,
-            alignment = Alignment.Start
-        )
+
+        // Send button (circle)
+        IconButton(
+            onClick = onSend,
+            enabled = text.isNotBlank() && !isTranslating,
+            modifier = Modifier
+                .size(44.dp)
+                .align(Alignment.Bottom)
+        ) {
+            Icon(
+                Icons.AutoMirrored.Filled.Send,
+                contentDescription = "Send",
+                tint = if (text.isNotBlank() && !isTranslating) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                }
+            )
+        }
     }
 }
+
+@Composable
+private fun VoiceModeBar(
+    uiState: TranslationUiState,
+    onSwitchMode: () -> Unit,
+    onRecord: () -> Unit,
+) {
+    val isListening = uiState is TranslationUiState.Listening
+    val isTranslating = uiState is TranslationUiState.Translating
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // Switch mode button (circle, shows keyboard to switch to text)
+        IconButton(
+            onClick = onSwitchMode,
+            modifier = Modifier.size(44.dp)
+        ) {
+            Icon(
+                Icons.Filled.Keyboard,
+                contentDescription = "Switch to text",
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
+
+        // Press and speak button (rounded rectangle, fills remaining space)
+        Surface(
+            modifier = Modifier
+                .weight(1f)
+                .height(44.dp)
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onPress = { onRecord() }
+                    )
+                },
+            shape = RoundedCornerShape(22.dp),
+            color = if (isListening) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.surfaceVariant,
+            contentColor = if (isListening) MaterialTheme.colorScheme.onPrimary
+            else MaterialTheme.colorScheme.onSurfaceVariant
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = if (isListening) Icons.Filled.Stop else Icons.Filled.Mic,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = when {
+                            isListening -> "Listening..."
+                            isTranslating -> "Translating..."
+                            else -> "Press and speak"
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ---------- Messages ----------
+
+private data class TranslationRecord(
+    val original: String,
+    val translated: String,
+)
 
 @Composable
 private fun MessageBubble(
@@ -389,6 +505,8 @@ private fun MessageBubble(
     }
 }
 
+// ---------- Language dropdown ----------
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LanguageDropdown(
@@ -404,16 +522,38 @@ private fun LanguageDropdown(
         onExpandedChange = { expanded = it },
         modifier = modifier
     ) {
-        OutlinedTextField(
-            value = current.label,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(label) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+        Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .menuAnchor()
-        )
+                .height(44.dp)
+                .menuAnchor(),
+            shape = RoundedCornerShape(10.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = current.label,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+                Icon(
+                    Icons.Filled.Keyboard,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
         ExposedDropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false }
@@ -427,33 +567,6 @@ private fun LanguageDropdown(
                     }
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun ModeIconButton(
-    selected: Boolean,
-    contentDescription: String,
-    onClick: () -> Unit,
-    enabled: Boolean = true,
-    large: Boolean = false,
-    content: @Composable () -> Unit,
-) {
-    Surface(
-        modifier = Modifier,
-        shape = CircleShape,
-        color = if (selected) MaterialTheme.colorScheme.primary
-        else MaterialTheme.colorScheme.surface,
-        contentColor = if (selected) MaterialTheme.colorScheme.onPrimary
-        else MaterialTheme.colorScheme.primary
-    ) {
-        IconButton(
-            onClick = onClick,
-            enabled = enabled,
-            modifier = if (large) Modifier.padding(6.dp) else Modifier
-        ) {
-            content()
         }
     }
 }
