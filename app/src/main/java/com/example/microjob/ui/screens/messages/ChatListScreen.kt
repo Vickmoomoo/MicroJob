@@ -16,7 +16,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -55,7 +54,11 @@ fun ChatListScreen(
         vm.refreshUnreadCount()
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
         // Messages tab header, like the Profile page's title bar. The outer
         // Scaffold already supplies the status-bar inset, so clear our own
         // window insets to avoid a doubled gap above the title.
@@ -126,26 +129,19 @@ private fun ConversationRow(
                     modifier = Modifier.weight(1f)
                 )
                 if (unread > 0) {
-                    BadgedBox(
-                        badge = {
-                            Badge {
-                                Text("$unread")
-                            }
-                        }
+                    Badge(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
                     ) {
-                        Text(
-                            text = formatTime(conversation.lastMessageAt),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Text("$unread", style = MaterialTheme.typography.labelSmall)
                     }
-                } else {
-                    Text(
-                        text = formatTime(conversation.lastMessageAt),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Spacer(Modifier.width(6.dp))
                 }
+                Text(
+                    text = formatTime(conversation.lastMessageAt),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
             Text(
                 text = conversation.lastMessagePreview,

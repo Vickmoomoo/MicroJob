@@ -31,6 +31,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -75,7 +76,7 @@ fun SettingsScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
-            title = { Text("Settings") },
+                windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),title = { Text("Settings") },
             navigationIcon = {
                 IconButton(onClick = {
                     // Save any pending changes before going back

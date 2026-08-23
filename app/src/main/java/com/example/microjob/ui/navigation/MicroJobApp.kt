@@ -32,6 +32,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
@@ -182,19 +185,26 @@ fun MicroJobApp() {
         NavHost(
             navController = navController,
             startDestination = MicroJobRoutes.HOME,
-            // Full-screen pages must not inherit the outer Scaffold's padding.
-            modifier = if (showChrome) Modifier.padding(innerPadding) else Modifier
+            // Keep top inset stable across tab ↔ full-screen to avoid the
+            // "everything moving up when innerPadding disappears" jump.
+            // Only the bottom inset depends on showChrome (bottom bar).
+            modifier = Modifier
+                .padding(top = innerPadding.calculateTopPadding())
+                .padding(bottom = if (showChrome) innerPadding.calculateBottomPadding() else 0.dp)
         ) {
-            composable(MicroJobRoutes.HOME) {
+            composable(
+                route = MicroJobRoutes.HOME) {
                 HomeScreen(
                     vm = homeVm,
                     onJobClick = { job -> navController.navigate(MicroJobRoutes.jobDetail(job.id)) }
                 )
             }
-            composable(MicroJobRoutes.COURSE) {
+            composable(
+                route = MicroJobRoutes.COURSE) {
                 PlaceholderScreen("Course & Certification")
             }
-            composable(MicroJobRoutes.MESSAGES) {
+            composable(
+                route = MicroJobRoutes.MESSAGES) {
                 ChatListScreen(
                     vm = chatVm,
                     onChatClick = { otherUserId ->
@@ -202,7 +212,8 @@ fun MicroJobApp() {
                     }
                 )
             }
-            composable(MicroJobRoutes.PROFILE) {
+            composable(
+                route = MicroJobRoutes.PROFILE) {
                 val myId = currentUser?.id ?: return@composable
                 // Reload profile every time we land on it (picks up new reviews, etc.)
                 LaunchedEffect(currentRoute) {
@@ -229,6 +240,10 @@ fun MicroJobApp() {
                 )
             }
             composable(
+                enterTransition = { fadeIn(animationSpec = tween(120)) },
+                exitTransition = { fadeOut(animationSpec = tween(120)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(120)) },
+                popExitTransition = { fadeOut(animationSpec = tween(120)) },
                 route = MicroJobRoutes.CHAT_DETAIL,
                 arguments = listOf(navArgument("otherUserId") { type = NavType.LongType })
             ) { entry ->
@@ -264,6 +279,10 @@ fun MicroJobApp() {
                 )
             }
             composable(
+                enterTransition = { fadeIn(animationSpec = tween(120)) },
+                exitTransition = { fadeOut(animationSpec = tween(120)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(120)) },
+                popExitTransition = { fadeOut(animationSpec = tween(120)) },
                 route = MicroJobRoutes.USER_PROFILE,
                 arguments = listOf(navArgument("userId") { type = NavType.LongType })
             ) { entry ->
@@ -293,13 +312,22 @@ fun MicroJobApp() {
                     }
                 )
             }
-            composable(MicroJobRoutes.SETTINGS) {
+            composable(
+                enterTransition = { fadeIn(animationSpec = tween(120)) },
+                exitTransition = { fadeOut(animationSpec = tween(120)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(120)) },
+                popExitTransition = { fadeOut(animationSpec = tween(120)) },
+                route = MicroJobRoutes.SETTINGS) {
                 SettingsScreen(
                     vm = profileVm,
                     onBack = { navController.popBackStack() }
                 )
             }
             composable(
+                enterTransition = { fadeIn(animationSpec = tween(120)) },
+                exitTransition = { fadeOut(animationSpec = tween(120)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(120)) },
+                popExitTransition = { fadeOut(animationSpec = tween(120)) },
                 route = MicroJobRoutes.REVIEW_FORM,
                 arguments = listOf(
                     navArgument("reviewedUserId") { type = NavType.LongType },
@@ -327,6 +355,10 @@ fun MicroJobApp() {
                 )
             }
             composable(
+                enterTransition = { fadeIn(animationSpec = tween(120)) },
+                exitTransition = { fadeOut(animationSpec = tween(120)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(120)) },
+                popExitTransition = { fadeOut(animationSpec = tween(120)) },
                 route = MicroJobRoutes.REVIEW_FORM_EDIT,
                 arguments = listOf(
                     navArgument("reviewedUserId") { type = NavType.LongType },
@@ -353,6 +385,10 @@ fun MicroJobApp() {
                 )
             }
             composable(
+                enterTransition = { fadeIn(animationSpec = tween(120)) },
+                exitTransition = { fadeOut(animationSpec = tween(120)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(120)) },
+                popExitTransition = { fadeOut(animationSpec = tween(120)) },
                 route = MicroJobRoutes.REVIEWS_LIST,
                 arguments = listOf(navArgument("userId") { type = NavType.LongType })
             ) { entry ->
@@ -372,6 +408,10 @@ fun MicroJobApp() {
                 )
             }
             composable(
+                enterTransition = { fadeIn(animationSpec = tween(120)) },
+                exitTransition = { fadeOut(animationSpec = tween(120)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(120)) },
+                popExitTransition = { fadeOut(animationSpec = tween(120)) },
                 route = MicroJobRoutes.POSTED_JOBS,
                 arguments = listOf(navArgument("userId") { type = NavType.LongType })
             ) { entry ->
@@ -387,6 +427,10 @@ fun MicroJobApp() {
                 )
             }
             composable(
+                enterTransition = { fadeIn(animationSpec = tween(120)) },
+                exitTransition = { fadeOut(animationSpec = tween(120)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(120)) },
+                popExitTransition = { fadeOut(animationSpec = tween(120)) },
                 route = MicroJobRoutes.ACCEPTED_JOBS,
                 arguments = listOf(navArgument("userId") { type = NavType.LongType })
             ) { entry ->
@@ -401,7 +445,12 @@ fun MicroJobApp() {
                     onJobClick = { jobId -> navController.navigate(MicroJobRoutes.jobDetail(jobId)) }
                 )
             }
-            composable(MicroJobRoutes.POST_JOB) {
+            composable(
+                enterTransition = { fadeIn(animationSpec = tween(120)) },
+                exitTransition = { fadeOut(animationSpec = tween(120)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(120)) },
+                popExitTransition = { fadeOut(animationSpec = tween(120)) },
+                route = MicroJobRoutes.POST_JOB) {
                 PostJobScreen(
                     vm = postJobVm,
                     onBack = { navController.popBackStack() },
@@ -426,6 +475,10 @@ fun MicroJobApp() {
                 )
             }
             composable(
+                enterTransition = { fadeIn(animationSpec = tween(120)) },
+                exitTransition = { fadeOut(animationSpec = tween(120)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(120)) },
+                popExitTransition = { fadeOut(animationSpec = tween(120)) },
                 route = MicroJobRoutes.JOB_DETAIL,
                 arguments = listOf(navArgument("jobId") { type = NavType.IntType })
             ) { entry ->
@@ -455,7 +508,12 @@ fun MicroJobApp() {
                     }
                 )
             }
-            composable(MicroJobRoutes.LOGIN) {
+            composable(
+                enterTransition = { fadeIn(animationSpec = tween(120)) },
+                exitTransition = { fadeOut(animationSpec = tween(120)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(120)) },
+                popExitTransition = { fadeOut(animationSpec = tween(120)) },
+                route = MicroJobRoutes.LOGIN) {
                 LoginScreen(
                     vm = authVm,
                     onBack = { navController.popBackStack() },
@@ -464,7 +522,12 @@ fun MicroJobApp() {
                     onLoggedIn = {}
                 )
             }
-            composable(MicroJobRoutes.VOICE_TRANSLATION) {
+            composable(
+                enterTransition = { fadeIn(animationSpec = tween(120)) },
+                exitTransition = { fadeOut(animationSpec = tween(120)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(120)) },
+                popExitTransition = { fadeOut(animationSpec = tween(120)) },
+                route = MicroJobRoutes.VOICE_TRANSLATION) {
                 VoiceTranslationScreen(
                     onBack = { navController.popBackStack() }
                 )

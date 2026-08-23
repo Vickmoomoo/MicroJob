@@ -199,6 +199,31 @@ class LocalJobRepository(private val context: Context) : JobRepository {
         }
     }
 
+    override suspend fun upsertReview(review: Review): Review {
+        val reviews = readList<Review>("reviews.json", emptyList()).toMutableList()
+        val idx = reviews.indexOfFirst {
+            it.reviewerUserId == review.reviewerUserId &&
+                it.reviewedUserId == review.reviewedUserId &&
+                it.jobId == review.jobId
+        }
+        return if (idx != -1) {
+            val updated = reviews[idx].copy(
+                rating = review.rating,
+                comment = review.comment,
+                createdAt = java.time.OffsetDateTime.now().toString()
+            )
+            reviews[idx] = updated
+            writeList("reviews.json", reviews)
+            updated
+        } else {
+            val nextId = (reviews.maxOfOrNull { it.id } ?: 0) + 1
+            val created = review.copy(id = nextId)
+            reviews.add(created)
+            writeList("reviews.json", reviews)
+            created
+        }
+    }
+
     override suspend fun postJob(job: Job): Job {
         val jobs = getJobs().toMutableList()
         val nextId = (jobs.maxOfOrNull { it.id } ?: 0) + 1

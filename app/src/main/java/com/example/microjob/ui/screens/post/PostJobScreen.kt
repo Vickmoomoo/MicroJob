@@ -48,6 +48,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -133,7 +134,7 @@ fun PostJobScreen(
             // No top bar during the payment flow — the user cannot pause/back out.
             if (!inPaymentFlow) {
                 TopAppBar(
-                    title = { Text("Job Posting") },
+                windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),title = { Text("Job Posting") },
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")

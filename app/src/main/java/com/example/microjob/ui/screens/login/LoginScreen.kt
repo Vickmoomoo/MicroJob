@@ -1,5 +1,6 @@
 package com.example.microjob.ui.screens.login
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -28,6 +29,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -74,6 +76,15 @@ fun LoginScreen(
     var showPassword by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
+    // System back gesture: leave forgot-password / register mode first,
+    // only leave the screen entirely from the plain login form.
+    BackHandler(enabled = isForgotPasswordMode || isRegisterMode) {
+        when {
+            isForgotPasswordMode -> vm.cancelForgotPassword()
+            isRegisterMode -> vm.toggleMode()
+        }
+    }
+
     // Navigate back once logged in.
     LaunchedEffect(currentUser) {
         if (currentUser != null) {
@@ -110,7 +121,7 @@ fun LoginScreen(
          },
         topBar = {
             TopAppBar(
-                title = {
+                windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),title = {
                     Text(
                         when {
                             isForgotPasswordMode -> "Reset Password"
@@ -120,7 +131,13 @@ fun LoginScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = {
+                        when {
+                            isForgotPasswordMode -> vm.cancelForgotPassword()
+                            isRegisterMode -> vm.toggleMode()
+                            else -> onBack()
+                        }
+                    }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }

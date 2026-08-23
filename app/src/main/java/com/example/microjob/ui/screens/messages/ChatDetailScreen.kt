@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -28,6 +29,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -153,7 +156,8 @@ fun ChatDetailScreen(
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
-                }
+                },
+                windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)
             )
         }
     ) { innerPadding ->
@@ -279,13 +283,14 @@ fun ChatDetailScreen(
                     "You have no posted jobs."
                 else "No accepted jobs yet. Send a job invite and wait for a worker to accept first.",
             title = if (pickerKind == JobPickerKind.INVITE) "Send Job Invite" else "Release Payment",
-            onPick = { job ->
+            showReviewFields = pickerKind == JobPickerKind.PAYMENT,
+            onPick = { job, rating, comment ->
                 showJobPicker = false
                 val cid = convId ?: vm.activeConversation.value?.id ?: return@JobPickerDialog
                 if (pickerKind == JobPickerKind.INVITE) {
                     vm.sendJobInvite(cid, otherUserId, job.id)
                 } else {
-                    vm.sendPaymentCard(cid, otherUserId, job.id)
+                    vm.sendPaymentCard(cid, otherUserId, job.id, rating, comment)
                 }
             },
             onDismiss = { showJobPicker = false }
@@ -298,16 +303,9 @@ fun ChatDetailScreen(
         SettlePaymentDialog(
             job = job,
             currentUserId = myId,
-            onClaim = { jobId ->
-                vm.releaseJobPayment(jobId) {
+            onClaim = { jobId, rating, comment ->
+                vm.releaseJobPayment(jobId, rating, comment) {
                     showSettleDialog = false
-                    // Send review prompts to both poster and worker via system chat
-                    val job = vm.cardJob.value
-                    if (job != null) {
-                        val posterId = job.posterId
-                        val workerId = job.workerId ?: vm.myId()
-                        vm.sendReviewPrompts(posterId, workerId, jobId)
-                    }
                 }
             },
             onDismiss = { showSettleDialog = false }
@@ -425,6 +423,7 @@ private fun MessageBubble(
                     contentDescription = "Photo",
                     modifier = Modifier
                         .widthIn(max = 240.dp)
+                        .heightIn(max = 320.dp)
                         .clip(RoundedCornerShape(16.dp))
                         .clickable(onClick = { onImageClick(path) }),
                     contentScale = ContentScale.Crop
@@ -622,24 +621,30 @@ private fun PaymentCardBubble(job: Job?, isMine: Boolean, onOpenPayment: () -> U
     }
 }
 
-/** Dialog to pick one of the user's posted jobs via a dropdown + OK/Cancel. */
+/** Dialog to pick one of the user's posted jobs via a dropdown + OK/Cancel.
+ *  When [showReviewFields] is true (Release Payment), also collects a star rating + comment
+ *  for the worker. The card itself never shows this review.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun JobPickerDialog(
     jobs: List<Job>,
     title: String,
     emptyMessage: String,
-    onPick: (Job) -> Unit,
+    showReviewFields: Boolean = false,
+    onPick: (Job, Float, String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var selectedJob by remember { mutableStateOf<Job?>(null) }
     var expanded by remember { mutableStateOf(false) }
+    var rating by remember { mutableStateOf(5f) }
+    var comment by remember { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (jobs.isEmpty()) {
                     Text(emptyMessage)
                 } else {
@@ -682,15 +687,34 @@ private fun JobPickerDialog(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+
+                    if (showReviewFields) {
+                        HorizontalDivider()
+                        Text(
+                            "Rate the worker (hidden on the card)",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        RatingStars(rating = rating, onRatingChange = { rating = it })
+                        OutlinedTextField(
+                            value = comment,
+                            onValueChange = { comment = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Review for worker (optional)") },
+                            placeholder = { Text("Great work!") },
+                            minLines = 2,
+                            maxLines = 4
+                        )
+                    }
                 }
             }
         },
         confirmButton = {
             Button(
-                onClick = { selectedJob?.let(onPick) },
+                onClick = { selectedJob?.let { onPick(it, if (showReviewFields) rating else 0f, if (showReviewFields) comment else "") } },
                 enabled = selectedJob != null
             ) {
-                Text("OK")
+                Text("Send")
             }
         },
         dismissButton = {
@@ -699,23 +723,48 @@ private fun JobPickerDialog(
     )
 }
 
+@Composable
+private fun RatingStars(
+    rating: Float,
+    onRatingChange: (Float) -> Unit,
+    maxStars: Int = 5
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        for (i in 1..maxStars) {
+            val filled = i <= rating
+            IconButton(onClick = { onRatingChange(i.toFloat()) }, modifier = Modifier.width(36.dp)) {
+                Icon(
+                    imageVector = if (filled) Icons.Filled.Star else Icons.Filled.StarBorder,
+                    contentDescription = "$i star",
+                    tint = if (filled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        Spacer(Modifier.width(8.dp))
+        Text("$rating / $maxStars", style = MaterialTheme.typography.labelMedium)
+    }
+}
+
 /** Full settlement page shown from a release-payment card.
  *
  *  Lets the worker confirm receiving payment for an accepted job, and
  *  optionally donate part of it to the MicroJob Fund (worker-side match:
  *  1:1, capped at 2.5% of the job price — md plan §2.1).
+ *  Also collects a star rating + review for the owner (worker → owner).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SettlePaymentDialog(
     job: Job?,
     currentUserId: Long,
-    onClaim: (Int) -> Unit,
+    onClaim: (Int, Float, String) -> Unit,
     workerMatchRate: Double = 0.025,
     onDismiss: () -> Unit,
 ) {
     var donationInput by remember { mutableStateOf("") }
     var showDonationInfo by remember { mutableStateOf(false) }
+    var workerRating by remember { mutableStateOf(5f) }
+    var workerComment by remember { mutableStateOf("") }
 
     if (job == null) {
         AlertDialog(
@@ -818,6 +867,22 @@ private fun SettlePaymentDialog(
         )
         HorizontalDivider()
         Text(
+            "Rate the owner",
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold
+        )
+        RatingStars(rating = workerRating, onRatingChange = { workerRating = it })
+        OutlinedTextField(
+            value = workerComment,
+            onValueChange = { workerComment = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Review for owner (optional)") },
+            placeholder = { Text("Great poster!") },
+            minLines = 2,
+            maxLines = 4
+        )
+        HorizontalDivider()
+        Text(
             "You'll receive RM%.2f".format(netPay),
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Bold
@@ -825,7 +890,7 @@ private fun SettlePaymentDialog(
 
         // Confirm / receive
         Button(
-            onClick = { onClaim(job.id) },
+            onClick = { onClaim(job.id, workerRating, workerComment) },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Confirm & Receive RM%.2f".format(netPay))
@@ -852,11 +917,11 @@ private fun SettlePaymentDialog(
     }
 }
 
-/** Formats an ISO-8601 timestamp as a short date, e.g. "12 Aug". */
+/** Formats an ISO-8601 timestamp as a short date, e.g. "12 Aug". Always English. */
 private fun formatSettleDate(iso: String): String =
     try {
         val dt = java.time.OffsetDateTime.parse(iso)
-        java.time.format.DateTimeFormatter.ofPattern("d MMM").format(dt)
+        java.time.format.DateTimeFormatter.ofPattern("d MMM", java.util.Locale.ENGLISH).format(dt)
     } catch (e: Exception) {
         ""
     }

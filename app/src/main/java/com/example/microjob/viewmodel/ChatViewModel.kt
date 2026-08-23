@@ -115,7 +115,7 @@ class ChatViewModel(
         val me = session.currentUserId ?: return
         viewModelScope.launch {
             _conversations.value = withContext(Dispatchers.IO) {
-                repository.getConversations(me)
+                repository.getConversations(me).filterNot { 0L in it.participantIds }
             }
             // Re-resolve participant users (a new account may have joined since
             // the initial load), so every row shows a real name, not "Chat".
@@ -174,9 +174,25 @@ class ChatViewModel(
         send(Message(jobId = jobId, type = "JOB_INVITE", text = "Job invite"), conversationId, recipientId)
     }
 
-    /** Sends a release-payment card. */
-    fun sendPaymentCard(conversationId: String, recipientId: Long, jobId: Int) {
-        send(Message(jobId = jobId, type = "PAYMENT_CARD", text = "Release payment"), conversationId, recipientId)
+    /** Sends a release-payment card. Optionally carries an owner → worker review (hidden on the card). */
+    fun sendPaymentCard(
+        conversationId: String,
+        recipientId: Long,
+        jobId: Int,
+        reviewRating: Float = 0f,
+        reviewComment: String = ""
+    ) {
+        send(
+            Message(
+                jobId = jobId,
+                type = "PAYMENT_CARD",
+                text = "Release payment",
+                reviewRating = reviewRating,
+                reviewComment = reviewComment
+            ),
+            conversationId,
+            recipientId
+        )
     }
 
     private fun send(message: Message, conversationId: String, recipientId: Long) {
@@ -194,7 +210,7 @@ class ChatViewModel(
                     )
                 }
                 _messages.value = _messages.value + stored
-                _conversations.value = withContext(Dispatchers.IO) { repository.getConversations(me) }
+                _conversations.value = withContext(Dispatchers.IO) { repository.getConversations(me).filterNot { 0L in it.participantIds } }
             } catch (e: Exception) {
                 _error.value = "Failed to send the message."
             }
@@ -250,66 +266,80 @@ class ChatViewModel(
         }
     }
 
-    /** Marks a job's payment as released (worker claims it); can't be claimed again. */
-    fun releaseJobPayment(jobId: Int, onReleased: () -> Unit) {
+    /** Marks a job's payment as released (worker claims it); can't be claimed again.
+     *  Also persists the two-sided reviews: worker → owner (from the settle sheet) and
+     *  owner → worker (the newest PAYMENT_CARD's attached review wins, no matter which card was tapped).
+     */
+    fun releaseJobPayment(
+        jobId: Int,
+        workerRating: Float = 0f,
+        workerComment: String = "",
+        onReleased: () -> Unit
+    ) {
         viewModelScope.launch {
             try {
                 val updated = withContext(Dispatchers.IO) { repository.releasePayment(jobId) }
                 if (updated != null) {
                     _jobCache.value = _jobCache.value - jobId
+
+                    // Persist reviews (best-effort, never block the payment itself).
+                    try {
+                        val me = session.currentUserId
+                        if (me != null) {
+                            val localJobRepo = com.example.microjob.data.LocalJobRepository(getApplication())
+
+                            // 1) Worker → owner review from the settle sheet.
+                            if (workerRating > 0f || workerComment.isNotBlank()) {
+                                val posterId = updated.posterId
+                                if (posterId != 0L && posterId != me) {
+                                    localJobRepo.upsertReview(
+                                        com.example.microjob.model.Review(
+                                            id = 0,
+                                            reviewedUserId = posterId,
+                                            reviewerUserId = me,
+                                            rating = if (workerRating > 0f) workerRating else 5f,
+                                            comment = workerComment.trim(),
+                                            jobId = jobId.toLong(),
+                                            createdAt = OffsetDateTime.now().toString()
+                                        )
+                                    )
+                                }
+                            }
+
+                            // 2) Owner → worker review: newest PAYMENT_CARD for this job wins.
+                            val convId = _activeConversation.value?.id
+                            if (convId != null) {
+                                val msgs = withContext(Dispatchers.IO) { repository.getMessages(convId) }
+                                val latestCard = msgs
+                                    .filter { it.type == "PAYMENT_CARD" && it.jobId == jobId && it.reviewRating > 0f }
+                                    .maxByOrNull { it.createdAt }
+                                if (latestCard != null) {
+                                    val ownerId = latestCard.senderId
+                                    if (ownerId != 0L && ownerId != me) {
+                                        localJobRepo.upsertReview(
+                                            com.example.microjob.model.Review(
+                                                id = 0,
+                                                reviewedUserId = me,
+                                                reviewerUserId = ownerId,
+                                                rating = latestCard.reviewRating,
+                                                comment = latestCard.reviewComment.trim(),
+                                                jobId = jobId.toLong(),
+                                                createdAt = OffsetDateTime.now().toString()
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    } catch (_: Exception) {
+                        // Review persistence is secondary; ignore failures.
+                    }
+
                     onReleased()
                 }
             } catch (e: Exception) {
                 _error.value = "Could not release the payment."
             }
-        }
-    }
-
-    /** Sends review prompts to BOTH poster and worker after payment is released. */
-    fun sendReviewPrompts(posterId: Long, workerId: Long, jobId: Int) {
-        viewModelScope.launch {
-            val SYSTEM_USER_ID = 0L
-            val job = withContext(Dispatchers.IO) { repository.getJob(jobId) }
-            val jobTitle = job?.title ?: "the job"
-
-            val poster = withContext(Dispatchers.IO) { repository.getUser(posterId) }
-            val worker = withContext(Dispatchers.IO) { repository.getUser(workerId) }
-
-            // Send prompt to poster: "Review the worker"
-            if (worker != null) {
-                sendSystemMessage(
-                    recipientId = posterId,
-                    jobId = jobId,
-                    text = "How was your experience with ${worker.name} for \"$jobTitle\"? Tap to review.",
-                    systemId = SYSTEM_USER_ID
-                )
-            }
-            // Send prompt to worker: "Review the poster"
-            if (poster != null) {
-                sendSystemMessage(
-                    recipientId = workerId,
-                    jobId = jobId,
-                    text = "How was your experience with ${poster.name} for \"$jobTitle\"? Tap to review.",
-                    systemId = SYSTEM_USER_ID
-                )
-            }
-        }
-    }
-
-    private suspend fun sendSystemMessage(recipientId: Long, jobId: Int, text: String, systemId: Long) {
-        val conv = withContext(Dispatchers.IO) { repository.openConversation(recipientId, systemId) }
-        withContext(Dispatchers.IO) {
-            repository.sendMessage(
-                Message(
-                    conversationId = conv.id,
-                    senderId = systemId,
-                    recipientId = recipientId,
-                    type = "REVIEW",
-                    text = text,
-                    jobId = jobId,
-                    createdAt = java.time.OffsetDateTime.now().toString()
-                )
-            )
         }
     }
 

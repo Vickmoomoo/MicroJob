@@ -91,4 +91,7 @@ interface JobRepository {
 
     /** Returns true if the reviewer has already reviewed the given user for the given job. */
     suspend fun hasReviewed(reviewerUserId: Long, reviewedUserId: Long, jobId: Long?): Boolean
+
+    /** Inserts or updates a review keyed by (reviewer, reviewed, jobId). Returns the persisted review. */
+    suspend fun upsertReview(review: Review): Review
 }

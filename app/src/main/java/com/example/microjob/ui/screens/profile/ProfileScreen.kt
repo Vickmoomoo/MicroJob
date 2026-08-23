@@ -42,6 +42,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -138,7 +139,7 @@ fun ProfileScreen(
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("User Profile") },
+                windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),title = { Text("User Profile") },
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -184,6 +185,7 @@ private fun ProfileContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -372,6 +374,7 @@ private fun ProfileContent(
 
         // --- Features list ---
         if (isMyProfile) {
+            HorizontalDivider()
             ProfileMenuItem(Icons.Filled.Work, "Posted Jobs") { onNavigateToPostedJobs() }
             ProfileMenuItem(Icons.Filled.Bookmark, "Accepted Jobs") { onNavigateToAcceptedJobs() }
             ProfileMenuItem(Icons.Filled.Star, "Reviews") { onNavigateToReviews() }

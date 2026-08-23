@@ -54,5 +54,9 @@ data class Message(
     /** Job id referenced by a JOB_INVITE / PAYMENT_CARD card. */
     val jobId: Int = 0,
     /** ISO-8601 timestamp when the message was sent. */
-    val createdAt: String = ""
+    val createdAt: String = "",
+    /** Star rating attached to a PAYMENT_CARD (0 = none). Owner → worker. */
+    val reviewRating: Float = 0f,
+    /** Review text attached to a PAYMENT_CARD. Owner → worker. */
+    val reviewComment: String = ""
 )
