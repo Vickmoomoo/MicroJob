@@ -64,7 +64,10 @@ private fun timeAgo(iso: String): String {
 private fun JobInfoChips(job: Job) {
     val items = buildList {
         // Payment method is intentionally not shown on the home feed.
-        if (job.language.isNotBlank()) add("🗣️ ${job.language}")
+        // Only show Chinese / English / Malay — "Other" and blank show nothing.
+        if (job.language.isNotBlank() && !job.language.equals("Other", ignoreCase = true)) {
+            add("🗣️ ${job.language}")
+        }
         if (job.requireGps) add("🛰️ GPS")
         if (job.toolsRequired.isNotBlank()) add("🧰 ${job.toolsRequired}")
     }

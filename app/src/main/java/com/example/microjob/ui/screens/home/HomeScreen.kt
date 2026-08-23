@@ -101,38 +101,41 @@ fun HomeScreen(
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
 
-        // SDG banner
-        HomeBanner(modifier = Modifier.padding(horizontal = 16.dp))
-
-        // Available Jobs + filter icon
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Available Job",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(Modifier.weight(1f))
-            IconButton(onClick = { showFilterSheet = true }) {
-                Icon(
-                    imageVector = Icons.Filled.FilterList,
-                    contentDescription = "Filter",
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
-        }
-
         // Single-column lazy list — renders only the visible items regardless
-        // of how many jobs are posted.
+        // of how many jobs are posted. Banner + title scroll together with the list
+        // so the user sees more jobs at once.
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            item {
+                // SDG banner
+                HomeBanner(modifier = Modifier.fillMaxWidth())
+            }
+            item {
+                // Available Jobs + filter icon
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Available Job",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.weight(1f))
+                    IconButton(onClick = { showFilterSheet = true }) {
+                        Icon(
+                            imageVector = Icons.Filled.FilterList,
+                            contentDescription = "Filter",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
             items(
                 items = filteredJobs,
                 key = { it.id }

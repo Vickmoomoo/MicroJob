@@ -106,6 +106,7 @@ fun PostJobScreen(
     val toolsRequired by vm.toolsRequired.collectAsStateWithLifecycle()
     val donationAmount by vm.donationAmount.collectAsStateWithLifecycle()
     val addressDetail by vm.addressDetail.collectAsStateWithLifecycle()
+    val language by vm.language.collectAsStateWithLifecycle()
 
     var showDonateInfo by remember { mutableStateOf(false) }
 
@@ -283,6 +284,14 @@ fun PostJobScreen(
                     onSelect = { vm.bank.value = it }
                 )
             }
+
+            // Recommended language — Chinese / English / Malay / Other (matches job detail display).
+            PostDropdown(
+                label = "Recommended language",
+                current = language,
+                options = listOf("Chinese", "English", "Malay", "Other"),
+                onSelect = { vm.language.value = it }
+            )
 
             // GPS requirement switch
             Row(

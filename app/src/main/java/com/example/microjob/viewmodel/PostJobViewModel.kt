@@ -50,6 +50,7 @@ data class PostFormSnapshot(
     val donationAmount: String,
     val addressDetail: String,
     val photoUris: List<android.net.Uri>,
+    val language: String?,
 )
 
 /** Creates a PostJobViewModel backed by the local repository (avoids reflection). */
@@ -93,6 +94,9 @@ class PostJobViewModel(
     val donationAmount = MutableStateFlow("")
     /** Optional street-level detail; when blank the location becomes "area, state". */
     val addressDetail = MutableStateFlow("")
+
+    /** Recommended communication language — Chinese / English / Malay / Other. Defaults to Other. */
+    val language = MutableStateFlow<String?>("Other")
 
     /** Selected local photos (content URIs) picked by the user. */
     private val _photoUris = MutableStateFlow<List<Uri>>(emptyList())
@@ -199,6 +203,8 @@ class PostJobViewModel(
         price.value.toDoubleOrNull() == null || price.value.toDoubleOrNull()!! <= 0 ->
             "Please enter a valid price greater than 0."
         category.value.isNullOrBlank() -> "Please select a category."
+        // At least one photo is required.
+        _photoUris.value.isEmpty() -> "Please add at least one photo."
         // Address fields are only required for On-site jobs.
         jobType.value == "onsite" && state.value.isNullOrBlank() -> "Please select a state."
         jobType.value == "onsite" && area.value.isNullOrBlank() -> "Please select an area."
@@ -247,7 +253,7 @@ class PostJobViewModel(
             donate = donation > 0,
             donationAmount = donation,
             currency = "RM",
-            language = ""
+            language = language.value ?: ""
         )
 
         viewModelScope.launch {
@@ -311,7 +317,8 @@ class PostJobViewModel(
             toolsRequired = toolsRequired.value,
             donationAmount = donationAmount.value,
             addressDetail = addressDetail.value,
-            photoUris = _photoUris.value
+            photoUris = _photoUris.value,
+            language = language.value
         )
     }
 
@@ -332,6 +339,7 @@ class PostJobViewModel(
         donationAmount.value = f.donationAmount
         addressDetail.value = f.addressDetail
         _photoUris.value = f.photoUris
+        language.value = f.language
     }
 
     /** Removes a just-published job (the "Undo" action on the snackbar). */
@@ -369,5 +377,6 @@ class PostJobViewModel(
         donationAmount.value = ""
         addressDetail.value = ""
         _photoUris.value = emptyList()
+        language.value = "Other"
     }
 }

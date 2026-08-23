@@ -343,33 +343,6 @@ private fun ProfileContent(
             }
         }
 
-        if (state.reviews.isNotEmpty()) {
-            Text(
-                text = "Reviews (${state.reviews.size})",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
-            )
-            state.reviews.take(3).forEach { review ->
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text(
-                            text = "%.1f / 5.0 stars".format(review.rating),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        if (review.comment.isNotBlank()) {
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                text = review.comment,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
         Spacer(Modifier.height(4.dp))
 
         // --- Features list ---
