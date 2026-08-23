@@ -43,4 +43,10 @@ interface ChatRepository {
 
     /** Persists a picked photo (for IMAGE messages) and returns its local path. */
     fun savePickedPhoto(uri: Uri): String
+
+    /** Marks all messages in a conversation as read for the given user. */
+    fun markAsRead(conversationId: String, userId: Long)
+
+    /** Returns the total unread message count across all conversations for a user. */
+    suspend fun getUnreadCount(userId: Long): Int
 }

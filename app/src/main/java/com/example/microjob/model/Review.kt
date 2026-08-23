@@ -16,8 +16,8 @@ data class Review(
     val reviewedUserId: Long,
     /** The user who wrote the review. */
     val reviewerUserId: Long,
-    /** 1–5 star rating. */
-    val rating: Int = 5,
+    /** 0.5–5 star rating (supports half stars). */
+    val rating: Float = 5f,
     val comment: String = "",
     /** Which job this review was left after (optional context). */
     val jobId: Long? = null,

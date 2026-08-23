@@ -2,6 +2,7 @@ package com.example.microjob.data
 
 import com.example.microjob.model.Category
 import com.example.microjob.model.Job
+import com.example.microjob.model.Review
 import com.example.microjob.model.User
 
 enum class PasswordResetResult {
@@ -78,4 +79,16 @@ interface JobRepository {
 
     /** Deletes a job by id (used by the publish "Undo" action). */
     suspend fun deleteJob(jobId: Int)
+
+    /** Updates a user's profile fields (name, bio, avatar, phone, etc.). */
+    suspend fun updateUser(user: User)
+
+    /** Adds a new review. Returns the created review with its assigned id. */
+    suspend fun addReview(review: Review): Review
+
+    /** Updates an existing review (for editing). */
+    suspend fun updateReview(review: Review)
+
+    /** Returns true if the reviewer has already reviewed the given user for the given job. */
+    suspend fun hasReviewed(reviewerUserId: Long, reviewedUserId: Long, jobId: Long?): Boolean
 }

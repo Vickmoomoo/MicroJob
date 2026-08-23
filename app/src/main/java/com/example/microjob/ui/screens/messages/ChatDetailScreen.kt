@@ -60,6 +60,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
@@ -77,6 +78,8 @@ import com.example.microjob.viewmodel.ChatViewModel
 fun ChatDetailScreen(
     otherUserId: Long,
     onBack: () -> Unit,
+    onOtherUserClick: (Long) -> Unit = {},
+    onOpenReview: (Int) -> Unit = {},
     vm: ChatViewModel = viewModel(),
 ) {
     val messages by vm.messages.collectAsState()
@@ -140,7 +143,12 @@ fun ChatDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(otherUser?.name ?: "Chat") },
+                title = {
+                    Text(
+                        text = otherUser?.name ?: "Chat",
+                        modifier = Modifier.clickable { otherUser?.let { onOtherUserClick(it.id) } }
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -182,76 +190,81 @@ fun ChatDetailScreen(
                         onOpenPayment = {
                             vm.loadCardJob(message.jobId)
                             showSettleDialog = true
+                        },
+                        onOpenReview = { jobId ->
+                            onOpenReview(jobId)
                         }
                     )
                 }
             }
 
-            // ---- Composer ----
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                verticalAlignment = Alignment.Bottom
-            ) {
-                // "+" menu
-                Box {
-                    IconButton(onClick = { menuOpen = true }) {
-                        Icon(Icons.Filled.Add, contentDescription = "Attach")
-                    }
-                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                        DropdownMenuItem(
-                            text = { Text("Photo") },
-                            leadingIcon = { Icon(Icons.Filled.PhotoCamera, contentDescription = null) },
-                            onClick = {
-                                menuOpen = false
-                                pickImage.launch("image/*")
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Job Invite") },
-                            leadingIcon = { Icon(Icons.Filled.Work, contentDescription = null) },
-                            onClick = {
-                                menuOpen = false
-                                pickerKind = JobPickerKind.INVITE
-                                vm.refreshMyJobs()
-                                showJobPicker = true
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Release Payment") },
-                            leadingIcon = { Icon(Icons.Filled.AttachMoney, contentDescription = null) },
-                            onClick = {
-                                menuOpen = false
-                                pickerKind = JobPickerKind.PAYMENT
-                                vm.refreshMyJobs()
-                                showJobPicker = true
-                            }
-                        )
-                    }
-                }
-
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = { text = it },
-                    modifier = Modifier.weight(1f),
-                    placeholder = { Text("Message") },
-                    maxLines = 4
-                )
-                IconButton(
-                    onClick = {
-                        if (text.isNotBlank()) {
-                            val cid = convId ?: vm.activeConversation.value?.id
-                            if (cid != null) {
-                                vm.sendText(cid, otherUserId, text)
-                                text = ""
-                            }
+            // ---- Composer (hidden for system chat) ----
+            if (otherUserId != 0L) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    // "+" menu
+                    Box {
+                        IconButton(onClick = { menuOpen = true }) {
+                            Icon(Icons.Filled.Add, contentDescription = "Attach")
+                        }
+                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            DropdownMenuItem(
+                                text = { Text("Photo") },
+                                leadingIcon = { Icon(Icons.Filled.PhotoCamera, contentDescription = null) },
+                                onClick = {
+                                    menuOpen = false
+                                    pickImage.launch("image/*")
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Job Invite") },
+                                leadingIcon = { Icon(Icons.Filled.Work, contentDescription = null) },
+                                onClick = {
+                                    menuOpen = false
+                                    pickerKind = JobPickerKind.INVITE
+                                    vm.refreshMyJobs()
+                                    showJobPicker = true
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Release Payment") },
+                                leadingIcon = { Icon(Icons.Filled.AttachMoney, contentDescription = null) },
+                                onClick = {
+                                    menuOpen = false
+                                    pickerKind = JobPickerKind.PAYMENT
+                                    vm.refreshMyJobs()
+                                    showJobPicker = true
+                                }
+                            )
                         }
                     }
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
+
+                    OutlinedTextField(
+                        value = text,
+                        onValueChange = { text = it },
+                        modifier = Modifier.weight(1f),
+                        placeholder = { Text("Message") },
+                        maxLines = 4
+                    )
+                    IconButton(
+                        onClick = {
+                            if (text.isNotBlank()) {
+                                val cid = convId ?: vm.activeConversation.value?.id
+                                if (cid != null) {
+                                    vm.sendText(cid, otherUserId, text)
+                                    text = ""
+                                }
+                            }
+                        }
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
+                    }
                 }
-            }
+            } // end if (otherUserId != 0L) — hide composer for system chat
         }
     }
 
@@ -285,7 +298,18 @@ fun ChatDetailScreen(
         SettlePaymentDialog(
             job = job,
             currentUserId = myId,
-            onClaim = { jobId -> vm.releaseJobPayment(jobId) { showSettleDialog = false } },
+            onClaim = { jobId ->
+                vm.releaseJobPayment(jobId) {
+                    showSettleDialog = false
+                    // Send review prompts to both poster and worker via system chat
+                    val job = vm.cardJob.value
+                    if (job != null) {
+                        val posterId = job.posterId
+                        val workerId = job.workerId ?: vm.myId()
+                        vm.sendReviewPrompts(posterId, workerId, jobId)
+                    }
+                }
+            },
             onDismiss = { showSettleDialog = false }
         )
     }
@@ -385,6 +409,7 @@ private fun MessageBubble(
     onImageClick: (String) -> Unit,
     onAcceptJob: () -> Unit,
     onOpenPayment: () -> Unit,
+    onOpenReview: (Int) -> Unit,
 ) {
     val alignment = if (isMine) Alignment.CenterEnd else Alignment.CenterStart
     val bubbleColor =
@@ -430,6 +455,16 @@ private fun MessageBubble(
                 modifier = Modifier.padding(vertical = 4.dp)
             )
         }
+        "REVIEW" -> Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            ReviewPromptCard(
+                text = message.text,
+                jobId = message.jobId,
+                onClick = { onOpenReview(message.jobId) }
+            )
+        }
         else -> Box(modifier = Modifier.fillMaxWidth(), contentAlignment = alignment) {
             Text(
                 text = message.text,
@@ -463,6 +498,42 @@ private fun CardStatusLine(text: String) {
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(vertical = 4.dp)
+        )
+    }
+}
+
+/** A review prompt card shown after payment is released. */
+@Composable
+private fun ReviewPromptCard(
+    text: String,
+    jobId: Int,
+    onClick: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth(0.85f)
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.tertiaryContainer)
+            .clickable(onClick = onClick)
+            .padding(14.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "\u2B50",
+            fontSize = 24.sp
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onTertiaryContainer
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = "Tap to review",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
         )
     }
 }

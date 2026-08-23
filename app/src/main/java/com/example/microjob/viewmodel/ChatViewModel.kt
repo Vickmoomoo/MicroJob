@@ -54,6 +54,10 @@ class ChatViewModel(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
+    /** Total unread message count for the current user (for bottom bar badge). */
+    private val _unreadCount = MutableStateFlow(0)
+    val unreadCount: StateFlow<Int> = _unreadCount.asStateFlow()
+
     /** All demo/local users, used to resolve names & avatars in the chat screens. */
     private val _users = MutableStateFlow<List<com.example.microjob.model.User>>(emptyList())
     val users: StateFlow<List<com.example.microjob.model.User>> = _users.asStateFlow()
@@ -128,6 +132,9 @@ class ChatViewModel(
             onOpened(conv.id)
             loadMessagesInto(conv.id)
             _otherUser.value = withContext(Dispatchers.IO) { repository.getUser(otherUserId) }
+            // Mark conversation as read
+            withContext(Dispatchers.IO) { repository.markAsRead(conv.id, me) }
+            refreshUnreadCount()
         }
     }
 
@@ -255,6 +262,62 @@ class ChatViewModel(
             } catch (e: Exception) {
                 _error.value = "Could not release the payment."
             }
+        }
+    }
+
+    /** Sends review prompts to BOTH poster and worker after payment is released. */
+    fun sendReviewPrompts(posterId: Long, workerId: Long, jobId: Int) {
+        viewModelScope.launch {
+            val SYSTEM_USER_ID = 0L
+            val job = withContext(Dispatchers.IO) { repository.getJob(jobId) }
+            val jobTitle = job?.title ?: "the job"
+
+            val poster = withContext(Dispatchers.IO) { repository.getUser(posterId) }
+            val worker = withContext(Dispatchers.IO) { repository.getUser(workerId) }
+
+            // Send prompt to poster: "Review the worker"
+            if (worker != null) {
+                sendSystemMessage(
+                    recipientId = posterId,
+                    jobId = jobId,
+                    text = "How was your experience with ${worker.name} for \"$jobTitle\"? Tap to review.",
+                    systemId = SYSTEM_USER_ID
+                )
+            }
+            // Send prompt to worker: "Review the poster"
+            if (poster != null) {
+                sendSystemMessage(
+                    recipientId = workerId,
+                    jobId = jobId,
+                    text = "How was your experience with ${poster.name} for \"$jobTitle\"? Tap to review.",
+                    systemId = SYSTEM_USER_ID
+                )
+            }
+        }
+    }
+
+    private suspend fun sendSystemMessage(recipientId: Long, jobId: Int, text: String, systemId: Long) {
+        val conv = withContext(Dispatchers.IO) { repository.openConversation(recipientId, systemId) }
+        withContext(Dispatchers.IO) {
+            repository.sendMessage(
+                Message(
+                    conversationId = conv.id,
+                    senderId = systemId,
+                    recipientId = recipientId,
+                    type = "REVIEW",
+                    text = text,
+                    jobId = jobId,
+                    createdAt = java.time.OffsetDateTime.now().toString()
+                )
+            )
+        }
+    }
+
+    /** Refreshes the unread message count for the current user. */
+    fun refreshUnreadCount() {
+        viewModelScope.launch {
+            val me = session.currentUserId ?: return@launch
+            _unreadCount.value = withContext(Dispatchers.IO) { repository.getUnreadCount(me) }
         }
     }
 }

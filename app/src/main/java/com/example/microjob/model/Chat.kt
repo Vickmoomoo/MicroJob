@@ -17,11 +17,15 @@ data class Conversation(
     /** ISO-8601 timestamp of the latest message. */
     val lastMessageAt: String = "",
     /** Id of the user who sent the last message. */
-    val lastSenderId: Long = 0
+    val lastSenderId: Long = 0,
+    /** Number of unread messages keyed by recipient user id. */
+    val unreadCounts: Map<Long, Int> = emptyMap()
 ) {
     /** Returns the id of the other participant when viewed from [fromUserId]. */
     fun otherParticipantId(fromUserId: Long): Long? =
         participantIds.firstOrNull { it != fromUserId }
+
+    fun unreadCountFor(userId: Long): Int = unreadCounts[userId] ?: 0
 }
 
 /**

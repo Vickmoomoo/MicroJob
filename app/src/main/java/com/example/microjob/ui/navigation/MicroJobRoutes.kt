@@ -26,4 +26,44 @@ object MicroJobRoutes {
 
     /** Builds the concrete chat route for a given other user id. */
     fun chatDetail(otherUserId: Long) = "chat/$otherUserId"
+
+    /** User profile page. Route pattern: "user_profile/{userId}" */
+    const val USER_PROFILE = "user_profile/{userId}"
+
+    /** Builds the concrete route for a given user id. */
+    fun userProfile(userId: Long) = "user_profile/$userId"
+
+    /** Settings page. */
+    const val SETTINGS = "settings"
+
+    /** Review form page. Route pattern: "review_form/{reviewedUserId}/{jobId}" */
+    const val REVIEW_FORM = "review_form/{reviewedUserId}/{jobId}"
+
+    /** Builds the concrete route for writing a review. */
+    fun reviewForm(reviewedUserId: Long, jobId: Int?) = "review_form/$reviewedUserId/${jobId ?: 0}"
+
+    /** Edit review form. Route pattern: "review_form/{reviewedUserId}/{jobId}/{reviewId}" */
+    const val REVIEW_FORM_EDIT = "review_form/{reviewedUserId}/{jobId}/{reviewId}"
+
+    /** Builds the concrete route for editing a review. */
+    fun reviewFormEdit(reviewedUserId: Long, jobId: Int?, reviewId: Long) =
+        "review_form/$reviewedUserId/${jobId ?: 0}/$reviewId"
+
+    /** Reviews list page. Route pattern: "reviews/{userId}" */
+    const val REVIEWS_LIST = "reviews/{userId}"
+
+    /** Builds the concrete route for viewing a user's reviews. */
+    fun reviewsList(userId: Long) = "reviews/$userId"
+
+    /** Posted jobs list. Route pattern: "posted_jobs/{userId}" */
+    const val POSTED_JOBS = "posted_jobs/{userId}"
+
+    /** Builds the concrete route for posted jobs. */
+    fun postedJobs(userId: Long) = "posted_jobs/$userId"
+
+    /** Accepted jobs list. Route pattern: "accepted_jobs/{userId}" */
+    const val ACCEPTED_JOBS = "accepted_jobs/{userId}"
+
+    /** Builds the concrete route for accepted jobs. */
+    fun acceptedJobs(userId: Long) = "accepted_jobs/$userId"
 }

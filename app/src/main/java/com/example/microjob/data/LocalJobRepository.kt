@@ -163,6 +163,42 @@ class LocalJobRepository(private val context: Context) : JobRepository {
         writeList("jobs.json", jobs)
     }
 
+    override suspend fun updateUser(user: User) {
+        val users = readUsers().toMutableList()
+        val index = users.indexOfFirst { it.id == user.id }
+        if (index != -1) {
+            users[index] = user
+            writeUsers(users)
+        }
+    }
+
+    override suspend fun addReview(review: Review): Review {
+        val reviews = readList<Review>("reviews.json", emptyList()).toMutableList()
+        val nextId = (reviews.maxOfOrNull { it.id } ?: 0) + 1
+        val created = review.copy(id = nextId)
+        reviews.add(created)
+        writeList("reviews.json", reviews)
+        return created
+    }
+
+    override suspend fun updateReview(review: Review) {
+        val reviews = readList<Review>("reviews.json", emptyList()).toMutableList()
+        val index = reviews.indexOfFirst { it.id == review.id }
+        if (index != -1) {
+            reviews[index] = review
+            writeList("reviews.json", reviews)
+        }
+    }
+
+    override suspend fun hasReviewed(reviewerUserId: Long, reviewedUserId: Long, jobId: Long?): Boolean {
+        val reviews = readList<Review>("reviews.json", emptyList())
+        return reviews.any {
+            it.reviewerUserId == reviewerUserId &&
+                it.reviewedUserId == reviewedUserId &&
+                it.jobId == jobId
+        }
+    }
+
     override suspend fun postJob(job: Job): Job {
         val jobs = getJobs().toMutableList()
         val nextId = (jobs.maxOfOrNull { it.id } ?: 0) + 1

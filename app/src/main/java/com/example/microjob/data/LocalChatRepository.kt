@@ -79,21 +79,30 @@ class LocalChatRepository(private val context: Context) : ChatRepository {
         messages.add(stored)
         writeList("messages.json", messages)
 
-        // Update the conversation's last-message preview.
+        // Update the conversation's last-message preview and unread count.
         val conversations = readConversations().toMutableList()
         val idx = conversations.indexOfFirst { it.id == message.conversationId }
         if (idx != -1) {
-            val nickname = message.type
             val preview = when (message.type) {
                 "IMAGE" -> "📷 Photo"
                 "JOB_INVITE" -> "📌 Job invite"
                 "PAYMENT_CARD" -> "💳 Release payment"
+                "REVIEW" -> "⭐ Review prompt"
                 else -> message.text
             }
-            conversations[idx] = conversations[idx].copy(
+            val conv = conversations[idx]
+            // Keep unread state separate for each recipient. The sender must not
+            // receive an unread badge for their own message.
+            val unreadCounts = conv.unreadCounts.toMutableMap()
+            if (message.recipientId > 0) {
+                unreadCounts[message.recipientId] =
+                    (unreadCounts[message.recipientId] ?: 0) + 1
+            }
+            conversations[idx] = conv.copy(
                 lastMessagePreview = preview,
                 lastMessageAt = message.createdAt,
-                lastSenderId = message.senderId
+                lastSenderId = message.senderId,
+                unreadCounts = unreadCounts
             )
             writeList("conversations.json", conversations)
         }
@@ -119,5 +128,25 @@ class LocalChatRepository(private val context: Context) : ChatRepository {
         val target = File(photosDir, name)
         target.writeBytes(bytes)
         return target.absolutePath
+    }
+
+    override fun markAsRead(conversationId: String, userId: Long) {
+        val conversations = readConversations().toMutableList()
+        val idx = conversations.indexOfFirst { it.id == conversationId }
+        if (idx != -1) {
+            val conv = conversations[idx]
+            val unreadCounts = conv.unreadCounts.toMutableMap()
+            if ((unreadCounts[userId] ?: 0) > 0) {
+                unreadCounts.remove(userId)
+                conversations[idx] = conv.copy(unreadCounts = unreadCounts)
+                writeList("conversations.json", conversations)
+            }
+        }
+    }
+
+    override suspend fun getUnreadCount(userId: Long): Int {
+        return readConversations()
+            .filter { userId in it.participantIds }
+            .sumOf { it.unreadCountFor(userId) }
     }
 }

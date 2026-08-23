@@ -10,6 +10,8 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Translate
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -47,11 +49,17 @@ import com.example.microjob.ui.screens.messages.ChatDetailScreen
 import com.example.microjob.ui.screens.messages.ChatListScreen
 import com.example.microjob.ui.screens.post.PostJobScreen
 import com.example.microjob.ui.screens.profile.ProfileScreen
+import com.example.microjob.ui.screens.profile.JobListScreen
+import com.example.microjob.ui.screens.profile.SettingsScreen
+import com.example.microjob.ui.screens.reviews.ReviewFormScreen
+import com.example.microjob.ui.screens.reviews.ReviewsListScreen
 import com.example.microjob.ui.screens.translation.VoiceTranslationScreen
 import com.example.microjob.viewmodel.AuthViewModel
 import com.example.microjob.viewmodel.ChatViewModel
 import com.example.microjob.viewmodel.HomeViewModel
 import com.example.microjob.viewmodel.PostJobViewModel
+import com.example.microjob.viewmodel.ProfileViewModel
+import com.example.microjob.viewmodel.ReviewViewModel
 import com.example.microjob.viewmodel.postJobViewModelFactory
 import kotlinx.coroutines.launch
 
@@ -63,11 +71,26 @@ fun MicroJobApp() {
     val postJobVm: PostJobViewModel = viewModel(factory = postJobViewModelFactory())
     val chatVm: ChatViewModel = viewModel()
     val homeVm: HomeViewModel = viewModel()
+    val profileVm: ProfileViewModel = viewModel()
+    val reviewVm: ReviewViewModel = viewModel()
     val currentUser by authVm.currentUser.collectAsStateWithLifecycle()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val unreadCount by chatVm.unreadCount.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    // Refresh unread count on startup and when navigating to messages
+    LaunchedEffect(Unit) {
+        chatVm.refreshUnreadCount()
+    }
+    LaunchedEffect(currentRoute) {
+        if (currentRoute == MicroJobRoutes.MESSAGES) {
+            chatVm.refreshUnreadCount()
+            chatVm.loadConversations()
+        }
+    }
 
     // Restore the logged-in user from SharedPreferences on startup.
     LaunchedEffect(Unit) {
@@ -100,7 +123,13 @@ fun MicroJobApp() {
             currentRoute == MicroJobRoutes.POST_JOB ||
             currentRoute == MicroJobRoutes.VOICE_TRANSLATION ||
             currentRoute == MicroJobRoutes.LOGIN ||
-            currentRoute == MicroJobRoutes.CHAT_DETAIL
+            currentRoute == MicroJobRoutes.CHAT_DETAIL ||
+            currentRoute?.startsWith("user_profile") == true ||
+            currentRoute == MicroJobRoutes.SETTINGS ||
+            currentRoute?.startsWith("review_form") == true ||
+            currentRoute?.startsWith("reviews") == true ||
+            currentRoute?.startsWith("posted_jobs") == true ||
+            currentRoute?.startsWith("accepted_jobs") == true
     val showChrome = !isFullScreen
 
     /** Navigates to [route]; if the user is not logged in, goes to login first. */
@@ -122,11 +151,16 @@ fun MicroJobApp() {
                     onNavigate = { route ->
                         // Profile and Messages need a login; other tabs navigate normally.
                         if (route == MicroJobRoutes.PROFILE || route == MicroJobRoutes.MESSAGES) {
-                            requireLogin(route)
+                            if (currentUser != null) {
+                                navController.navigateToTab(route)
+                            } else {
+                                navController.navigate(MicroJobRoutes.LOGIN)
+                            }
                         } else {
                             navController.navigateToTab(route)
                         }
-                    }
+                    },
+                    unreadCount = unreadCount
                 )
             }
         },
@@ -168,6 +202,32 @@ fun MicroJobApp() {
                     }
                 )
             }
+            composable(MicroJobRoutes.PROFILE) {
+                val myId = currentUser?.id ?: return@composable
+                // Reload profile every time we land on it (picks up new reviews, etc.)
+                LaunchedEffect(currentRoute) {
+                    profileVm.loadProfile(myId)
+                }
+                ProfileScreen(
+                    userId = myId,
+                    vm = profileVm,
+                    onNavigateToSettings = { navController.navigate(MicroJobRoutes.SETTINGS) },
+                    onNavigateToPostedJobs = { navController.navigate(MicroJobRoutes.postedJobs(myId)) },
+                    onNavigateToAcceptedJobs = { navController.navigate(MicroJobRoutes.acceptedJobs(myId)) },
+                    onNavigateToReviews = {
+                        navController.navigate(MicroJobRoutes.reviewsList(myId))
+                    },
+                    onNavigateToCertificates = { /* TODO */ },
+                    onNavigateToSocialImpact = { /* TODO */ },
+                    onNavigateToChat = { otherUserId ->
+                        navController.navigate(MicroJobRoutes.chatDetail(otherUserId))
+                    },
+                    onLogout = {
+                        authVm.logout()
+                        navController.popBackStack(MicroJobRoutes.HOME, inclusive = false)
+                    }
+                )
+            }
             composable(
                 route = MicroJobRoutes.CHAT_DETAIL,
                 arguments = listOf(navArgument("otherUserId") { type = NavType.LongType })
@@ -176,17 +236,169 @@ fun MicroJobApp() {
                 ChatDetailScreen(
                     otherUserId = otherUserId,
                     onBack = { navController.popBackStack() },
+                    onOtherUserClick = { userId ->
+                        navController.navigate(MicroJobRoutes.userProfile(userId))
+                    },
+                    onOpenReview = { jobId ->
+                        val myId = authVm.currentUser.value?.id
+                        if (myId != null) {
+                            val localRepo = com.example.microjob.data.LocalJobRepository(
+                                context.applicationContext as android.app.Application
+                            )
+                            val job = kotlinx.coroutines.runBlocking { localRepo.getJob(jobId) }
+                            if (job != null) {
+                                val reviewedUserId = if (myId == job.posterId) {
+                                    job.workerId ?: 0L
+                                } else {
+                                    job.posterId
+                                }
+                                if (reviewedUserId > 0) {
+                                    navController.navigate(MicroJobRoutes.reviewForm(reviewedUserId, jobId))
+                                }
+                            }
+                        } else {
+                            navController.navigate(MicroJobRoutes.LOGIN)
+                        }
+                    },
                     vm = chatVm
                 )
             }
-            composable(MicroJobRoutes.PROFILE) {
+            composable(
+                route = MicroJobRoutes.USER_PROFILE,
+                arguments = listOf(navArgument("userId") { type = NavType.LongType })
+            ) { entry ->
+                val userId = entry.arguments?.getLong("userId") ?: return@composable
                 ProfileScreen(
-                    vm = authVm,
-                    onLoggedOut = {
+                    userId = userId,
+                    vm = profileVm,
+                    onBack = { navController.popBackStack() },
+                    onNavigateToSettings = { navController.navigate(MicroJobRoutes.SETTINGS) },
+                    onNavigateToPostedJobs = { navController.navigate(MicroJobRoutes.postedJobs(userId)) },
+                    onNavigateToAcceptedJobs = { navController.navigate(MicroJobRoutes.acceptedJobs(userId)) },
+                    onNavigateToReviews = {
+                        navController.navigate(MicroJobRoutes.reviewsList(userId))
+                    },
+                    onNavigateToCertificates = { /* TODO */ },
+                    onNavigateToSocialImpact = { /* TODO */ },
+                    onNavigateToChat = { otherUserId ->
+                        if (currentUser != null) {
+                            navController.navigate(MicroJobRoutes.chatDetail(otherUserId))
+                        } else {
+                            navController.navigate(MicroJobRoutes.LOGIN)
+                        }
+                    },
+                    onLogout = {
                         authVm.logout()
-                        // Go back to Home so the logged-out state is obvious.
                         navController.popBackStack(MicroJobRoutes.HOME, inclusive = false)
                     }
+                )
+            }
+            composable(MicroJobRoutes.SETTINGS) {
+                SettingsScreen(
+                    vm = profileVm,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(
+                route = MicroJobRoutes.REVIEW_FORM,
+                arguments = listOf(
+                    navArgument("reviewedUserId") { type = NavType.LongType },
+                    navArgument("jobId") { type = NavType.IntType }
+                )
+            ) { entry ->
+                val reviewedUserId = entry.arguments?.getLong("reviewedUserId") ?: return@composable
+                val jobId = entry.arguments?.getInt("jobId") ?: 0
+                val existingReviewId = entry.arguments
+                    ?.takeIf { it.containsKey("reviewId") }
+                    ?.getLong("reviewId")
+                LaunchedEffect(reviewedUserId, jobId, existingReviewId) {
+                    reviewVm.resetForm()
+                    if (existingReviewId != null) {
+                        reviewVm.loadReviewForEditById(reviewedUserId, existingReviewId)
+                    }
+                }
+                ReviewFormScreen(
+                    reviewedUserId = reviewedUserId,
+                    jobId = if (jobId > 0) jobId.toLong() else null,
+                    existingReviewId = existingReviewId,
+                    vm = reviewVm,
+                    onBack = { navController.popBackStack() },
+                    onSubmitted = { navController.popBackStack() }
+                )
+            }
+            composable(
+                route = MicroJobRoutes.REVIEW_FORM_EDIT,
+                arguments = listOf(
+                    navArgument("reviewedUserId") { type = NavType.LongType },
+                    navArgument("jobId") { type = NavType.IntType },
+                    navArgument("reviewId") { type = NavType.LongType }
+                )
+            ) { entry ->
+                val reviewedUserId = entry.arguments?.getLong("reviewedUserId") ?: return@composable
+                val jobId = entry.arguments?.getInt("jobId") ?: 0
+                val existingReviewId = entry.arguments?.getLong("reviewId")
+                LaunchedEffect(reviewedUserId, jobId, existingReviewId) {
+                    reviewVm.resetForm()
+                    if (existingReviewId != null) {
+                        reviewVm.loadReviewForEditById(reviewedUserId, existingReviewId)
+                    }
+                }
+                ReviewFormScreen(
+                    reviewedUserId = reviewedUserId,
+                    jobId = if (jobId > 0) jobId.toLong() else null,
+                    existingReviewId = existingReviewId,
+                    vm = reviewVm,
+                    onBack = { navController.popBackStack() },
+                    onSubmitted = { navController.popBackStack() }
+                )
+            }
+            composable(
+                route = MicroJobRoutes.REVIEWS_LIST,
+                arguments = listOf(navArgument("userId") { type = NavType.LongType })
+            ) { entry ->
+                val userId = entry.arguments?.getLong("userId") ?: return@composable
+                val user = profileVm.uiState.value.user
+                ReviewsListScreen(
+                    userId = userId,
+                    userName = user?.name ?: "User",
+                    vm = reviewVm,
+                    onBack = { navController.popBackStack() },
+                    onWriteReview = { /* handled via chat review prompt */ },
+                    onEditReview = { reviewId ->
+                        navController.navigate(
+                            MicroJobRoutes.reviewFormEdit(userId, null, reviewId)
+                        )
+                    }
+                )
+            }
+            composable(
+                route = MicroJobRoutes.POSTED_JOBS,
+                arguments = listOf(navArgument("userId") { type = NavType.LongType })
+            ) { entry ->
+                val userId = entry.arguments?.getLong("userId") ?: return@composable
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                val localRepo = com.example.microjob.data.LocalJobRepository(ctx.applicationContext as android.app.Application)
+                val postedJobs = kotlinx.coroutines.runBlocking { localRepo.getPostedJobs(userId) }
+                JobListScreen(
+                    title = "Posted Jobs",
+                    jobs = postedJobs,
+                    onBack = { navController.popBackStack() },
+                    onJobClick = { jobId -> navController.navigate(MicroJobRoutes.jobDetail(jobId)) }
+                )
+            }
+            composable(
+                route = MicroJobRoutes.ACCEPTED_JOBS,
+                arguments = listOf(navArgument("userId") { type = NavType.LongType })
+            ) { entry ->
+                val userId = entry.arguments?.getLong("userId") ?: return@composable
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                val localRepo = com.example.microjob.data.LocalJobRepository(ctx.applicationContext as android.app.Application)
+                val acceptedJobs = kotlinx.coroutines.runBlocking { localRepo.getAcceptedJobs(userId) }
+                JobListScreen(
+                    title = "Accepted Jobs",
+                    jobs = acceptedJobs,
+                    onBack = { navController.popBackStack() },
+                    onJobClick = { jobId -> navController.navigate(MicroJobRoutes.jobDetail(jobId)) }
                 )
             }
             composable(MicroJobRoutes.POST_JOB) {
@@ -237,6 +449,9 @@ fun MicroJobApp() {
                                 navController.navigate(MicroJobRoutes.chatDetail(posterId))
                             }
                         }
+                    },
+                    onPosterClick = { posterId ->
+                        navController.navigate(MicroJobRoutes.userProfile(posterId))
                     }
                 )
             }
@@ -292,13 +507,27 @@ private val bottomTabs = listOf(
 private fun MicroJobBottomBar(
     currentRoute: String?,
     onNavigate: (String) -> Unit,
+    unreadCount: Int = 0,
 ) {
     NavigationBar {
         bottomTabs.forEach { tab ->
+            val showBadge = tab.route == MicroJobRoutes.MESSAGES && unreadCount > 0
             NavigationBarItem(
-                selected = currentRoute == tab.route,
+                selected = isRouteForTab(currentRoute, tab.route),
                 onClick = { onNavigate(tab.route) },
-                icon = { Icon(imageVector = tab.icon, contentDescription = tab.label) },
+                icon = {
+                    BadgedBox(
+                        badge = {
+                            if (showBadge) {
+                                Badge {
+                                    Text("$unreadCount")
+                                }
+                            }
+                        }
+                    ) {
+                        Icon(imageVector = tab.icon, contentDescription = tab.label)
+                    }
+                },
                 label = { Text(tab.label) }
             )
         }
@@ -312,4 +541,9 @@ private fun NavHostController.navigateToTab(route: String) {
         launchSingleTop = true
         restoreState = true
     }
+}
+
+/** Checks if the current route belongs to a given tab. */
+private fun isRouteForTab(currentRoute: String?, tabRoute: String): Boolean {
+    return currentRoute == tabRoute
 }

@@ -23,6 +23,7 @@ object SampleData {
     )
     /** Fake users used to drive the poster row on the job detail page. */
     val users = listOf(
+        User(id = 0, name = "MicroJob System", username = "system", password = "", email = "", bio = "Automated system messages and notifications."),
         User(id = 1, name = "Ahmad bin Ali", username = "ahmad", password = "1234", email = "ahmad@example.com", bio = "House owner in Batu Ferringhi, looking for helpers."),
         User(id = 2, name = "Siti Aminah", username = "siti", password = "1234", email = "siti@example.com", bio = "Freelance cleaner, available on weekends."),
         User(id = 3, name = "Wei Qi", username = "weiqi", password = "1234", email = "weiqi@example.com", bio = "Marketing student, can design social media posts."),

@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -47,8 +49,10 @@ fun ChatListScreen(
 ) {
     val conversations by vm.conversations.collectAsState()
 
+    // Reload conversations every time this screen appears
     LaunchedEffect(Unit) {
         vm.loadConversations()
+        vm.refreshUnreadCount()
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -71,6 +75,7 @@ fun ChatListScreen(
                     ConversationRow(
                         otherUser = otherUser,
                         conversation = conv,
+                        currentUserId = vm.myId(),
                         onClick = { if (clickTarget != null) onChatClick(clickTarget) }
                     )
                     HorizontalDivider()
@@ -98,9 +103,11 @@ private fun EmptyConversations() {
 private fun ConversationRow(
     otherUser: User?,
     conversation: Conversation,
+    currentUserId: Long,
     onClick: () -> Unit,
 ) {
     val displayName = otherUser?.name ?: "Chat"
+    val unread = conversation.unreadCountFor(currentUserId)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -115,19 +122,37 @@ private fun ConversationRow(
                 Text(
                     text = displayName,
                     style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = if (unread > 0) FontWeight.Bold else FontWeight.SemiBold,
                     modifier = Modifier.weight(1f)
                 )
-                Text(
-                    text = formatTime(conversation.lastMessageAt),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                if (unread > 0) {
+                    BadgedBox(
+                        badge = {
+                            Badge {
+                                Text("$unread")
+                            }
+                        }
+                    ) {
+                        Text(
+                            text = formatTime(conversation.lastMessageAt),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    Text(
+                        text = formatTime(conversation.lastMessageAt),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
             Text(
                 text = conversation.lastMessagePreview,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (unread > 0) MaterialTheme.colorScheme.onSurface
+                else MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = if (unread > 0) FontWeight.SemiBold else FontWeight.Normal,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )

@@ -71,6 +71,7 @@ fun JobDetailScreen(
     jobId: Int,
     onBack: () -> Unit,
     onContactPoster: (com.example.microjob.model.User?) -> Unit,
+    onPosterClick: (Long) -> Unit = {},
     vm: JobDetailViewModel = viewModel(),
 ) {
     val uiState by vm.uiState.collectAsStateWithLifecycle()
@@ -99,7 +100,8 @@ fun JobDetailScreen(
                 job = state.job,
                 poster = state.poster,
                 innerPadding = innerPadding,
-                onContactPoster = onContactPoster
+                onContactPoster = onContactPoster,
+                onPosterClick = onPosterClick
             )
         }
     }
@@ -142,6 +144,7 @@ private fun JobDetailContent(
     poster: User?,
     innerPadding: androidx.compose.foundation.layout.PaddingValues,
     onContactPoster: (com.example.microjob.model.User?) -> Unit,
+    onPosterClick: (Long) -> Unit = {},
 ) {
     val context = LocalContext.current
     val hasRequirements = job.requireGps || job.toolsRequired.isNotBlank()
@@ -204,8 +207,8 @@ private fun JobDetailContent(
 
             Spacer(Modifier.height(16.dp))
 
-            // Poster row (avatar + name). Clicking this will later open the poster profile.
-            PosterRow(poster = poster)
+            // Poster row (avatar + name). Clicking opens the poster profile.
+            PosterRow(poster = poster, onClick = { poster?.let { onPosterClick(it.id) } })
 
             Spacer(Modifier.height(16.dp))
             HorizontalDivider()
@@ -346,9 +349,11 @@ private fun PhotoPager(job: Job) {
 }
 
 @Composable
-private fun PosterRow(poster: User?) {
+private fun PosterRow(poster: User?, onClick: () -> Unit = {}) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Avatar placeholder: circle with the first letter of the name.
