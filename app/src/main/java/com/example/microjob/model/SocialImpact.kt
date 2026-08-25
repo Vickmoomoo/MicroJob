@@ -17,6 +17,13 @@ data class VoucherItem(
     val brandColor: Color
 )
 
+data class PointsHistoryEntry(
+    val source: String,
+    val points: Int,
+    val date: String,
+    val isEarned: Boolean
+)
+
 val sampleDonations = listOf(
     DonationRecord("Penang Food Aid Foundation", "12 Aug 2026", "RM 500"),
     DonationRecord("Children Education Fund", "03 Aug 2026", "RM 300"),
@@ -40,5 +47,21 @@ val sampleVouchers = listOf(
         pointsRequired = 450,
         value = "RM 10",
         brandColor = Color(0xFFFFC72C)
+    ),
+    VoucherItem(
+        brand = "Domino's",
+        title = "Domino's RM20 Voucher",
+        validStores = "Valid at all Domino's Pizza outlets",
+        pointsRequired = 900,
+        value = "RM 20",
+        brandColor = Color(0xFF006491)
+    ),
+    VoucherItem(
+        brand = "Pizza Hut",
+        title = "Pizza Hut RM18 Voucher",
+        validStores = "Valid at all Pizza Hut restaurants",
+        pointsRequired = 800,
+        value = "RM 18",
+        brandColor = Color(0xFFE4002B)
     )
 )

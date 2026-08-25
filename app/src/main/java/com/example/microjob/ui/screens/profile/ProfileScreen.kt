@@ -80,6 +80,8 @@ fun ProfileScreen(
     onNavigateToReviews: () -> Unit,
     onNavigateToCertificates: () -> Unit,
     onNavigateToSocialImpact: () -> Unit,
+    onNavigateToMiniGames: () -> Unit,
+    onNavigateToPointsHistory: () -> Unit,
     onNavigateToChat: (Long) -> Unit,
     onLogout: () -> Unit,
 ) {
@@ -128,6 +130,8 @@ fun ProfileScreen(
             onNavigateToReviews = onNavigateToReviews,
             onNavigateToCertificates = onNavigateToCertificates,
             onNavigateToSocialImpact = onNavigateToSocialImpact,
+            onNavigateToMiniGames = onNavigateToMiniGames,
+            onNavigateToPointsHistory = onNavigateToPointsHistory,
             onNavigateToChat = onNavigateToChat,
             onLogout = onLogout,
             onUpdateBio = { vm.updateBio(it) },
@@ -179,6 +183,8 @@ private fun ProfileContent(
     onNavigateToReviews: () -> Unit,
     onNavigateToCertificates: () -> Unit,
     onNavigateToSocialImpact: () -> Unit,
+    onNavigateToMiniGames: () -> Unit,
+    onNavigateToPointsHistory: () -> Unit,
     onNavigateToChat: (Long) -> Unit,
     onLogout: () -> Unit,
     onUpdateBio: (String) -> Unit,
@@ -257,7 +263,7 @@ private fun ProfileContent(
             }
 
             // Badge icon (top-right)
-            IconButton(onClick = { /* TODO: navigate to badge/points page */ }) {
+            IconButton(onClick = { onNavigateToPointsHistory() }) {
                 Icon(
                     imageVector = Icons.Filled.Badge,
                     contentDescription = "Badge",
@@ -354,6 +360,7 @@ private fun ProfileContent(
             ProfileMenuItem(Icons.Filled.Star, "Reviews") { onNavigateToReviews() }
             ProfileMenuItem(Icons.Filled.School, "Certificates") { onNavigateToCertificates() }
             ProfileMenuItem(Icons.Filled.Favorite, "Social Impact") { onNavigateToSocialImpact() }
+            ProfileMenuItem(Icons.Filled.Star, "Mini Games") { onNavigateToMiniGames() }
             ProfileMenuItem(Icons.Filled.Settings, "Settings") { onNavigateToSettings() }
         } else {
             ProfileMenuItem(Icons.Filled.Star, "Reviews") { onNavigateToReviews() }

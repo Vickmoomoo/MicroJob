@@ -274,7 +274,8 @@ class ChatViewModel(
         jobId: Int,
         workerRating: Float = 0f,
         workerComment: String = "",
-        onReleased: () -> Unit
+        onReleased: () -> Unit,
+        onJobCompleted: (jobTitle: String, jobPrice: Int) -> Unit = { _, _ -> }
     ) {
         viewModelScope.launch {
             try {
@@ -335,6 +336,7 @@ class ChatViewModel(
                         // Review persistence is secondary; ignore failures.
                     }
 
+                    onJobCompleted(updated.title, updated.price)
                     onReleased()
                 }
             } catch (e: Exception) {

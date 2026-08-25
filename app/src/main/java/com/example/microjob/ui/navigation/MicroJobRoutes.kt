@@ -87,4 +87,19 @@ object MicroJobRoutes {
 
     /** All Vouchers page. */
     const val VOUCHER_REDEEM = "voucher_redeem"
+
+    /** Points history page. */
+    const val POINTS_HISTORY = "points_history"
+
+    /** Mini game menu page. */
+    const val MINI_GAME_MENU = "mini_game_menu"
+
+    /** Tic Tac Toe game. */
+    const val TIC_TAC_TOE = "tic_tac_toe"
+
+    /** Number Guess game. */
+    const val NUMBER_GUESS = "number_guess"
+
+    /** Memory Flip game. */
+    const val MEMORY_FLIP = "memory_flip"
 }

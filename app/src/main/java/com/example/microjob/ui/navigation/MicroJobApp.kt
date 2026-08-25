@@ -61,6 +61,11 @@ import com.example.microjob.ui.screens.profile.SettingsScreen
 import com.example.microjob.ui.screens.profile.SocialImpactScreen
 import com.example.microjob.ui.screens.profile.AllDonationsScreen
 import com.example.microjob.ui.screens.profile.AllVouchersScreen
+import com.example.microjob.ui.screens.profile.PointsHistoryScreen
+import com.example.microjob.ui.screens.profile.MiniGameMenuScreen
+import com.example.microjob.ui.screens.profile.TicTacToeScreen
+import com.example.microjob.ui.screens.profile.NumberGuessScreen
+import com.example.microjob.ui.screens.profile.MemoryFlipScreen
 import com.example.microjob.ui.screens.reviews.ReviewFormScreen
 import com.example.microjob.ui.screens.reviews.ReviewJobDetailScreen
 import com.example.microjob.ui.screens.reviews.ReviewsListScreen
@@ -150,7 +155,12 @@ fun MicroJobApp() {
             currentRoute?.startsWith("review_job") == true ||
             currentRoute == MicroJobRoutes.SOCIAL_IMPACT ||
             currentRoute == MicroJobRoutes.DONATION_HISTORY ||
-            currentRoute == MicroJobRoutes.VOUCHER_REDEEM
+            currentRoute == MicroJobRoutes.VOUCHER_REDEEM ||
+            currentRoute == MicroJobRoutes.POINTS_HISTORY ||
+            currentRoute == MicroJobRoutes.MINI_GAME_MENU ||
+            currentRoute == MicroJobRoutes.TIC_TAC_TOE ||
+            currentRoute == MicroJobRoutes.NUMBER_GUESS ||
+            currentRoute == MicroJobRoutes.MEMORY_FLIP
     val showChrome = !isFullScreen
 
     /** Navigates to [route]; if the user is not logged in, goes to login first. */
@@ -249,6 +259,8 @@ fun MicroJobApp() {
                     },
                     onNavigateToCertificates = { /* TODO */ },
                     onNavigateToSocialImpact = { navController.navigate(MicroJobRoutes.SOCIAL_IMPACT) },
+                    onNavigateToMiniGames = { navController.navigate(MicroJobRoutes.MINI_GAME_MENU) },
+                    onNavigateToPointsHistory = { navController.navigate(MicroJobRoutes.POINTS_HISTORY) },
                     onNavigateToChat = { otherUserId ->
                         navController.navigate(MicroJobRoutes.chatDetail(otherUserId))
                     },
@@ -272,6 +284,10 @@ fun MicroJobApp() {
                     onBack = { navController.popBackStack() },
                     onOtherUserClick = { userId ->
                         navController.navigate(MicroJobRoutes.userProfile(userId))
+                    },
+                    onJobCompleted = { jobTitle, jobPrice ->
+                        val points = (jobPrice * 0.5).toInt().coerceAtLeast(200)
+                        socialImpactVm.earnPoints("Completed: $jobTitle", points)
                     },
                     onOpenReview = { jobId ->
                         val myId = authVm.currentUser.value?.id
@@ -319,6 +335,8 @@ fun MicroJobApp() {
                     },
                     onNavigateToCertificates = { /* TODO */ },
                     onNavigateToSocialImpact = { navController.navigate(MicroJobRoutes.SOCIAL_IMPACT) },
+                    onNavigateToMiniGames = { navController.navigate(MicroJobRoutes.MINI_GAME_MENU) },
+                    onNavigateToPointsHistory = { navController.navigate(MicroJobRoutes.POINTS_HISTORY) },
                     onNavigateToChat = { otherUserId ->
                         if (currentUser != null) {
                             navController.navigate(MicroJobRoutes.chatDetail(otherUserId))
@@ -639,6 +657,70 @@ fun MicroJobApp() {
                     vouchers = socialImpactState.voucherList,
                     onBack = { navController.popBackStack() },
                     onRedeemVoucher = { socialImpactVm.redeemVoucher(it) }
+                )
+            }
+            composable(
+                enterTransition = { fadeIn(animationSpec = tween(120)) },
+                exitTransition = { fadeOut(animationSpec = tween(120)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(120)) },
+                popExitTransition = { fadeOut(animationSpec = tween(120)) },
+                route = MicroJobRoutes.POINTS_HISTORY
+            ) {
+                val socialImpactState by socialImpactVm.uiState.collectAsStateWithLifecycle()
+                PointsHistoryScreen(
+                    userPoints = socialImpactState.userPoints,
+                    pointsHistory = socialImpactState.pointsHistory,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(
+                enterTransition = { fadeIn(animationSpec = tween(120)) },
+                exitTransition = { fadeOut(animationSpec = tween(120)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(120)) },
+                popExitTransition = { fadeOut(animationSpec = tween(120)) },
+                route = MicroJobRoutes.MINI_GAME_MENU
+            ) {
+                MiniGameMenuScreen(
+                    onBack = { navController.popBackStack() },
+                    onPlayTicTacToe = { navController.navigate(MicroJobRoutes.TIC_TAC_TOE) },
+                    onPlayNumberGuess = { navController.navigate(MicroJobRoutes.NUMBER_GUESS) },
+                    onPlayMemoryFlip = { navController.navigate(MicroJobRoutes.MEMORY_FLIP) }
+                )
+            }
+            composable(
+                enterTransition = { fadeIn(animationSpec = tween(120)) },
+                exitTransition = { fadeOut(animationSpec = tween(120)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(120)) },
+                popExitTransition = { fadeOut(animationSpec = tween(120)) },
+                route = MicroJobRoutes.TIC_TAC_TOE
+            ) {
+                TicTacToeScreen(
+                    onBack = { navController.popBackStack() },
+                    onWin = { socialImpactVm.earnPoints("Won Tic Tac Toe", 200) }
+                )
+            }
+            composable(
+                enterTransition = { fadeIn(animationSpec = tween(120)) },
+                exitTransition = { fadeOut(animationSpec = tween(120)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(120)) },
+                popExitTransition = { fadeOut(animationSpec = tween(120)) },
+                route = MicroJobRoutes.NUMBER_GUESS
+            ) {
+                NumberGuessScreen(
+                    onBack = { navController.popBackStack() },
+                    onWin = { socialImpactVm.earnPoints("Won Number Guess", 200) }
+                )
+            }
+            composable(
+                enterTransition = { fadeIn(animationSpec = tween(120)) },
+                exitTransition = { fadeOut(animationSpec = tween(120)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(120)) },
+                popExitTransition = { fadeOut(animationSpec = tween(120)) },
+                route = MicroJobRoutes.MEMORY_FLIP
+            ) {
+                MemoryFlipScreen(
+                    onBack = { navController.popBackStack() },
+                    onWin = { socialImpactVm.earnPoints("Won Memory Flip", 200) }
                 )
             }
         }

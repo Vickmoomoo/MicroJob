@@ -3,6 +3,7 @@ package com.example.microjob.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import com.example.microjob.model.DonationRecord
+import com.example.microjob.model.PointsHistoryEntry
 import com.example.microjob.model.VoucherItem
 import com.example.microjob.model.sampleDonations
 import com.example.microjob.model.sampleVouchers
@@ -11,11 +12,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 data class SocialImpactUiState(
-    val userPoints: Int = 2450,
+    val userPoints: Int = 0,
     val peopleHelped: Int = 128,
     val totalDonated: String = "RM 15,680",
     val donationHistory: List<DonationRecord> = sampleDonations,
     val voucherList: List<VoucherItem> = sampleVouchers,
+    val pointsHistory: List<PointsHistoryEntry> = emptyList(),
 )
 
 class SocialImpactViewModel(
@@ -29,7 +31,28 @@ class SocialImpactViewModel(
         val current = _uiState.value
         val cost = voucher.pointsRequired
         if (current.userPoints >= cost) {
-            _uiState.value = current.copy(userPoints = current.userPoints - cost)
+            _uiState.value = current.copy(
+                userPoints = current.userPoints - cost,
+                pointsHistory = current.pointsHistory + PointsHistoryEntry(
+                    source = "Redeemed ${voucher.title}",
+                    points = -cost,
+                    date = "Today",
+                    isEarned = false
+                )
+            )
         }
+    }
+
+    fun earnPoints(source: String, points: Int) {
+        val current = _uiState.value
+        _uiState.value = current.copy(
+            userPoints = current.userPoints + points,
+            pointsHistory = current.pointsHistory + PointsHistoryEntry(
+                source = source,
+                points = points,
+                date = "Today",
+                isEarned = true
+            )
+        )
     }
 }
