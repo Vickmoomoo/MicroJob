@@ -51,6 +51,9 @@ data class PostFormSnapshot(
     val addressDetail: String,
     val photoUris: List<android.net.Uri>,
     val language: String?,
+    val scheduledDateMillis: Long?,
+    val scheduledHour: Int?,
+    val scheduledMinute: Int?,
 )
 
 /** Creates a PostJobViewModel backed by the local repository (avoids reflection). */
@@ -97,6 +100,11 @@ class PostJobViewModel(
 
     /** Recommended communication language — Chinese / English / Malay / Other. Defaults to Other. */
     val language = MutableStateFlow<String?>("Other")
+
+    /** Scheduled date (epoch millis at start of day) and 24h time. Null = not chosen yet. */
+    val scheduledDateMillis = MutableStateFlow<Long?>(null)
+    val scheduledHour = MutableStateFlow<Int?>(null)
+    val scheduledMinute = MutableStateFlow<Int?>(null)
 
     /** Selected local photos (content URIs) picked by the user. */
     private val _photoUris = MutableStateFlow<List<Uri>>(emptyList())
@@ -152,9 +160,6 @@ class PostJobViewModel(
     /** Platform service fee charged to the poster (5% of the price). */
     val serviceFee: Double get() = priceValue * serviceFeeRate
 
-    /** What the worker receives after their 5% platform fee: price × 0.95. */
-    val workerReceive: Double get() = priceValue * (1.0 - serviceFeeRate)
-
     /**
      * The donation amount the user typed. Donating is driven by this field
      * (empty or 0 = no donation); the [donate] flag is derived from it.
@@ -163,12 +168,6 @@ class PostJobViewModel(
 
     /** Platform's 1:1 match, capped at [matchCap] (0 when donation is off). */
     val platformMatch: Double get() = if (donation > 0) minOf(donation, matchCap) else 0.0
-
-    /** Total that goes to the MicroJob fund: user donation + platform match. */
-    val totalToFund: Double get() = donation + platformMatch
-
-    /** Total the poster pays: job price + service fee + donation (match is paid by platform). */
-    val totalPrice: Double get() = priceValue + serviceFee + donation
 
     fun setPhotos(uris: List<Uri>) {
         _photoUris.value = uris.take(maxPhotos)
@@ -205,6 +204,9 @@ class PostJobViewModel(
         category.value.isNullOrBlank() -> "Please select a category."
         // At least one photo is required.
         _photoUris.value.isEmpty() -> "Please add at least one photo."
+        // Scheduled date & time (24h) is required.
+        scheduledDateMillis.value == null || scheduledHour.value == null || scheduledMinute.value == null ->
+            "Please select scheduled date and time."
         // Address fields are only required for On-site jobs.
         jobType.value == "onsite" && state.value.isNullOrBlank() -> "Please select a state."
         jobType.value == "onsite" && area.value.isNullOrBlank() -> "Please select an area."
@@ -231,6 +233,17 @@ class PostJobViewModel(
             state.value.orEmpty()
         ).filter { it.isNotBlank() }.joinToString(", ")
 
+        // Build ISO-8601 scheduledAt from date + 24h time
+        val scheduledAt = run {
+            val millis = scheduledDateMillis.value!!
+            val hour = scheduledHour.value!!
+            val minute = scheduledMinute.value!!
+            val zone = java.time.ZoneId.systemDefault()
+            val date = java.time.Instant.ofEpochMilli(millis).atZone(zone).toLocalDate()
+            val time = java.time.LocalTime.of(hour, minute)
+            java.time.LocalDateTime.of(date, time).atZone(zone).toString()
+        }
+
         val job = Job(
             id = 0, // server-assigned on insert
             title = title.value.trim(),
@@ -253,7 +266,8 @@ class PostJobViewModel(
             donate = donation > 0,
             donationAmount = donation,
             currency = "RM",
-            language = language.value ?: ""
+            language = language.value ?: "",
+            scheduledAt = scheduledAt
         )
 
         viewModelScope.launch {
@@ -277,7 +291,7 @@ class PostJobViewModel(
                 _uiState.value = PostJobUiState.Success(created.id)
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiState.value = PostJobUiState.Error(
                     "Failed to publish the job. Please try again."
                 )
@@ -318,7 +332,10 @@ class PostJobViewModel(
             donationAmount = donationAmount.value,
             addressDetail = addressDetail.value,
             photoUris = _photoUris.value,
-            language = language.value
+            language = language.value,
+            scheduledDateMillis = scheduledDateMillis.value,
+            scheduledHour = scheduledHour.value,
+            scheduledMinute = scheduledMinute.value
         )
     }
 
@@ -340,6 +357,9 @@ class PostJobViewModel(
         addressDetail.value = f.addressDetail
         _photoUris.value = f.photoUris
         language.value = f.language
+        scheduledDateMillis.value = f.scheduledDateMillis
+        scheduledHour.value = f.scheduledHour
+        scheduledMinute.value = f.scheduledMinute
     }
 
     /** Removes a just-published job (the "Undo" action on the snackbar). */
@@ -352,7 +372,7 @@ class PostJobViewModel(
                 _uiState.value = PostJobUiState.Idle
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // Undo is best-effort; ignore failures.
             }
         }
@@ -378,5 +398,8 @@ class PostJobViewModel(
         addressDetail.value = ""
         _photoUris.value = emptyList()
         language.value = "Other"
+        scheduledDateMillis.value = null
+        scheduledHour.value = null
+        scheduledMinute.value = null
     }
 }

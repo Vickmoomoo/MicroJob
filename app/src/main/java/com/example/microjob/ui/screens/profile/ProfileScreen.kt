@@ -31,7 +31,6 @@ import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Work
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -77,6 +76,7 @@ fun ProfileScreen(
     onNavigateToSettings: () -> Unit,
     onNavigateToPostedJobs: () -> Unit,
     onNavigateToAcceptedJobs: () -> Unit,
+    onNavigateToMyJobs: () -> Unit,
     onNavigateToReviews: () -> Unit,
     onNavigateToCertificates: () -> Unit,
     onNavigateToSocialImpact: () -> Unit,
@@ -124,6 +124,7 @@ fun ProfileScreen(
             onNavigateToSettings = onNavigateToSettings,
             onNavigateToPostedJobs = onNavigateToPostedJobs,
             onNavigateToAcceptedJobs = onNavigateToAcceptedJobs,
+            onNavigateToMyJobs = onNavigateToMyJobs,
             onNavigateToReviews = onNavigateToReviews,
             onNavigateToCertificates = onNavigateToCertificates,
             onNavigateToSocialImpact = onNavigateToSocialImpact,
@@ -174,6 +175,7 @@ private fun ProfileContent(
     onNavigateToSettings: () -> Unit,
     onNavigateToPostedJobs: () -> Unit,
     onNavigateToAcceptedJobs: () -> Unit,
+    onNavigateToMyJobs: () -> Unit,
     onNavigateToReviews: () -> Unit,
     onNavigateToCertificates: () -> Unit,
     onNavigateToSocialImpact: () -> Unit,
@@ -345,11 +347,10 @@ private fun ProfileContent(
 
         Spacer(Modifier.height(4.dp))
 
-        // --- Features list ---
+        // --- Features list (Posted + Accepted combined into My Jobs) ---
         if (isMyProfile) {
             HorizontalDivider()
-            ProfileMenuItem(Icons.Filled.Work, "Posted Jobs") { onNavigateToPostedJobs() }
-            ProfileMenuItem(Icons.Filled.Bookmark, "Accepted Jobs") { onNavigateToAcceptedJobs() }
+            ProfileMenuItem(Icons.Filled.Work, "My Jobs") { onNavigateToMyJobs() }
             ProfileMenuItem(Icons.Filled.Star, "Reviews") { onNavigateToReviews() }
             ProfileMenuItem(Icons.Filled.School, "Certificates") { onNavigateToCertificates() }
             ProfileMenuItem(Icons.Filled.Favorite, "Social Impact") { onNavigateToSocialImpact() }

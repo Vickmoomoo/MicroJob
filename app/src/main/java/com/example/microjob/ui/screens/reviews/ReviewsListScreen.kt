@@ -1,6 +1,7 @@
 package com.example.microjob.ui.screens.reviews
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,7 +39,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.microjob.model.Review
-import com.example.microjob.model.SampleData
 import com.example.microjob.viewmodel.ReviewViewModel
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
@@ -55,6 +55,7 @@ fun ReviewsListScreen(
     onBack: () -> Unit,
     onWriteReview: () -> Unit,
     onEditReview: (Long) -> Unit,
+    onReviewClick: ((Int) -> Unit)? = null,
 ) {
     val listState by vm.listState.collectAsStateWithLifecycle()
     val myId = vm.myId()
@@ -141,7 +142,8 @@ fun ReviewsListScreen(
                     review = review,
                     reviewerName = listState.users[review.reviewerUserId]?.name ?: "Unknown",
                     isMyReview = review.reviewerUserId == myId,
-                    onEdit = { onEditReview(review.id) }
+                    onEdit = { onEditReview(review.id) },
+                    onClick = review.jobId?.let { jobId -> { onReviewClick?.invoke(jobId.toInt()) } }
                 )
                 HorizontalDivider()
             }
@@ -159,15 +161,12 @@ private fun ReviewItem(
     reviewerName: String,
     isMyReview: Boolean,
     onEdit: () -> Unit,
+    onClick: (() -> Unit)? = null,
 ) {
-    val jobTitle = review.jobId?.let { id ->
-        // Try to find job title from sample data or leave blank
-        null // Will be passed from the list state
-    }
-
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(enabled = onClick != null, onClick = { onClick?.invoke() })
             .padding(vertical = 12.dp)
     ) {
         // Reviewer row
@@ -249,7 +248,7 @@ private fun formatReviewDate(iso: String): String {
     return try {
         val date = OffsetDateTime.parse(iso).toLocalDate()
         date.format(DateTimeFormatter.ofPattern("MMM d, yyyy"))
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         iso
     }
 }

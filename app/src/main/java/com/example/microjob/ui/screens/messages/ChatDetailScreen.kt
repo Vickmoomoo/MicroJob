@@ -36,8 +36,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -612,6 +612,8 @@ private fun PaymentCardBubble(job: Job?, isMine: Boolean, onOpenPayment: () -> U
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        } else {
+            Text("Loading...", style = MaterialTheme.typography.bodySmall)
         }
         Spacer(Modifier.height(6.dp))
         Text(
@@ -664,7 +666,7 @@ private fun JobPickerDialog(
                             singleLine = true,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .menuAnchor()
+                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true)
                         )
                         ExposedDropdownMenu(
                             expanded = expanded,

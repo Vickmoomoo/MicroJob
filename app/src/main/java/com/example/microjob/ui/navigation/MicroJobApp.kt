@@ -26,8 +26,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -51,10 +53,13 @@ import com.example.microjob.ui.screens.login.LoginScreen
 import com.example.microjob.ui.screens.messages.ChatDetailScreen
 import com.example.microjob.ui.screens.messages.ChatListScreen
 import com.example.microjob.ui.screens.post.PostJobScreen
+import com.example.microjob.ui.screens.profile.MyJobDetailScreen
+import com.example.microjob.ui.screens.profile.MyJobsScreen
 import com.example.microjob.ui.screens.profile.ProfileScreen
 import com.example.microjob.ui.screens.profile.JobListScreen
 import com.example.microjob.ui.screens.profile.SettingsScreen
 import com.example.microjob.ui.screens.reviews.ReviewFormScreen
+import com.example.microjob.ui.screens.reviews.ReviewJobDetailScreen
 import com.example.microjob.ui.screens.reviews.ReviewsListScreen
 import com.example.microjob.ui.screens.translation.VoiceTranslationScreen
 import com.example.microjob.viewmodel.AuthViewModel
@@ -64,7 +69,9 @@ import com.example.microjob.viewmodel.PostJobViewModel
 import com.example.microjob.viewmodel.ProfileViewModel
 import com.example.microjob.viewmodel.ReviewViewModel
 import com.example.microjob.viewmodel.postJobViewModelFactory
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** Root composable: Scaffold (bottom bar + center FAB) hosting the NavHost. */
 @Composable
@@ -132,7 +139,10 @@ fun MicroJobApp() {
             currentRoute?.startsWith("review_form") == true ||
             currentRoute?.startsWith("reviews") == true ||
             currentRoute?.startsWith("posted_jobs") == true ||
-            currentRoute?.startsWith("accepted_jobs") == true
+            currentRoute?.startsWith("accepted_jobs") == true ||
+            currentRoute?.startsWith("my_jobs") == true ||
+            currentRoute?.startsWith("my_job_detail") == true ||
+            currentRoute?.startsWith("review_job") == true
     val showChrome = !isFullScreen
 
     /** Navigates to [route]; if the user is not logged in, goes to login first. */
@@ -225,6 +235,7 @@ fun MicroJobApp() {
                     onNavigateToSettings = { navController.navigate(MicroJobRoutes.SETTINGS) },
                     onNavigateToPostedJobs = { navController.navigate(MicroJobRoutes.postedJobs(myId)) },
                     onNavigateToAcceptedJobs = { navController.navigate(MicroJobRoutes.acceptedJobs(myId)) },
+                    onNavigateToMyJobs = { navController.navigate(MicroJobRoutes.myJobs(myId)) },
                     onNavigateToReviews = {
                         navController.navigate(MicroJobRoutes.reviewsList(myId))
                     },
@@ -257,18 +268,18 @@ fun MicroJobApp() {
                     onOpenReview = { jobId ->
                         val myId = authVm.currentUser.value?.id
                         if (myId != null) {
-                            val localRepo = com.example.microjob.data.LocalJobRepository(
-                                context.applicationContext as android.app.Application
-                            )
-                            val job = kotlinx.coroutines.runBlocking { localRepo.getJob(jobId) }
-                            if (job != null) {
-                                val reviewedUserId = if (myId == job.posterId) {
-                                    job.workerId ?: 0L
-                                } else {
-                                    job.posterId
-                                }
-                                if (reviewedUserId > 0) {
-                                    navController.navigate(MicroJobRoutes.reviewForm(reviewedUserId, jobId))
+                            val localRepo = com.example.microjob.data.LocalJobRepository(context.applicationContext)
+                            scope.launch {
+                                val job = withContext(Dispatchers.IO) { localRepo.getJob(jobId) }
+                                if (job != null) {
+                                    val reviewedUserId = if (myId == job.posterId) {
+                                        job.workerId ?: 0L
+                                    } else {
+                                        job.posterId
+                                    }
+                                    if (reviewedUserId > 0) {
+                                        navController.navigate(MicroJobRoutes.reviewForm(reviewedUserId, jobId))
+                                    }
                                 }
                             }
                         } else {
@@ -294,6 +305,7 @@ fun MicroJobApp() {
                     onNavigateToSettings = { navController.navigate(MicroJobRoutes.SETTINGS) },
                     onNavigateToPostedJobs = { navController.navigate(MicroJobRoutes.postedJobs(userId)) },
                     onNavigateToAcceptedJobs = { navController.navigate(MicroJobRoutes.acceptedJobs(userId)) },
+                    onNavigateToMyJobs = { navController.navigate(MicroJobRoutes.myJobs(userId)) },
                     onNavigateToReviews = {
                         navController.navigate(MicroJobRoutes.reviewsList(userId))
                     },
@@ -393,10 +405,10 @@ fun MicroJobApp() {
                 arguments = listOf(navArgument("userId") { type = NavType.LongType })
             ) { entry ->
                 val userId = entry.arguments?.getLong("userId") ?: return@composable
-                val user = profileVm.uiState.value.user
+                val profileState by profileVm.uiState.collectAsStateWithLifecycle()
                 ReviewsListScreen(
                     userId = userId,
-                    userName = user?.name ?: "User",
+                    userName = profileState.user?.name ?: "User",
                     vm = reviewVm,
                     onBack = { navController.popBackStack() },
                     onWriteReview = { /* handled via chat review prompt */ },
@@ -404,8 +416,48 @@ fun MicroJobApp() {
                         navController.navigate(
                             MicroJobRoutes.reviewFormEdit(userId, null, reviewId)
                         )
+                    },
+                    onReviewClick = { jobId ->
+                        navController.navigate(MicroJobRoutes.reviewJobDetail(jobId))
                     }
                 )
+            }
+            composable(
+                enterTransition = { fadeIn(animationSpec = tween(120)) },
+                exitTransition = { fadeOut(animationSpec = tween(120)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(120)) },
+                popExitTransition = { fadeOut(animationSpec = tween(120)) },
+                route = MicroJobRoutes.REVIEW_JOB_DETAIL,
+                arguments = listOf(navArgument("jobId") { type = NavType.IntType })
+            ) { entry ->
+                val jobId = entry.arguments?.getInt("jobId") ?: return@composable
+                ReviewJobDetailScreen(jobId = jobId, onBack = { navController.popBackStack() })
+            }
+            composable(
+                enterTransition = { fadeIn(animationSpec = tween(120)) },
+                exitTransition = { fadeOut(animationSpec = tween(120)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(120)) },
+                popExitTransition = { fadeOut(animationSpec = tween(120)) },
+                route = MicroJobRoutes.MY_JOBS,
+                arguments = listOf(navArgument("userId") { type = NavType.LongType })
+            ) { entry ->
+                val userId = entry.arguments?.getLong("userId") ?: return@composable
+                MyJobsScreen(
+                    userId = userId,
+                    onBack = { navController.popBackStack() },
+                    onJobClick = { jobId -> navController.navigate(MicroJobRoutes.myJobDetail(jobId)) }
+                )
+            }
+            composable(
+                enterTransition = { fadeIn(animationSpec = tween(120)) },
+                exitTransition = { fadeOut(animationSpec = tween(120)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(120)) },
+                popExitTransition = { fadeOut(animationSpec = tween(120)) },
+                route = MicroJobRoutes.MY_JOB_DETAIL,
+                arguments = listOf(navArgument("jobId") { type = NavType.IntType })
+            ) { entry ->
+                val jobId = entry.arguments?.getInt("jobId") ?: return@composable
+                MyJobDetailScreen(jobId = jobId, onBack = { navController.popBackStack() })
             }
             composable(
                 enterTransition = { fadeIn(animationSpec = tween(120)) },
@@ -416,9 +468,12 @@ fun MicroJobApp() {
                 arguments = listOf(navArgument("userId") { type = NavType.LongType })
             ) { entry ->
                 val userId = entry.arguments?.getLong("userId") ?: return@composable
+                var postedJobs by remember { mutableStateOf(emptyList<com.example.microjob.model.Job>()) }
                 val ctx = androidx.compose.ui.platform.LocalContext.current
-                val localRepo = com.example.microjob.data.LocalJobRepository(ctx.applicationContext as android.app.Application)
-                val postedJobs = kotlinx.coroutines.runBlocking { localRepo.getPostedJobs(userId) }
+                LaunchedEffect(userId) {
+                    val localRepo = com.example.microjob.data.LocalJobRepository(ctx.applicationContext)
+                    postedJobs = withContext(Dispatchers.IO) { localRepo.getPostedJobs(userId) }
+                }
                 JobListScreen(
                     title = "Posted Jobs",
                     jobs = postedJobs,
@@ -435,9 +490,12 @@ fun MicroJobApp() {
                 arguments = listOf(navArgument("userId") { type = NavType.LongType })
             ) { entry ->
                 val userId = entry.arguments?.getLong("userId") ?: return@composable
+                var acceptedJobs by remember { mutableStateOf(emptyList<com.example.microjob.model.Job>()) }
                 val ctx = androidx.compose.ui.platform.LocalContext.current
-                val localRepo = com.example.microjob.data.LocalJobRepository(ctx.applicationContext as android.app.Application)
-                val acceptedJobs = kotlinx.coroutines.runBlocking { localRepo.getAcceptedJobs(userId) }
+                LaunchedEffect(userId) {
+                    val localRepo = com.example.microjob.data.LocalJobRepository(ctx.applicationContext)
+                    acceptedJobs = withContext(Dispatchers.IO) { localRepo.getAcceptedJobs(userId) }
+                }
                 JobListScreen(
                     title = "Accepted Jobs",
                     jobs = acceptedJobs,

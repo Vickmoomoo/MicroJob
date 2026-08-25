@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -29,13 +28,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.foundation.clickable
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
@@ -48,6 +52,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -158,15 +163,15 @@ fun PostJobScreen(
                 subtitle = "Publishing your job...",
                 isSuccess = true
             )
-            else -> Column(
+            else -> androidx.compose.foundation.lazy.LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .verticalScroll(rememberScrollState())
                     .imePadding()
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            item { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             // Photos come first — large square preview of the job photos.
             Text(
                 text = "Photos (up to ${vm.maxPhotos})",
@@ -293,6 +298,15 @@ fun PostJobScreen(
                 onSelect = { vm.language.value = it }
             )
 
+            // Scheduled date & time (24h) — required
+            ScheduledDateTimePicker(
+                dateMillis = vm.scheduledDateMillis.collectAsStateWithLifecycle().value,
+                hour = vm.scheduledHour.collectAsStateWithLifecycle().value,
+                minute = vm.scheduledMinute.collectAsStateWithLifecycle().value,
+                onDateChange = { vm.scheduledDateMillis.value = it },
+                onTimeChange = { h, m -> vm.scheduledHour.value = h; vm.scheduledMinute.value = m }
+            )
+
             // GPS requirement switch
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -328,7 +342,7 @@ fun PostJobScreen(
                 }
                 IconButton(onClick = { showDonateInfo = true }) {
                     Icon(
-                        imageVector = Icons.Filled.HelpOutline,
+                        imageVector = Icons.AutoMirrored.Filled.HelpOutline,
                         contentDescription = "What is this?",
                         tint = MaterialTheme.colorScheme.primary
                     )
@@ -434,6 +448,8 @@ fun PostJobScreen(
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            }
+            }
         }
         }
     }
@@ -579,7 +595,7 @@ private fun PostDropdown(
             placeholder = { Text("Select...") },
             modifier = Modifier
                 .fillMaxWidth()
-                .menuAnchor()
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true)
         )
         ExposedDropdownMenu(
             expanded = expanded,
@@ -721,5 +737,117 @@ private fun PhotoPickerRow(
                 Text("Replace photo")
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ScheduledDateTimePicker(
+    dateMillis: Long?,
+    hour: Int?,
+    minute: Int?,
+    onDateChange: (Long) -> Unit,
+    onTimeChange: (Int, Int) -> Unit,
+) {
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+
+    val dateText = remember(dateMillis) {
+        if (dateMillis == null) "" else {
+            val fmt = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")
+            java.time.Instant.ofEpochMilli(dateMillis).atZone(java.time.ZoneId.systemDefault()).format(fmt)
+        }
+    }
+    val timeText = remember(hour, minute) {
+        if (hour == null || minute == null) "" else "%02d:%02d".format(hour, minute)
+    }
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Box(modifier = Modifier.fillMaxWidth().clickable { showDatePicker = true }) {
+            OutlinedTextField(
+                value = dateText,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Date *") },
+                placeholder = { Text("Select date") },
+                trailingIcon = { Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+        Box(modifier = Modifier.fillMaxWidth().clickable { showTimePicker = true }) {
+            OutlinedTextField(
+                value = timeText,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Time (24h) *") },
+                placeholder = { Text("Select time") },
+                trailingIcon = { Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+
+    if (showDatePicker) {
+        val todayMillis = remember {
+            java.time.LocalDate.now().atStartOfDay(java.time.ZoneId.of("UTC")).toInstant().toEpochMilli()
+        }
+        val state = rememberDatePickerState(
+            initialSelectedDateMillis = dateMillis,
+            selectableDates = object : androidx.compose.material3.SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis >= todayMillis
+                override fun isSelectableYear(year: Int): Boolean = year >= java.time.Year.now().value
+            }
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    state.selectedDateMillis?.let { onDateChange(it) }
+                    showDatePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancel") } }
+        ) { DatePicker(state = state) }
+    }
+
+    if (showTimePicker) {
+        var hourText by remember { mutableStateOf((hour ?: 12).toString()) }
+        var minuteText by remember { mutableStateOf((minute ?: 0).toString()) }
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            title = { Text("Select time (24h)") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = hourText,
+                        onValueChange = { if (it.all { c -> c.isDigit() } && it.length <= 2) hourText = it },
+                        label = { Text("Hour (0-23)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = minuteText,
+                        onValueChange = { if (it.all { c -> c.isDigit() } && it.length <= 2) minuteText = it },
+                        label = { Text("Minute (0-59)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val h = hourText.toIntOrNull()?.coerceIn(0, 23) ?: (hour ?: 12)
+                    val m = minuteText.toIntOrNull()?.coerceIn(0, 59) ?: (minute ?: 0)
+                    onTimeChange(h, m)
+                    showTimePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { showTimePicker = false }) { Text("Cancel") } }
+        )
     }
 }

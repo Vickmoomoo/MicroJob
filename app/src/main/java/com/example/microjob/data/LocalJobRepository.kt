@@ -246,6 +246,10 @@ class LocalJobRepository(private val context: Context) : JobRepository {
     fun getReviewsForUser(userId: Long): List<Review> =
         readList<Review>("reviews.json", emptyList()).filter { it.reviewedUserId == userId }
 
+    /** Returns all reviews (for job detail). */
+    fun getAllReviews(): List<Review> =
+        readList<Review>("reviews.json", emptyList())
+
     /** Jobs posted by a user (poster history). */
     fun getPostedJobs(userId: Long): List<Job> = readJobs().filter { it.posterId == userId }
 

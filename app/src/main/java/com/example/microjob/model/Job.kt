@@ -40,6 +40,8 @@ data class Job(
     val createdAt: String = "",
     /** ISO-8601 deadline; null = no deadline. */
     val deadline: String? = null,
+    /** ISO-8601 scheduled date+time (24h) chosen at posting; null when not set (legacy). */
+    val scheduledAt: String? = null,
     // --- Trust & safety ---
     /** Poster optionally requires the worker to share their location while working. */
     val requireGps: Boolean = false,

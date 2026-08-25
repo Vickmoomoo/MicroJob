@@ -66,4 +66,16 @@ object MicroJobRoutes {
 
     /** Builds the concrete route for accepted jobs. */
     fun acceptedJobs(userId: Long) = "accepted_jobs/$userId"
+
+    /** Combined My Jobs (posted + accepted tabs). Route pattern: "my_jobs/{userId}" */
+    const val MY_JOBS = "my_jobs/{userId}"
+    fun myJobs(userId: Long) = "my_jobs/$userId"
+
+    /** My job detail with calendar. Route pattern: "my_job_detail/{jobId}" */
+    const val MY_JOB_DETAIL = "my_job_detail/{jobId}"
+    fun myJobDetail(jobId: Int) = "my_job_detail/$jobId"
+
+    /** Review job detail (price/title/desc + reviews). Route pattern: "review_job/{jobId}" */
+    const val REVIEW_JOB_DETAIL = "review_job/{jobId}"
+    fun reviewJobDetail(jobId: Int) = "review_job/$jobId"
 }

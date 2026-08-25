@@ -109,17 +109,19 @@ class LocalChatRepository(private val context: Context) : ChatRepository {
         return stored
     }
 
+    private val jobRepo by lazy { LocalJobRepository(context) }
+
     override suspend fun getUser(id: Long): User? =
-        LocalJobRepository(context).getUser(id)
+        jobRepo.getUser(id)
 
     override suspend fun getJob(id: Int): Job? =
-        LocalJobRepository(context).getJob(id)
+        jobRepo.getJob(id)
 
     override suspend fun acceptJob(jobId: Int, workerId: Long): Job? =
-        LocalJobRepository(context).acceptJob(jobId, workerId)
+        jobRepo.acceptJob(jobId, workerId)
 
     override suspend fun releasePayment(jobId: Int): Job? =
-        LocalJobRepository(context).releasePayment(jobId)
+        jobRepo.releasePayment(jobId)
 
     override fun savePickedPhoto(uri: Uri): String {
         val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
