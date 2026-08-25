@@ -18,20 +18,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.microjob.model.DonationRecord
 import com.example.microjob.model.VoucherItem
-import com.example.microjob.model.sampleDonations
-import com.example.microjob.model.sampleVouchers
+import com.example.microjob.viewmodel.SocialImpactUiState
 
-// ---------------------- Main Screen ----------------------
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SocialImpactScreen(
-    userPoints: Int = 2450,
-    peopleHelped: Int = 128,
-    totalDonated: String = "RM 15,680",
-    donationHistory: List<DonationRecord> = sampleDonations,
-    voucherList: List<VoucherItem> = sampleVouchers,
+    uiState: SocialImpactUiState,
     onBackClick: () -> Unit = {},
     onViewAllDonations: () -> Unit = {},
+    onViewAllVouchers: () -> Unit = {},
     onRedeemVoucher: (VoucherItem) -> Unit = {}
 ) {
     Scaffold(
@@ -47,7 +42,6 @@ fun SocialImpactScreen(
                     }
                 },
                 actions = {
-                    // Points Display — Top Right
                     Box(
                         modifier = Modifier
                             .background(Color(0xFF2563EB).copy(alpha = 0.1f), CircleShape)
@@ -58,7 +52,7 @@ fun SocialImpactScreen(
                             Text("\u2B50", fontSize = 14.sp)
                             Spacer(Modifier.width(4.dp))
                             Text(
-                                text = "$userPoints pts",
+                                text = "${uiState.userPoints} pts",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = Color(0xFF2563EB)
@@ -82,7 +76,7 @@ fun SocialImpactScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
 
-            // ===== Impact Summary Box (Smaller) =====
+            // ===== Impact Summary Box =====
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
@@ -101,12 +95,12 @@ fun SocialImpactScreen(
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
                         StatColumn(
-                            value = "$peopleHelped",
+                            value = "${uiState.peopleHelped}",
                             label = "People Helped",
                             color = Color(0xFF2563EB)
                         )
                         StatColumn(
-                            value = totalDonated,
+                            value = uiState.totalDonated,
                             label = "Total Donated",
                             color = Color(0xFF10B981)
                         )
@@ -131,7 +125,6 @@ fun SocialImpactScreen(
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold
                         )
-                        // View All button with arrow icon
                         TextButton(
                             onClick = onViewAllDonations,
                             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
@@ -150,15 +143,14 @@ fun SocialImpactScreen(
                         }
                     }
                     Spacer(Modifier.height(10.dp))
-                    // Show only first 2 items
-                    donationHistory.take(2).forEach { record ->
+                    uiState.donationHistory.take(2).forEach { record ->
                         DonationHistoryItem(record = record)
                         Spacer(Modifier.height(6.dp))
                     }
                 }
             }
 
-            // ===== Food Voucher Section (KFC & McDonald's) =====
+            // ===== Food Voucher Section =====
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
@@ -175,9 +167,25 @@ fun SocialImpactScreen(
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold
                         )
+                        TextButton(
+                            onClick = onViewAllVouchers,
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+                        ) {
+                            Text(
+                                text = "View All",
+                                fontSize = 12.sp,
+                                color = Color(0xFF2563EB)
+                            )
+                            Icon(
+                                imageVector = Icons.Default.ArrowForward,
+                                contentDescription = "View All",
+                                modifier = Modifier.size(14.dp),
+                                tint = Color(0xFF2563EB)
+                            )
+                        }
                     }
                     Spacer(Modifier.height(10.dp))
-                    voucherList.forEach { voucher ->
+                    uiState.voucherList.forEach { voucher ->
                         VoucherItemCard(
                             voucher = voucher,
                             onRedeem = { onRedeemVoucher(voucher) }
@@ -234,7 +242,6 @@ fun VoucherItemCard(voucher: VoucherItem, onRedeem: () -> Unit) {
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Brand Logo Box
         Box(
             modifier = Modifier
                 .size(50.dp)
@@ -250,7 +257,6 @@ fun VoucherItemCard(voucher: VoucherItem, onRedeem: () -> Unit) {
             )
         }
         Spacer(Modifier.width(12.dp))
-        // Voucher Details
         Column(modifier = Modifier.weight(1f)) {
             Text(voucher.title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             Text(voucher.validStores, fontSize = 11.sp, color = Color.Gray)
@@ -262,7 +268,6 @@ fun VoucherItemCard(voucher: VoucherItem, onRedeem: () -> Unit) {
                 fontWeight = FontWeight.Medium
             )
         }
-        // Redeem Button
         Button(
             onClick = onRedeem,
             modifier = Modifier.height(32.dp),

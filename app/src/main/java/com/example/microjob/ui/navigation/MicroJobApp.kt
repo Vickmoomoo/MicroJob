@@ -59,6 +59,8 @@ import com.example.microjob.ui.screens.profile.ProfileScreen
 import com.example.microjob.ui.screens.profile.JobListScreen
 import com.example.microjob.ui.screens.profile.SettingsScreen
 import com.example.microjob.ui.screens.profile.SocialImpactScreen
+import com.example.microjob.ui.screens.profile.AllDonationsScreen
+import com.example.microjob.ui.screens.profile.AllVouchersScreen
 import com.example.microjob.ui.screens.reviews.ReviewFormScreen
 import com.example.microjob.ui.screens.reviews.ReviewJobDetailScreen
 import com.example.microjob.ui.screens.reviews.ReviewsListScreen
@@ -69,6 +71,7 @@ import com.example.microjob.viewmodel.HomeViewModel
 import com.example.microjob.viewmodel.PostJobViewModel
 import com.example.microjob.viewmodel.ProfileViewModel
 import com.example.microjob.viewmodel.ReviewViewModel
+import com.example.microjob.viewmodel.SocialImpactViewModel
 import com.example.microjob.viewmodel.postJobViewModelFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -84,6 +87,7 @@ fun MicroJobApp() {
     val homeVm: HomeViewModel = viewModel()
     val profileVm: ProfileViewModel = viewModel()
     val reviewVm: ReviewViewModel = viewModel()
+    val socialImpactVm: SocialImpactViewModel = viewModel()
     val currentUser by authVm.currentUser.collectAsStateWithLifecycle()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
@@ -144,7 +148,9 @@ fun MicroJobApp() {
             currentRoute?.startsWith("my_jobs") == true ||
             currentRoute?.startsWith("my_job_detail") == true ||
             currentRoute?.startsWith("review_job") == true ||
-            currentRoute == MicroJobRoutes.SOCIAL_IMPACT
+            currentRoute == MicroJobRoutes.SOCIAL_IMPACT ||
+            currentRoute == MicroJobRoutes.DONATION_HISTORY ||
+            currentRoute == MicroJobRoutes.VOUCHER_REDEEM
     val showChrome = !isFullScreen
 
     /** Navigates to [route]; if the user is not logged in, goes to login first. */
@@ -599,8 +605,40 @@ fun MicroJobApp() {
                 popExitTransition = { fadeOut(animationSpec = tween(120)) },
                 route = MicroJobRoutes.SOCIAL_IMPACT
             ) {
+                val socialImpactState by socialImpactVm.uiState.collectAsStateWithLifecycle()
                 SocialImpactScreen(
-                    onBackClick = { navController.popBackStack() }
+                    uiState = socialImpactState,
+                    onBackClick = { navController.popBackStack() },
+                    onViewAllDonations = { navController.navigate(MicroJobRoutes.DONATION_HISTORY) },
+                    onViewAllVouchers = { navController.navigate(MicroJobRoutes.VOUCHER_REDEEM) },
+                    onRedeemVoucher = { socialImpactVm.redeemVoucher(it) }
+                )
+            }
+            composable(
+                enterTransition = { fadeIn(animationSpec = tween(120)) },
+                exitTransition = { fadeOut(animationSpec = tween(120)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(120)) },
+                popExitTransition = { fadeOut(animationSpec = tween(120)) },
+                route = MicroJobRoutes.DONATION_HISTORY
+            ) {
+                val socialImpactState by socialImpactVm.uiState.collectAsStateWithLifecycle()
+                AllDonationsScreen(
+                    donations = socialImpactState.donationHistory,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(
+                enterTransition = { fadeIn(animationSpec = tween(120)) },
+                exitTransition = { fadeOut(animationSpec = tween(120)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(120)) },
+                popExitTransition = { fadeOut(animationSpec = tween(120)) },
+                route = MicroJobRoutes.VOUCHER_REDEEM
+            ) {
+                val socialImpactState by socialImpactVm.uiState.collectAsStateWithLifecycle()
+                AllVouchersScreen(
+                    vouchers = socialImpactState.voucherList,
+                    onBack = { navController.popBackStack() },
+                    onRedeemVoucher = { socialImpactVm.redeemVoucher(it) }
                 )
             }
         }

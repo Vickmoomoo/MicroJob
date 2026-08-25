@@ -81,4 +81,10 @@ object MicroJobRoutes {
 
     /** Social Impact page. */
     const val SOCIAL_IMPACT = "social_impact"
+
+    /** All Donations page. */
+    const val DONATION_HISTORY = "donation_history"
+
+    /** All Vouchers page. */
+    const val VOUCHER_REDEEM = "voucher_redeem"
 }
