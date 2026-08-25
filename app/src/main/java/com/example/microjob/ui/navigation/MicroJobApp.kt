@@ -58,6 +58,7 @@ import com.example.microjob.ui.screens.profile.MyJobsScreen
 import com.example.microjob.ui.screens.profile.ProfileScreen
 import com.example.microjob.ui.screens.profile.JobListScreen
 import com.example.microjob.ui.screens.profile.SettingsScreen
+import com.example.microjob.ui.screens.profile.SocialImpactScreen
 import com.example.microjob.ui.screens.reviews.ReviewFormScreen
 import com.example.microjob.ui.screens.reviews.ReviewJobDetailScreen
 import com.example.microjob.ui.screens.reviews.ReviewsListScreen
@@ -142,7 +143,8 @@ fun MicroJobApp() {
             currentRoute?.startsWith("accepted_jobs") == true ||
             currentRoute?.startsWith("my_jobs") == true ||
             currentRoute?.startsWith("my_job_detail") == true ||
-            currentRoute?.startsWith("review_job") == true
+            currentRoute?.startsWith("review_job") == true ||
+            currentRoute == MicroJobRoutes.SOCIAL_IMPACT
     val showChrome = !isFullScreen
 
     /** Navigates to [route]; if the user is not logged in, goes to login first. */
@@ -240,7 +242,7 @@ fun MicroJobApp() {
                         navController.navigate(MicroJobRoutes.reviewsList(myId))
                     },
                     onNavigateToCertificates = { /* TODO */ },
-                    onNavigateToSocialImpact = { /* TODO */ },
+                    onNavigateToSocialImpact = { navController.navigate(MicroJobRoutes.SOCIAL_IMPACT) },
                     onNavigateToChat = { otherUserId ->
                         navController.navigate(MicroJobRoutes.chatDetail(otherUserId))
                     },
@@ -310,7 +312,7 @@ fun MicroJobApp() {
                         navController.navigate(MicroJobRoutes.reviewsList(userId))
                     },
                     onNavigateToCertificates = { /* TODO */ },
-                    onNavigateToSocialImpact = { /* TODO */ },
+                    onNavigateToSocialImpact = { navController.navigate(MicroJobRoutes.SOCIAL_IMPACT) },
                     onNavigateToChat = { otherUserId ->
                         if (currentUser != null) {
                             navController.navigate(MicroJobRoutes.chatDetail(otherUserId))
@@ -588,6 +590,17 @@ fun MicroJobApp() {
                 route = MicroJobRoutes.VOICE_TRANSLATION) {
                 VoiceTranslationScreen(
                     onBack = { navController.popBackStack() }
+                )
+            }
+            composable(
+                enterTransition = { fadeIn(animationSpec = tween(120)) },
+                exitTransition = { fadeOut(animationSpec = tween(120)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(120)) },
+                popExitTransition = { fadeOut(animationSpec = tween(120)) },
+                route = MicroJobRoutes.SOCIAL_IMPACT
+            ) {
+                SocialImpactScreen(
+                    onBackClick = { navController.popBackStack() }
                 )
             }
         }

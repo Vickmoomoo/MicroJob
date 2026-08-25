@@ -78,4 +78,7 @@ object MicroJobRoutes {
     /** Review job detail (price/title/desc + reviews). Route pattern: "review_job/{jobId}" */
     const val REVIEW_JOB_DETAIL = "review_job/{jobId}"
     fun reviewJobDetail(jobId: Int) = "review_job/$jobId"
+
+    /** Social Impact page. */
+    const val SOCIAL_IMPACT = "social_impact"
 }
