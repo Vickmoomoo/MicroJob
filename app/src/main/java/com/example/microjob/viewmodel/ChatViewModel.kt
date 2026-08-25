@@ -275,7 +275,7 @@ class ChatViewModel(
         workerRating: Float = 0f,
         workerComment: String = "",
         onReleased: () -> Unit,
-        onJobCompleted: (jobTitle: String, jobPrice: Int) -> Unit = { _, _ -> }
+        onJobCompleted: (jobTitle: String, jobPrice: Double) -> Unit = { _, _ -> }
     ) {
         viewModelScope.launch {
             try {

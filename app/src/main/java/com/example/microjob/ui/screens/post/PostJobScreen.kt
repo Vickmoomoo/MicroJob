@@ -766,25 +766,41 @@ private fun ScheduledDateTimePicker(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Box(modifier = Modifier.fillMaxWidth().clickable { showDatePicker = true }) {
+        Box(modifier = Modifier.fillMaxWidth()) {
             OutlinedTextField(
                 value = dateText,
                 onValueChange = {},
                 readOnly = true,
                 label = { Text("Date *") },
                 placeholder = { Text("Select date") },
-                trailingIcon = { Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                trailingIcon = {
+                    Icon(
+                        Icons.Filled.Add,
+                        contentDescription = "Select date",
+                        modifier = Modifier
+                            .size(18.dp)
+                            .clickable { showDatePicker = true }
+                    )
+                },
                 modifier = Modifier.fillMaxWidth()
             )
         }
-        Box(modifier = Modifier.fillMaxWidth().clickable { showTimePicker = true }) {
+        Box(modifier = Modifier.fillMaxWidth()) {
             OutlinedTextField(
                 value = timeText,
                 onValueChange = {},
                 readOnly = true,
                 label = { Text("Time (24h) *") },
                 placeholder = { Text("Select time") },
-                trailingIcon = { Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                trailingIcon = {
+                    Icon(
+                        Icons.Filled.Add,
+                        contentDescription = "Select time",
+                        modifier = Modifier
+                            .size(18.dp)
+                            .clickable { showTimePicker = true }
+                    )
+                },
                 modifier = Modifier.fillMaxWidth()
             )
         }

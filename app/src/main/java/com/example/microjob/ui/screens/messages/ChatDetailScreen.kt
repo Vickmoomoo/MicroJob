@@ -83,7 +83,7 @@ fun ChatDetailScreen(
     onBack: () -> Unit,
     onOtherUserClick: (Long) -> Unit = {},
     onOpenReview: (Int) -> Unit = {},
-    onJobCompleted: (String, Int) -> Unit = { _, _ -> },
+    onJobCompleted: (String, Double) -> Unit = { _, _ -> },
     vm: ChatViewModel = viewModel(),
 ) {
     val messages by vm.messages.collectAsState()
@@ -305,9 +305,13 @@ fun ChatDetailScreen(
             job = job,
             currentUserId = myId,
             onClaim = { jobId, rating, comment ->
-                vm.releaseJobPayment(jobId, rating, comment, onJobCompleted = onJobCompleted) {
-                    showSettleDialog = false
-                }
+                vm.releaseJobPayment(
+                    jobId = jobId,
+                    workerRating = rating,
+                    workerComment = comment,
+                    onReleased = { showSettleDialog = false },
+                    onJobCompleted = onJobCompleted
+                )
             },
             onDismiss = { showSettleDialog = false }
         )
