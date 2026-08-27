@@ -32,6 +32,7 @@ class JobDetailViewModel(
      * Constructor used by Compose's default `viewModel()` factory
      * (AndroidViewModelFactory reflects on an (Application) constructor).
      */
+    @Suppress("unused")
     constructor(application: Application) : this(application, LocalJobRepository(application))
 
     private val _uiState = MutableStateFlow<JobDetailUiState>(JobDetailUiState.Loading)
@@ -54,7 +55,7 @@ class JobDetailViewModel(
                 _uiState.value = JobDetailUiState.Success(job, poster)
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // Fallback to fake data.
                 val job = SampleData.jobs.firstOrNull { it.id == jobId }
                 if (job == null) {

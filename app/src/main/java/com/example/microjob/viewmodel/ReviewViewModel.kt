@@ -37,6 +37,7 @@ class ReviewViewModel(
     private val repository: JobRepository = LocalJobRepository(application)
 ) : AndroidViewModel(application) {
 
+    @Suppress("unused")
     constructor(application: Application) : this(application, LocalJobRepository(application))
 
     private val sessionManager = SessionManager(application)
@@ -81,7 +82,7 @@ class ReviewViewModel(
                 }
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _listState.update { it.copy(isLoading = false) }
             }
         }
@@ -99,7 +100,7 @@ class ReviewViewModel(
                 if (existing != null) {
                     loadReviewForEdit(existing)
                 }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // ignore
             }
         }
@@ -109,7 +110,7 @@ class ReviewViewModel(
     fun loadReviewForEdit(review: Review) {
         _formState.update {
             it.copy(
-                rating = review.rating.toFloat(),
+                rating = review.rating,
                 comment = review.comment,
                 submitted = false,
                 error = null

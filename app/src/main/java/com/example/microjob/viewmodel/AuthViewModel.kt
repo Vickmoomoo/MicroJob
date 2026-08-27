@@ -34,6 +34,7 @@ class AuthViewModel(
     private val session: SessionManager = SessionManager(application)
 ) : AndroidViewModel(application) {
 
+    @Suppress("unused")
     constructor(application: Application) : this(application, LocalJobRepository(application))
 
     /** Form fields. */
@@ -53,6 +54,7 @@ class AuthViewModel(
     private val _currentUser = MutableStateFlow<User?>(null)
     val currentUser: StateFlow<User?> = _currentUser.asStateFlow()
 
+    @Suppress("unused")
     val isLoggedIn: Boolean get() = session.isLoggedIn
 
     /** Security questions reloaded every time the screen opens. */
@@ -72,7 +74,7 @@ class AuthViewModel(
                     session.currentUserId = null
                     _currentUser.value = null
                 }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // session may point at a deleted user; ignore
                 _currentUser.value = null
             }

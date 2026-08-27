@@ -34,6 +34,7 @@ class ProfileViewModel(
     private val repository: JobRepository = LocalJobRepository(application)
 ) : AndroidViewModel(application) {
 
+    @Suppress("unused")
     constructor(application: Application) : this(application, LocalJobRepository(application))
 
     private val sessionManager = SessionManager(application)
@@ -152,6 +153,7 @@ class ProfileViewModel(
         return null
     }
 
+    @Suppress("unused")
     /** Returns the current logged-in user id, or null. */
     fun myId(): Long? = sessionManager.currentUserId
 }

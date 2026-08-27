@@ -15,6 +15,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -49,7 +50,7 @@ data class PostFormSnapshot(
     val toolsRequired: String,
     val donationAmount: String,
     val addressDetail: String,
-    val photoUris: List<android.net.Uri>,
+    val photoUris: List<Uri>,
     val language: String?,
     val scheduledDateMillis: Long?,
     val scheduledHour: Int?,
@@ -75,6 +76,7 @@ class PostJobViewModel(
      * Constructor used by Compose's default `viewModel()` factory
      * (AndroidViewModelFactory reflects on an (Application) constructor).
      */
+    @Suppress("unused")
     constructor(application: Application) : this(application, LocalJobRepository(application))
 
     // --- Form fields (two-way bound to the UI) ---
@@ -157,15 +159,17 @@ class PostJobViewModel(
     /** Current job price as Double, or 0.0 when invalid/blank. */
     val priceValue: Double get() = price.value.toDoubleOrNull() ?: 0.0
 
+    @Suppress("unused")
     /** Platform service fee charged to the poster (5% of the price). */
     val serviceFee: Double get() = priceValue * serviceFeeRate
 
     /**
      * The donation amount the user typed. Donating is driven by this field
-     * (empty or 0 = no donation); the [donate] flag is derived from it.
+     * (empty or 0 = no donation); the [donation] flag is derived from it.
      */
     val donation: Double get() = donationAmount.value.toDoubleOrNull() ?: 0.0
 
+    @Suppress("unused")
     /** Platform's 1:1 match, capped at [matchCap] (0 when donation is off). */
     val platformMatch: Double get() = if (donation > 0) minOf(donation, matchCap) else 0.0
 
@@ -275,9 +279,9 @@ class PostJobViewModel(
                 // 1. Simulate the payment flow: "redirect to payment app", then
                 //    "payment successful", before actually publishing the job.
                 _uiState.value = PostJobUiState.RedirectingToPayment
-                delay(2500)
+                delay(2500.milliseconds)
                 _uiState.value = PostJobUiState.PaymentSuccess
-                delay(1800)
+                delay(1800.milliseconds)
 
                 // 2. Upload photos (if any) and collect their local paths.
                 val imageUrls = withContext(Dispatchers.IO) {

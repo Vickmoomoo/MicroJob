@@ -21,7 +21,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Badge
-import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ChevronRight
@@ -144,7 +143,7 @@ fun ProfileScreen(
         Scaffold(
             topBar = {
                 TopAppBar(
-                windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),title = { Text("User Profile") },
+                windowInsets = WindowInsets(0, 0, 0, 0), title = { Text("User Profile") },
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -165,6 +164,7 @@ fun ProfileScreen(
 
 // ==================== Profile content (shared by both modes) ====================
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
 private fun ProfileContent(
     user: User,
@@ -429,6 +429,7 @@ private fun ProfileMenuItem(
     }
 }
 
+@Suppress("SameParameterValue")
 @Composable
 private fun EditFieldDialog(
     title: String,

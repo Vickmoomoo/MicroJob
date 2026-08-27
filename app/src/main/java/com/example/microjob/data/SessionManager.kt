@@ -1,7 +1,7 @@
 package com.example.microjob.data
 
 import android.content.Context
-import com.example.microjob.model.User
+import androidx.core.content.edit
 
 /**
  * Stores the current logged-in user id in SharedPreferences so the login
@@ -15,21 +15,21 @@ class SessionManager(context: Context) {
     var currentUserId: Long?
         get() = if (prefs.contains(KEY_USER_ID)) prefs.getLong(KEY_USER_ID, -1) else null
         set(value) {
-            val editor = prefs.edit()
-            if (value == null) {
-                // Remove the key entirely; storing -1 would make contains()
-                // return true and isLoggedIn would misreport a logged-in user.
-                editor.remove(KEY_USER_ID)
-            } else {
-                editor.putLong(KEY_USER_ID, value)
+            prefs.edit {
+                if (value == null) {
+                    // Remove the key entirely; storing -1 would make contains()
+                    // return true and isLoggedIn would misreport a logged-in user.
+                    remove(KEY_USER_ID)
+                } else {
+                    putLong(KEY_USER_ID, value)
+                }
             }
-            editor.apply()
         }
 
     val isLoggedIn: Boolean get() = currentUserId != null
 
     fun logout() {
-        prefs.edit().remove(KEY_USER_ID).apply()
+        prefs.edit { remove(KEY_USER_ID) }
     }
 
     companion object {

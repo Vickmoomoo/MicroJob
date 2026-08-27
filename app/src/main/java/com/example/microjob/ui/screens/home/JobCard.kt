@@ -53,7 +53,7 @@ private fun timeAgo(iso: String): String {
             hours < 24 * 30 -> "Posted ${hours / 24}d ago"
             else -> "Posted ${hours / (24 * 30)}mo ago"
         }
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         ""
     }
 }
