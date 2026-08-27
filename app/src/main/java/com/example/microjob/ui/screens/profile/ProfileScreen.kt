@@ -372,14 +372,14 @@ private fun ProfileContent(
             ProfileMenuItem(Icons.Filled.Badge, "User Details") { onNavigateToUserDetails() }
             ProfileMenuItem(Icons.Filled.Work, "My Jobs") { onNavigateToMyJobs() }
             ProfileMenuItem(Icons.Filled.Star, "Reviews") { onNavigateToReviews() }
-            ProfileMenuItem(Icons.Filled.School, "Certificates") { onNavigateToCertificates() }
+            ProfileMenuItem(Icons.Filled.School, "Course and Certificate") { onNavigateToCertificates() }
             ProfileMenuItem(Icons.Filled.Favorite, "Social Impact") { onNavigateToSocialImpact() }
             ProfileMenuItem(Icons.Filled.Star, "Mini Games") { onNavigateToMiniGames() }
             ProfileMenuItem(Icons.Filled.Settings, "Settings") { onNavigateToSettings() }
         } else {
             ProfileMenuItem(Icons.Filled.Badge, "User Details") { onNavigateToUserDetails() }
             ProfileMenuItem(Icons.Filled.Star, "Reviews") { onNavigateToReviews() }
-            ProfileMenuItem(Icons.Filled.School, "Certificates") { onNavigateToCertificates() }
+            ProfileMenuItem(Icons.Filled.School, "Course and Certificate") { onNavigateToCertificates() }
             ProfileMenuItem(Icons.Filled.Favorite, "Social Impact") { onNavigateToSocialImpact() }
         }
 

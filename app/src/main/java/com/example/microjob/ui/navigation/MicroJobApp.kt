@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.material.icons.filled.Favorite
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
@@ -770,7 +771,7 @@ private data class BottomTab(
 
 private val bottomTabs = listOf(
     BottomTab(MicroJobRoutes.HOME, "Home", Icons.Filled.Home),
-    BottomTab(MicroJobRoutes.COURSE, "Course", Icons.Filled.Star),
+    BottomTab(MicroJobRoutes.SOCIAL_IMPACT, "Social Impact", Icons.Filled.Favorite),
     BottomTab(MicroJobRoutes.MESSAGES, "Messages", Icons.Filled.Email),
     BottomTab(MicroJobRoutes.PROFILE, "Profile", Icons.Filled.Person),
 )
