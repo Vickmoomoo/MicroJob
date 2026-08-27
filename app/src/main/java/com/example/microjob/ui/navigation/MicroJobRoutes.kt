@@ -33,6 +33,10 @@ object MicroJobRoutes {
     /** Builds the concrete route for a given user id. */
     fun userProfile(userId: Long) = "user_profile/$userId"
 
+    /** Detailed user information page. */
+    const val USER_DETAILS = "user_details/{userId}"
+    fun userDetails(userId: Long) = "user_details/$userId"
+
     /** Settings page. */
     const val SETTINGS = "settings"
 

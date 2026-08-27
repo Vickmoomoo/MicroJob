@@ -136,6 +136,59 @@ class ProfileViewModel(
         }
     }
 
+    /** Persists the editable fields shown on User Details in one update. */
+    fun updateUserDetails(
+        name: String,
+        username: String,
+        bio: String,
+        region: String,
+        skills: List<String>,
+        email: String,
+        birthdate: String,
+        phoneNumber: String,
+    ) {
+        val user = _uiState.value.user ?: return
+        if (name.isBlank() || username.isBlank()) return
+        viewModelScope.launch {
+            val updated = user.copy(
+                name = name.trim(),
+                username = username.trim(),
+                bio = bio.trim(),
+                region = region.trim(),
+                skills = skills.map(String::trim).filter(String::isNotBlank).distinct(),
+                email = email.trim(),
+                birthdate = birthdate.trim(),
+                phoneNumber = phoneNumber.trim()
+            )
+            withContext(Dispatchers.IO) { repository.updateUser(updated) }
+            _uiState.update { it.copy(user = updated) }
+        }
+    }
+
+    /** Updates the selected profile photo URI/path. */
+    fun updateAvatar(avatarUrl: String) {
+        val user = _uiState.value.user ?: return
+        viewModelScope.launch {
+            val updated = user.copy(avatarUrl = avatarUrl)
+            withContext(Dispatchers.IO) { repository.updateUser(updated) }
+            _uiState.update { it.copy(user = updated) }
+        }
+    }
+
+    fun updatePrivacy(showEmail: Boolean, showBirthdate: Boolean, showPhoneNumber: Boolean, showAvatar: Boolean) {
+        val user = _uiState.value.user ?: return
+        viewModelScope.launch {
+            val updated = user.copy(
+                showEmail = showEmail,
+                showBirthdate = showBirthdate,
+                showPhoneNumber = showPhoneNumber,
+                showAvatar = showAvatar
+            )
+            withContext(Dispatchers.IO) { repository.updateUser(updated) }
+            _uiState.update { it.copy(user = updated) }
+        }
+    }
+
     /**
      * Changes the user's password.
      * Returns null on success, or an error message on failure.
