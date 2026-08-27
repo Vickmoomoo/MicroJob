@@ -766,14 +766,25 @@ private fun ScheduledDateTimePicker(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        // FIX: Box(clickable) + readOnly TextField never fires because the TextField
+        // consumes touch for focus. Make the field disabled so it doesn't intercept,
+        // and keep normal colors via OutlinedTextFieldDefaults.colors.
         Box(modifier = Modifier.fillMaxWidth().clickable { showDatePicker = true }) {
             OutlinedTextField(
                 value = dateText,
                 onValueChange = {},
                 readOnly = true,
+                enabled = false,
                 label = { Text("Date *") },
                 placeholder = { Text("Select date") },
                 trailingIcon = { Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                    disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                    disabledBorderColor = MaterialTheme.colorScheme.outline,
+                    disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    disabledPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+                ),
                 modifier = Modifier.fillMaxWidth()
             )
         }
@@ -782,9 +793,17 @@ private fun ScheduledDateTimePicker(
                 value = timeText,
                 onValueChange = {},
                 readOnly = true,
+                enabled = false,
                 label = { Text("Time (24h) *") },
                 placeholder = { Text("Select time") },
                 trailingIcon = { Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                    disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                    disabledBorderColor = MaterialTheme.colorScheme.outline,
+                    disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    disabledPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+                ),
                 modifier = Modifier.fillMaxWidth()
             )
         }

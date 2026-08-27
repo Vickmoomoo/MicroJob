@@ -193,14 +193,28 @@ private fun AddToCalendarDialog(job: Job, onDismiss: () -> Unit) {
                     Box(modifier = Modifier.fillMaxWidth().clickable { showDate = true }) {
                         OutlinedTextField(
                             value = dateText, onValueChange = {}, readOnly = true,
+                            enabled = false,
                             label = { Text("Date") }, placeholder = { Text("Select date") },
+                            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                                disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                                disabledBorderColor = MaterialTheme.colorScheme.outline,
+                                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                disabledPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            ),
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
                     Box(modifier = Modifier.fillMaxWidth().clickable { showTime = true }) {
                         OutlinedTextField(
                             value = timeText, onValueChange = {}, readOnly = true,
+                            enabled = false,
                             label = { Text("Time (24h)") }, placeholder = { Text("Select time") },
+                            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                                disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                                disabledBorderColor = MaterialTheme.colorScheme.outline,
+                                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                disabledPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            ),
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
