@@ -42,15 +42,15 @@ fun SocialImpactScreen(
             Box(
                 modifier = Modifier
                     .background(Color(0xFF2563EB).copy(alpha = 0.1f), CircleShape)
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("\u2B50", fontSize = 14.sp)
-                    Spacer(Modifier.width(4.dp))
+                    Text("\u2B50", fontSize = 12.sp)
+                    Spacer(Modifier.width(3.dp))
                     Text(
                         text = "${uiState.userPoints} pts",
-                        fontSize = 14.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color(0xFF2563EB)
                     )

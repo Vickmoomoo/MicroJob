@@ -60,6 +60,7 @@ import com.example.microjob.ui.screens.profile.ProfileScreen
 import com.example.microjob.ui.screens.profile.JobListScreen
 import com.example.microjob.ui.screens.profile.SettingsScreen
 import com.example.microjob.ui.screens.profile.SocialImpactScreen
+import com.example.microjob.ui.screens.profile.CourseScreen
 import com.example.microjob.ui.screens.profile.AllDonationsScreen
 import com.example.microjob.ui.screens.profile.AllVouchersScreen
 import com.example.microjob.ui.screens.profile.PointsHistoryScreen
@@ -156,6 +157,7 @@ fun MicroJobApp() {
             currentRoute?.startsWith("my_jobs") == true ||
             currentRoute?.startsWith("my_job_detail") == true ||
             currentRoute?.startsWith("review_job") == true ||
+            currentRoute == MicroJobRoutes.COURSE ||
             currentRoute == MicroJobRoutes.DONATION_HISTORY ||
             currentRoute == MicroJobRoutes.VOUCHER_REDEEM ||
             currentRoute == MicroJobRoutes.POINTS_HISTORY ||
@@ -231,7 +233,9 @@ fun MicroJobApp() {
             }
             composable(
                 route = MicroJobRoutes.COURSE) {
-                PlaceholderScreen("Course & Certification")
+                CourseScreen(
+                    onBack = { navController.popBackStack() }
+                )
             }
             composable(
                 route = MicroJobRoutes.MESSAGES) {
@@ -260,7 +264,7 @@ fun MicroJobApp() {
                     onNavigateToReviews = {
                         navController.navigate(MicroJobRoutes.reviewsList(myId))
                     },
-                    onNavigateToCertificates = { /* TODO */ },
+                    onNavigateToCertificates = { navController.navigate(MicroJobRoutes.COURSE) },
                     onNavigateToSocialImpact = { navController.navigate(MicroJobRoutes.SOCIAL_IMPACT) },
                     onNavigateToMiniGames = { navController.navigate(MicroJobRoutes.MINI_GAME_MENU) },
                     onNavigateToPointsHistory = { navController.navigate(MicroJobRoutes.POINTS_HISTORY) },
@@ -337,7 +341,7 @@ fun MicroJobApp() {
                     onNavigateToReviews = {
                         navController.navigate(MicroJobRoutes.reviewsList(userId))
                     },
-                    onNavigateToCertificates = { /* TODO */ },
+                    onNavigateToCertificates = { navController.navigate(MicroJobRoutes.COURSE) },
                     onNavigateToSocialImpact = { navController.navigate(MicroJobRoutes.SOCIAL_IMPACT) },
                     onNavigateToMiniGames = { navController.navigate(MicroJobRoutes.MINI_GAME_MENU) },
                     onNavigateToPointsHistory = { navController.navigate(MicroJobRoutes.POINTS_HISTORY) },
