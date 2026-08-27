@@ -5,8 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -20,181 +19,165 @@ import com.example.microjob.model.DonationRecord
 import com.example.microjob.model.VoucherItem
 import com.example.microjob.viewmodel.SocialImpactUiState
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SocialImpactScreen(
     uiState: SocialImpactUiState,
-    onBackClick: () -> Unit = {},
     onViewAllDonations: () -> Unit = {},
     onViewAllVouchers: () -> Unit = {},
     onRedeemVoucher: (VoucherItem) -> Unit = {}
 ) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Social Impact", fontSize = 18.sp, fontWeight = FontWeight.SemiBold) },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
-                    }
-                },
-                actions = {
-                    Box(
-                        modifier = Modifier
-                            .background(Color(0xFF2563EB).copy(alpha = 0.1f), CircleShape)
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("\u2B50", fontSize = 14.sp)
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                text = "${uiState.userPoints} pts",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color(0xFF2563EB)
-                            )
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White
-                )
-            )
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .background(Color(0xFFF9FAFB))
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF9FAFB))
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        // Points display at top
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
         ) {
-
-            // ===== Impact Summary Box =====
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            Box(
+                modifier = Modifier
+                    .background(Color(0xFF2563EB).copy(alpha = 0.1f), CircleShape)
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Column(modifier = Modifier.padding(14.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("\u2B50", fontSize = 14.sp)
+                    Spacer(Modifier.width(4.dp))
                     Text(
-                        text = "Community Impact",
-                        fontSize = 13.sp,
-                        color = Color.Gray,
-                        fontWeight = FontWeight.Medium
+                        text = "${uiState.userPoints} pts",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF2563EB)
                     )
-                    Spacer(Modifier.height(10.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
+                }
+            }
+        }
+
+        // ===== Impact Summary Box =====
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                Text(
+                    text = "Community Impact",
+                    fontSize = 13.sp,
+                    color = Color.Gray,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    StatColumn(
+                        value = "${uiState.peopleHelped}",
+                        label = "People Helped",
+                        color = Color(0xFF2563EB)
+                    )
+                    StatColumn(
+                        value = uiState.totalDonated,
+                        label = "Total Donated",
+                        color = Color(0xFF10B981)
+                    )
+                }
+            }
+        }
+
+        // ===== Donation History (Shows 2 items + View All) =====
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Donation History",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    TextButton(
+                        onClick = onViewAllDonations,
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
                     ) {
-                        StatColumn(
-                            value = "${uiState.peopleHelped}",
-                            label = "People Helped",
+                        Text(
+                            text = "View All",
+                            fontSize = 12.sp,
                             color = Color(0xFF2563EB)
                         )
-                        StatColumn(
-                            value = uiState.totalDonated,
-                            label = "Total Donated",
-                            color = Color(0xFF10B981)
+                        Icon(
+                            imageVector = Icons.Default.ArrowForward,
+                            contentDescription = "View All",
+                            modifier = Modifier.size(14.dp),
+                            tint = Color(0xFF2563EB)
                         )
                     }
                 }
-            }
-
-            // ===== Donation History (Shows 2 items + View All) =====
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Column(modifier = Modifier.padding(14.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Donation History",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        TextButton(
-                            onClick = onViewAllDonations,
-                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
-                        ) {
-                            Text(
-                                text = "View All",
-                                fontSize = 12.sp,
-                                color = Color(0xFF2563EB)
-                            )
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                contentDescription = "View All",
-                                modifier = Modifier.size(14.dp),
-                                tint = Color(0xFF2563EB)
-                            )
-                        }
-                    }
-                    Spacer(Modifier.height(10.dp))
-                    uiState.donationHistory.take(2).forEach { record ->
-                        DonationHistoryItem(record = record)
-                        Spacer(Modifier.height(6.dp))
-                    }
-                }
-            }
-
-            // ===== Food Voucher Section =====
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Column(modifier = Modifier.padding(14.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Food Vouchers",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        TextButton(
-                            onClick = onViewAllVouchers,
-                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
-                        ) {
-                            Text(
-                                text = "View All",
-                                fontSize = 12.sp,
-                                color = Color(0xFF2563EB)
-                            )
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                contentDescription = "View All",
-                                modifier = Modifier.size(14.dp),
-                                tint = Color(0xFF2563EB)
-                            )
-                        }
-                    }
-                    Spacer(Modifier.height(10.dp))
-                    uiState.voucherList.forEach { voucher ->
-                        VoucherItemCard(
-                            voucher = voucher,
-                            onRedeem = { onRedeemVoucher(voucher) }
-                        )
-                        Spacer(Modifier.height(10.dp))
-                    }
+                Spacer(Modifier.height(10.dp))
+                uiState.donationHistory.take(2).forEach { record ->
+                    DonationHistoryItem(record = record)
+                    Spacer(Modifier.height(6.dp))
                 }
             }
         }
+
+        // ===== Food Voucher Section =====
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Food Vouchers",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    TextButton(
+                        onClick = onViewAllVouchers,
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+                    ) {
+                        Text(
+                            text = "View All",
+                            fontSize = 12.sp,
+                            color = Color(0xFF2563EB)
+                        )
+                        Icon(
+                            imageVector = Icons.Default.ArrowForward,
+                            contentDescription = "View All",
+                            modifier = Modifier.size(14.dp),
+                            tint = Color(0xFF2563EB)
+                        )
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+                uiState.voucherList.forEach { voucher ->
+                    VoucherItemCard(
+                        voucher = voucher,
+                        onRedeem = { onRedeemVoucher(voucher) }
+                    )
+                    Spacer(Modifier.height(10.dp))
+                }
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
     }
 }
 
@@ -279,4 +262,3 @@ fun VoucherItemCard(voucher: VoucherItem, onRedeem: () -> Unit) {
         }
     }
 }
-

@@ -156,7 +156,6 @@ fun MicroJobApp() {
             currentRoute?.startsWith("my_jobs") == true ||
             currentRoute?.startsWith("my_job_detail") == true ||
             currentRoute?.startsWith("review_job") == true ||
-            currentRoute == MicroJobRoutes.SOCIAL_IMPACT ||
             currentRoute == MicroJobRoutes.DONATION_HISTORY ||
             currentRoute == MicroJobRoutes.VOUCHER_REDEEM ||
             currentRoute == MicroJobRoutes.POINTS_HISTORY ||
@@ -645,7 +644,6 @@ fun MicroJobApp() {
                 val socialImpactState by socialImpactVm.uiState.collectAsStateWithLifecycle()
                 SocialImpactScreen(
                     uiState = socialImpactState,
-                    onBackClick = { navController.popBackStack() },
                     onViewAllDonations = { navController.navigate(MicroJobRoutes.DONATION_HISTORY) },
                     onViewAllVouchers = { navController.navigate(MicroJobRoutes.VOUCHER_REDEEM) },
                     onRedeemVoucher = { socialImpactVm.redeemVoucher(it) }
