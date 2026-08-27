@@ -25,13 +25,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import android.content.Context
 import androidx.compose.animation.AnimatedVisibility
+import androidx.core.content.edit
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
@@ -55,7 +56,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -169,7 +169,6 @@ fun ChatDetailScreen(
     var targetLang by remember { mutableStateOf(loadChatTranslationTarget(context)) }
     var isTranslating by remember { mutableStateOf(false) }
     var showTranslationHelp by remember { mutableStateOf(false) }
-    var originalTextForUndo by remember { mutableStateOf<String?>(null) }
 
     // First-time hint: show once globally, dismiss marks as shown
     LaunchedEffect(Unit) {
@@ -200,7 +199,7 @@ fun ChatDetailScreen(
                 },
                 actions = {
                     IconButton(onClick = { showTranslationHelp = true }) {
-                        Icon(Icons.Filled.HelpOutline, contentDescription = "Translation help")
+                        Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = "Translation help")
                     }
                 },
                 windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)
@@ -574,7 +573,7 @@ fun ChatDetailScreen(
             onDismissRequest = {
                 showTranslationHelp = false
                 context.getSharedPreferences(PREFS_CHAT_TRANSLATION, Context.MODE_PRIVATE)
-                    .edit().putBoolean(KEY_CHAT_HINT_SHOWN, true).apply()
+                    .edit { putBoolean(KEY_CHAT_HINT_SHOWN, true) }
             },
             title = { Text("Chat Translation") },
             text = {
@@ -592,7 +591,7 @@ fun ChatDetailScreen(
                 Button(onClick = {
                     showTranslationHelp = false
                     context.getSharedPreferences(PREFS_CHAT_TRANSLATION, Context.MODE_PRIVATE)
-                        .edit().putBoolean(KEY_CHAT_HINT_SHOWN, true).apply()
+                        .edit { putBoolean(KEY_CHAT_HINT_SHOWN, true) }
                 }) { Text("Got it") }
             }
         )
@@ -617,11 +616,10 @@ private fun loadChatTranslationTarget(context: Context): TranslationLanguage {
 }
 
 private fun saveChatTranslationLangs(context: Context, source: TranslationLanguage, target: TranslationLanguage) {
-    context.getSharedPreferences(PREFS_CHAT_TRANSLATION, Context.MODE_PRIVATE)
-        .edit()
-        .putString(KEY_CHAT_SOURCE, source.name)
-        .putString(KEY_CHAT_TARGET, target.name)
-        .apply()
+    context.getSharedPreferences(PREFS_CHAT_TRANSLATION, Context.MODE_PRIVATE).edit {
+        putString(KEY_CHAT_SOURCE, source.name)
+        putString(KEY_CHAT_TARGET, target.name)
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -692,7 +690,7 @@ enum class JobPickerKind { INVITE, PAYMENT }
 private fun MessageBubble(
     message: Message,
     isMine: Boolean,
-    otherUserId: Long,
+    @Suppress("UNUSED_PARAMETER") otherUserId: Long,
     job: Job?,
     alreadyAccepted: Boolean,
     accepting: Boolean,
@@ -797,7 +795,7 @@ private fun CardStatusLine(text: String) {
 @Composable
 private fun ReviewPromptCard(
     text: String,
-    jobId: Int,
+    @Suppress("UNUSED_PARAMETER") jobId: Int,
     onClick: () -> Unit,
 ) {
     Column(
@@ -1132,7 +1130,7 @@ private fun SettlePaymentDialog(
                 modifier = Modifier.weight(1f)
             )
             IconButton(onClick = { showDonationInfo = true }) {
-                Icon(Icons.Filled.HelpOutline, contentDescription = "Donation info")
+                Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = "Donation info")
             }
         }
         OutlinedTextField(
@@ -1216,6 +1214,6 @@ private fun formatSettleDate(iso: String): String =
     try {
         val dt = java.time.OffsetDateTime.parse(iso)
         java.time.format.DateTimeFormatter.ofPattern("d MMM", java.util.Locale.ENGLISH).format(dt)
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         ""
     }

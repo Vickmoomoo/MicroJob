@@ -29,6 +29,7 @@ class ChatViewModel(
     private val session: SessionManager = SessionManager(application)
 ) : AndroidViewModel(application) {
 
+    @Suppress("unused")
     constructor(application: Application) : this(application, LocalChatRepository(application))
 
     /** The conversation list for the logged-in user, newest first. */
@@ -138,6 +139,7 @@ class ChatViewModel(
         }
     }
 
+    @Suppress("unused")
     /** Loads the messages of a conversation into [messages]. */
     fun loadMessages(conversationId: String) {
         loadMessagesInto(conversationId)
@@ -163,7 +165,7 @@ class ChatViewModel(
             try {
                 val path = withContext(Dispatchers.IO) { repository.savePickedPhoto(uri) }
                 send(Message(images = listOf(path), type = "IMAGE"), conversationId, recipientId)
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _error.value = "Could not send the photo."
             }
         }
@@ -211,7 +213,7 @@ class ChatViewModel(
                 }
                 _messages.value = _messages.value + stored
                 _conversations.value = withContext(Dispatchers.IO) { repository.getConversations(me).filterNot { 0L in it.participantIds } }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _error.value = "Failed to send the message."
             }
         }
@@ -260,7 +262,7 @@ class ChatViewModel(
                         _error.value = "This job has already been accepted."
                     }
                 }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _error.value = "Could not accept the job."
             }
         }
@@ -339,7 +341,7 @@ class ChatViewModel(
                     onJobCompleted(updated.title, updated.price.toInt())
                     onReleased()
                 }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _error.value = "Could not release the payment."
             }
         }

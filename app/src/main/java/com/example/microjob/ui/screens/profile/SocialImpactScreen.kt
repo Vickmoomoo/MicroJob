@@ -1,4 +1,4 @@
-package com.example.microjob.ui.screens.profile
+﻿package com.example.microjob.ui.screens.profile
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -6,7 +6,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -135,7 +135,7 @@ fun SocialImpactScreen(
                                 color = Color(0xFF2563EB)
                             )
                             Icon(
-                                imageVector = Icons.Default.ArrowForward,
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                                 contentDescription = "View All",
                                 modifier = Modifier.size(14.dp),
                                 tint = Color(0xFF2563EB)
@@ -177,7 +177,7 @@ fun SocialImpactScreen(
                                 color = Color(0xFF2563EB)
                             )
                             Icon(
-                                imageVector = Icons.Default.ArrowForward,
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                                 contentDescription = "View All",
                                 modifier = Modifier.size(14.dp),
                                 tint = Color(0xFF2563EB)
@@ -279,3 +279,4 @@ fun VoucherItemCard(voucher: VoucherItem, onRedeem: () -> Unit) {
         }
     }
 }
+

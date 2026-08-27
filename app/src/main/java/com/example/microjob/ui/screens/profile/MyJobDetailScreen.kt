@@ -148,7 +148,7 @@ private fun formatScheduled(iso: String): String = try {
 
 @Composable
 private fun RowStars(rating: Float) {
-    androidx.compose.foundation.layout.Row {
+    Row {
         val full = rating.toInt()
         val half = rating - full >= 0.49f
         repeat(full) { Text(text = "\u2605", fontSize = 18.sp, color = MaterialTheme.colorScheme.primary) }
