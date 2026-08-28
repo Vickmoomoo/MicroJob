@@ -7,7 +7,6 @@ import com.example.microjob.model.Job
 import com.example.microjob.model.Review
 import com.example.microjob.model.SampleData
 import com.example.microjob.model.User
-import com.example.microjob.data.PasswordResetResult
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -39,7 +38,7 @@ class LocalJobRepository(private val context: Context) : JobRepository {
         if (!file.exists()) return fallback
         return try {
             json.decodeFromString<List<T>>(file.readText())
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             fallback
         }
     }
@@ -264,9 +263,11 @@ class LocalJobRepository(private val context: Context) : JobRepository {
         if (!dataFile("reviews.json").exists()) writeList("reviews.json", emptyList<Review>())
     }
 
+    @Suppress("unused")
     /** Resolves a local photo path or a content Uri to an absolute path (for Coil). */
     fun resolvePhoto(uriOrPath: String): String = uriOrPath
 
+    @Suppress("unused")
     /** Convenience for the post form: converts a picked Uri to a saved file. */
     fun savePickedPhoto(uri: Uri): String {
         val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }

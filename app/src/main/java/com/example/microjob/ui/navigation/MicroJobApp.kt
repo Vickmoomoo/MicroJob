@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.material.icons.filled.Favorite
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
@@ -59,6 +60,7 @@ import com.example.microjob.ui.screens.profile.ProfileScreen
 import com.example.microjob.ui.screens.profile.JobListScreen
 import com.example.microjob.ui.screens.profile.SettingsScreen
 import com.example.microjob.ui.screens.profile.SocialImpactScreen
+import com.example.microjob.ui.screens.profile.CourseScreen
 import com.example.microjob.ui.screens.profile.AllDonationsScreen
 import com.example.microjob.ui.screens.profile.AllVouchersScreen
 import com.example.microjob.ui.screens.profile.PointsHistoryScreen
@@ -66,6 +68,7 @@ import com.example.microjob.ui.screens.profile.MiniGameMenuScreen
 import com.example.microjob.ui.screens.profile.TicTacToeScreen
 import com.example.microjob.ui.screens.profile.NumberGuessScreen
 import com.example.microjob.ui.screens.profile.MemoryFlipScreen
+import com.example.microjob.ui.screens.profile.UserDetailsScreen
 import com.example.microjob.ui.screens.reviews.ReviewFormScreen
 import com.example.microjob.ui.screens.reviews.ReviewJobDetailScreen
 import com.example.microjob.ui.screens.reviews.ReviewsListScreen
@@ -146,6 +149,7 @@ fun MicroJobApp() {
             currentRoute == MicroJobRoutes.CHAT_DETAIL ||
             currentRoute?.startsWith("user_profile") == true ||
             currentRoute == MicroJobRoutes.SETTINGS ||
+            currentRoute?.startsWith("user_details") == true ||
             currentRoute?.startsWith("review_form") == true ||
             currentRoute?.startsWith("reviews") == true ||
             currentRoute?.startsWith("posted_jobs") == true ||
@@ -153,7 +157,7 @@ fun MicroJobApp() {
             currentRoute?.startsWith("my_jobs") == true ||
             currentRoute?.startsWith("my_job_detail") == true ||
             currentRoute?.startsWith("review_job") == true ||
-            currentRoute == MicroJobRoutes.SOCIAL_IMPACT ||
+            currentRoute == MicroJobRoutes.COURSE ||
             currentRoute == MicroJobRoutes.DONATION_HISTORY ||
             currentRoute == MicroJobRoutes.VOUCHER_REDEEM ||
             currentRoute == MicroJobRoutes.POINTS_HISTORY ||
@@ -229,7 +233,9 @@ fun MicroJobApp() {
             }
             composable(
                 route = MicroJobRoutes.COURSE) {
-                PlaceholderScreen("Course & Certification")
+                CourseScreen(
+                    onBack = { navController.popBackStack() }
+                )
             }
             composable(
                 route = MicroJobRoutes.MESSAGES) {
@@ -250,14 +256,15 @@ fun MicroJobApp() {
                 ProfileScreen(
                     userId = myId,
                     vm = profileVm,
-                    onNavigateToSettings = { navController.navigate(MicroJobRoutes.SETTINGS) },
+                     onNavigateToSettings = { navController.navigate(MicroJobRoutes.SETTINGS) },
+                     onNavigateToUserDetails = { navController.navigate(MicroJobRoutes.userDetails(myId)) },
                     onNavigateToPostedJobs = { navController.navigate(MicroJobRoutes.postedJobs(myId)) },
                     onNavigateToAcceptedJobs = { navController.navigate(MicroJobRoutes.acceptedJobs(myId)) },
                     onNavigateToMyJobs = { navController.navigate(MicroJobRoutes.myJobs(myId)) },
                     onNavigateToReviews = {
                         navController.navigate(MicroJobRoutes.reviewsList(myId))
                     },
-                    onNavigateToCertificates = { /* TODO */ },
+                    onNavigateToCertificates = { navController.navigate(MicroJobRoutes.COURSE) },
                     onNavigateToSocialImpact = { navController.navigate(MicroJobRoutes.SOCIAL_IMPACT) },
                     onNavigateToMiniGames = { navController.navigate(MicroJobRoutes.MINI_GAME_MENU) },
                     onNavigateToPointsHistory = { navController.navigate(MicroJobRoutes.POINTS_HISTORY) },
@@ -326,14 +333,15 @@ fun MicroJobApp() {
                     userId = userId,
                     vm = profileVm,
                     onBack = { navController.popBackStack() },
-                    onNavigateToSettings = { navController.navigate(MicroJobRoutes.SETTINGS) },
+                     onNavigateToSettings = { navController.navigate(MicroJobRoutes.SETTINGS) },
+                     onNavigateToUserDetails = { navController.navigate(MicroJobRoutes.userDetails(userId)) },
                     onNavigateToPostedJobs = { navController.navigate(MicroJobRoutes.postedJobs(userId)) },
                     onNavigateToAcceptedJobs = { navController.navigate(MicroJobRoutes.acceptedJobs(userId)) },
                     onNavigateToMyJobs = { navController.navigate(MicroJobRoutes.myJobs(userId)) },
                     onNavigateToReviews = {
                         navController.navigate(MicroJobRoutes.reviewsList(userId))
                     },
-                    onNavigateToCertificates = { /* TODO */ },
+                    onNavigateToCertificates = { navController.navigate(MicroJobRoutes.COURSE) },
                     onNavigateToSocialImpact = { navController.navigate(MicroJobRoutes.SOCIAL_IMPACT) },
                     onNavigateToMiniGames = { navController.navigate(MicroJobRoutes.MINI_GAME_MENU) },
                     onNavigateToPointsHistory = { navController.navigate(MicroJobRoutes.POINTS_HISTORY) },
@@ -357,6 +365,20 @@ fun MicroJobApp() {
                 popExitTransition = { fadeOut(animationSpec = tween(120)) },
                 route = MicroJobRoutes.SETTINGS) {
                 SettingsScreen(
+                    vm = profileVm,
+                    onBack = { navController.popBackStack() },
+                    onNavigateToUserDetails = {
+                        currentUser?.id?.let { navController.navigate(MicroJobRoutes.userDetails(it)) }
+                    }
+                )
+            }
+            composable(
+                route = MicroJobRoutes.USER_DETAILS,
+                arguments = listOf(navArgument("userId") { type = NavType.LongType })
+            ) { entry ->
+                val userId = entry.arguments?.getLong("userId") ?: return@composable
+                LaunchedEffect(userId) { profileVm.loadProfile(userId) }
+                UserDetailsScreen(
                     vm = profileVm,
                     onBack = { navController.popBackStack() }
                 )
@@ -626,7 +648,6 @@ fun MicroJobApp() {
                 val socialImpactState by socialImpactVm.uiState.collectAsStateWithLifecycle()
                 SocialImpactScreen(
                     uiState = socialImpactState,
-                    onBackClick = { navController.popBackStack() },
                     onViewAllDonations = { navController.navigate(MicroJobRoutes.DONATION_HISTORY) },
                     onViewAllVouchers = { navController.navigate(MicroJobRoutes.VOUCHER_REDEEM) },
                     onRedeemVoucher = { socialImpactVm.redeemVoucher(it) }
@@ -752,7 +773,7 @@ private data class BottomTab(
 
 private val bottomTabs = listOf(
     BottomTab(MicroJobRoutes.HOME, "Home", Icons.Filled.Home),
-    BottomTab(MicroJobRoutes.COURSE, "Course", Icons.Filled.Star),
+    BottomTab(MicroJobRoutes.SOCIAL_IMPACT, "Social Impact", Icons.Filled.Favorite),
     BottomTab(MicroJobRoutes.MESSAGES, "Messages", Icons.Filled.Email),
     BottomTab(MicroJobRoutes.PROFILE, "Profile", Icons.Filled.Person),
 )

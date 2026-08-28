@@ -148,7 +148,7 @@ private fun formatScheduled(iso: String): String = try {
 
 @Composable
 private fun RowStars(rating: Float) {
-    androidx.compose.foundation.layout.Row {
+    Row {
         val full = rating.toInt()
         val half = rating - full >= 0.49f
         repeat(full) { Text(text = "\u2605", fontSize = 18.sp, color = MaterialTheme.colorScheme.primary) }
@@ -193,14 +193,28 @@ private fun AddToCalendarDialog(job: Job, onDismiss: () -> Unit) {
                     Box(modifier = Modifier.fillMaxWidth().clickable { showDate = true }) {
                         OutlinedTextField(
                             value = dateText, onValueChange = {}, readOnly = true,
+                            enabled = false,
                             label = { Text("Date") }, placeholder = { Text("Select date") },
+                            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                                disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                                disabledBorderColor = MaterialTheme.colorScheme.outline,
+                                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                disabledPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            ),
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
                     Box(modifier = Modifier.fillMaxWidth().clickable { showTime = true }) {
                         OutlinedTextField(
                             value = timeText, onValueChange = {}, readOnly = true,
+                            enabled = false,
                             label = { Text("Time (24h)") }, placeholder = { Text("Select time") },
+                            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                                disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                                disabledBorderColor = MaterialTheme.colorScheme.outline,
+                                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                disabledPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            ),
                             modifier = Modifier.fillMaxWidth()
                         )
                     }

@@ -63,8 +63,9 @@ class LibreTranslateRepository : TranslationRepository {
                 throw IllegalStateException("Translation service unavailable. Try again.")
             }
 
-            return JSONObject(responseText).optString("translatedText").takeIf { it.isNotBlank() }
+            val raw = JSONObject(responseText).optString("translatedText").takeIf { it.isNotBlank() }
                 ?: throw IllegalStateException("The translation service returned no text.")
+            return cleanTranslation(raw)
         } finally {
             connection.disconnect()
         }
@@ -97,10 +98,23 @@ class LibreTranslateRepository : TranslationRepository {
             if (translated.isBlank()) {
                 throw IllegalStateException("The translation service returned no text.")
             }
-            return translated
+            return cleanTranslation(translated)
         } finally {
             connection.disconnect()
         }
+    }
+
+    private fun cleanTranslation(raw: String): String {
+        // MyMemory often wraps segments in <x id="1"/> or <x>…</x> placeholders.
+        // Strip any XML-like tags and decode common entities, then trim.
+        var cleaned = raw.replace(Regex("<[^>]+>"), "")
+        cleaned = cleaned
+            .replace("&quot;", "\"")
+            .replace("&apos;", "'")
+            .replace("&amp;", "&")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+        return cleaned.trim()
     }
 
     private companion object {

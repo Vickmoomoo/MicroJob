@@ -21,7 +21,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Badge
-import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ChevronRight
@@ -55,7 +54,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
 import com.example.microjob.model.User
 import com.example.microjob.viewmodel.ProfileViewModel
 import com.example.microjob.viewmodel.ProfileUiState
@@ -74,6 +75,7 @@ fun ProfileScreen(
     vm: ProfileViewModel,
     onBack: (() -> Unit)? = null,
     onNavigateToSettings: () -> Unit,
+    onNavigateToUserDetails: () -> Unit,
     onNavigateToPostedJobs: () -> Unit,
     onNavigateToAcceptedJobs: () -> Unit,
     onNavigateToMyJobs: () -> Unit,
@@ -113,7 +115,7 @@ fun ProfileScreen(
     var showEditUsernameDialog by remember { mutableStateOf(false) }
 
     val content: @Composable () -> Unit = {
-        ProfileContent(
+            ProfileContent(
             user = user,
             isMyProfile = isMyProfile,
             state = state,
@@ -124,6 +126,7 @@ fun ProfileScreen(
             showEditUsernameDialog = showEditUsernameDialog,
             onShowEditUsernameDialog = { showEditUsernameDialog = it },
             onNavigateToSettings = onNavigateToSettings,
+            onNavigateToUserDetails = onNavigateToUserDetails,
             onNavigateToPostedJobs = onNavigateToPostedJobs,
             onNavigateToAcceptedJobs = onNavigateToAcceptedJobs,
             onNavigateToMyJobs = onNavigateToMyJobs,
@@ -144,7 +147,7 @@ fun ProfileScreen(
         Scaffold(
             topBar = {
                 TopAppBar(
-                windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),title = { Text("User Profile") },
+                windowInsets = WindowInsets(0, 0, 0, 0), title = { Text("User Profile") },
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -165,6 +168,7 @@ fun ProfileScreen(
 
 // ==================== Profile content (shared by both modes) ====================
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
 private fun ProfileContent(
     user: User,
@@ -177,6 +181,7 @@ private fun ProfileContent(
     showEditUsernameDialog: Boolean,
     onShowEditUsernameDialog: (Boolean) -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToUserDetails: () -> Unit,
     onNavigateToPostedJobs: () -> Unit,
     onNavigateToAcceptedJobs: () -> Unit,
     onNavigateToMyJobs: () -> Unit,
@@ -190,6 +195,8 @@ private fun ProfileContent(
     onUpdateBio: (String) -> Unit,
     onUpdateUsername: (String) -> Unit,
 ) {
+    var showAvatarPreview by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -209,17 +216,23 @@ private fun ProfileContent(
                     .size(72.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.primaryContainer)
-                    .then(
-                        if (isMyProfile) Modifier.clickable { /* TODO: avatar picker */ }
-                        else Modifier
-                    ),
+                    .clickable { showAvatarPreview = true },
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = user.name.firstOrNull()?.uppercase() ?: "?",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+                if (user.avatarUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = user.avatarUrl,
+                        contentDescription = "Profile photo",
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Text(
+                        text = user.username.firstOrNull()?.uppercase() ?: "?",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
             }
 
             Spacer(Modifier.width(16.dp))
@@ -356,15 +369,17 @@ private fun ProfileContent(
         // --- Features list (Posted + Accepted combined into My Jobs) ---
         if (isMyProfile) {
             HorizontalDivider()
+            ProfileMenuItem(Icons.Filled.Badge, "User Details") { onNavigateToUserDetails() }
             ProfileMenuItem(Icons.Filled.Work, "My Jobs") { onNavigateToMyJobs() }
             ProfileMenuItem(Icons.Filled.Star, "Reviews") { onNavigateToReviews() }
-            ProfileMenuItem(Icons.Filled.School, "Certificates") { onNavigateToCertificates() }
+            ProfileMenuItem(Icons.Filled.School, "Course and Certificate") { onNavigateToCertificates() }
             ProfileMenuItem(Icons.Filled.Favorite, "Social Impact") { onNavigateToSocialImpact() }
             ProfileMenuItem(Icons.Filled.Star, "Mini Games") { onNavigateToMiniGames() }
             ProfileMenuItem(Icons.Filled.Settings, "Settings") { onNavigateToSettings() }
         } else {
+            ProfileMenuItem(Icons.Filled.Badge, "User Details") { onNavigateToUserDetails() }
             ProfileMenuItem(Icons.Filled.Star, "Reviews") { onNavigateToReviews() }
-            ProfileMenuItem(Icons.Filled.School, "Certificates") { onNavigateToCertificates() }
+            ProfileMenuItem(Icons.Filled.School, "Course and Certificate") { onNavigateToCertificates() }
             ProfileMenuItem(Icons.Filled.Favorite, "Social Impact") { onNavigateToSocialImpact() }
         }
 
@@ -391,6 +406,33 @@ private fun ProfileContent(
             onConfirm = { onUpdateUsername(it); onShowEditUsernameDialog(false) },
             onDismiss = { onShowEditUsernameDialog(false) }
         )
+    }
+
+    if (showAvatarPreview) {
+        Dialog(onDismissRequest = { showAvatarPreview = false }) {
+            Box(
+                modifier = Modifier
+                    .size(260.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                if (user.avatarUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = user.avatarUrl,
+                        contentDescription = "Profile photo preview",
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Text(
+                        text = user.username.firstOrNull()?.uppercase() ?: "?",
+                        style = MaterialTheme.typography.displayLarge,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -429,6 +471,7 @@ private fun ProfileMenuItem(
     }
 }
 
+@Suppress("SameParameterValue")
 @Composable
 private fun EditFieldDialog(
     title: String,

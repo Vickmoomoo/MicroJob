@@ -46,6 +46,7 @@ class HomeViewModel(
      * Constructor used by Compose's default `viewModel()` factory
      * (AndroidViewModelFactory reflects on an (Application) constructor).
      */
+    @Suppress("unused")
     constructor(application: Application) : this(application, LocalJobRepository(application))
 
     init {
@@ -144,7 +145,7 @@ class HomeViewModel(
                 _categories.update { remoteCategories }
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // Fallback to fake data so the UI still has content to show.
                 _jobs.update { SampleData.jobs }
                 _categories.update { SampleData.categories }

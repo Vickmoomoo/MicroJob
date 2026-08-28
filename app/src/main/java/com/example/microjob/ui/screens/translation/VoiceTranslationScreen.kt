@@ -3,7 +3,6 @@ package com.example.microjob.ui.screens.translation
 import android.Manifest
 import android.content.Context
 import android.content.Intent
-import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
@@ -25,7 +24,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -36,6 +34,7 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -61,6 +60,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.microjob.model.TranslationLanguage
@@ -100,11 +100,11 @@ private fun savePrefs(
                 .put("translated", record.translated)
         )
     }
-    prefs.edit()
-        .putString(KEY_SOURCE_LANG, source.name)
-        .putString(KEY_TARGET_LANG, target.name)
-        .putString(KEY_HISTORY, historyArray.toString())
-        .apply()
+    prefs.edit {
+        putString(KEY_SOURCE_LANG, source.name)
+        putString(KEY_TARGET_LANG, target.name)
+        putString(KEY_HISTORY, historyArray.toString())
+    }
 }
 
 private fun loadSourceLang(context: Context): TranslationLanguage {
@@ -242,13 +242,8 @@ fun VoiceTranslationScreen(
 
             override fun onEndOfSpeech() {
                 // Don't auto-stop — let the user control when to stop.
-                // If the user hasn't manually stopped, keep listening.
-                if (!isListening) {
-                    // User already clicked stop, so this is expected.
-                    // onResults will fire next.
-                }
-                // If isListening is still true, the speech engine stopped on its own
-                // (silence detected). We still wait for onResults.
+                // If the user hasn't manually stopped, keep listening (isListening true = silence).
+                // No-op: we still wait for onResults in either case.
             }
 
             override fun onError(error: Int) {
@@ -296,7 +291,7 @@ fun VoiceTranslationScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),title = { Text("Voice Translation") },
+                windowInsets = WindowInsets(0, 0, 0, 0), title = { Text("Voice Translation") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -611,7 +606,7 @@ private fun LanguageDropdown(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(44.dp)
-                .menuAnchor(),
+                .menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled = true),
             shape = RoundedCornerShape(10.dp),
             color = MaterialTheme.colorScheme.surfaceVariant
         ) {

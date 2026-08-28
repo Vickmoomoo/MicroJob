@@ -29,7 +29,7 @@ class LocalChatRepository(private val context: Context) : ChatRepository {
     private inline fun <reified T> readList(fileName: String, fallback: List<T>): List<T> {
         val file = dataFile(fileName)
         if (!file.exists()) return fallback
-        return try { json.decodeFromString<List<T>>(file.readText()) } catch (e: Exception) { fallback }
+        return try { json.decodeFromString<List<T>>(file.readText()) } catch (_: Exception) { fallback }
     }
 
     private inline fun <reified T> writeList(fileName: String, items: List<T>) {

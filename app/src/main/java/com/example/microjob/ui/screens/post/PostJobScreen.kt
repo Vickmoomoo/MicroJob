@@ -30,7 +30,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -52,9 +51,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -68,13 +67,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
 import coil.compose.AsyncImage
-import com.example.microjob.data.LocalJobRepository
 import com.example.microjob.model.MalaysianRegions
 import com.example.microjob.model.SampleData
 import com.example.microjob.viewmodel.PostJobUiState
@@ -140,7 +135,7 @@ fun PostJobScreen(
             // No top bar during the payment flow — the user cannot pause/back out.
             if (!inPaymentFlow) {
                 TopAppBar(
-                windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),title = { Text("Job Posting") },
+                windowInsets = WindowInsets(0, 0, 0, 0), title = { Text("Job Posting") },
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -471,14 +466,14 @@ private fun PaymentStatusScreen(
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             if (isSuccess) {
-                androidx.compose.material3.Icon(
+                Icon(
                     imageVector = Icons.Filled.CheckCircle,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(72.dp)
                 )
             } else {
-                androidx.compose.material3.CircularProgressIndicator(modifier = Modifier.size(56.dp))
+                CircularProgressIndicator(modifier = Modifier.size(56.dp))
             }
             Spacer(Modifier.height(16.dp))
             Text(
@@ -766,41 +761,44 @@ private fun ScheduledDateTimePicker(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
+        // FIX: Box(clickable) + readOnly TextField never fires because the TextField
+        // consumes touch for focus. Make the field disabled so it doesn't intercept,
+        // and keep normal colors via OutlinedTextFieldDefaults.colors.
+        Box(modifier = Modifier.fillMaxWidth().clickable { showDatePicker = true }) {
             OutlinedTextField(
                 value = dateText,
                 onValueChange = {},
                 readOnly = true,
+                enabled = false,
                 label = { Text("Date *") },
                 placeholder = { Text("Select date") },
-                trailingIcon = {
-                    Icon(
-                        Icons.Filled.Add,
-                        contentDescription = "Select date",
-                        modifier = Modifier
-                            .size(18.dp)
-                            .clickable { showDatePicker = true }
-                    )
-                },
+                trailingIcon = { Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                    disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                    disabledBorderColor = MaterialTheme.colorScheme.outline,
+                    disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    disabledPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+                ),
                 modifier = Modifier.fillMaxWidth()
             )
         }
-        Box(modifier = Modifier.fillMaxWidth()) {
+        Box(modifier = Modifier.fillMaxWidth().clickable { showTimePicker = true }) {
             OutlinedTextField(
                 value = timeText,
                 onValueChange = {},
                 readOnly = true,
+                enabled = false,
                 label = { Text("Time (24h) *") },
                 placeholder = { Text("Select time") },
-                trailingIcon = {
-                    Icon(
-                        Icons.Filled.Add,
-                        contentDescription = "Select time",
-                        modifier = Modifier
-                            .size(18.dp)
-                            .clickable { showTimePicker = true }
-                    )
-                },
+                trailingIcon = { Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                    disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                    disabledBorderColor = MaterialTheme.colorScheme.outline,
+                    disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    disabledPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+                ),
                 modifier = Modifier.fillMaxWidth()
             )
         }

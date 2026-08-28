@@ -24,6 +24,7 @@ class TranslationViewModel(
     private val repository: TranslationRepository = LibreTranslateRepository(),
 ) : AndroidViewModel(application) {
 
+    @Suppress("unused")
     constructor(application: Application) : this(application, LibreTranslateRepository())
 
     val sourceLanguage = MutableStateFlow(TranslationLanguage.ENGLISH)

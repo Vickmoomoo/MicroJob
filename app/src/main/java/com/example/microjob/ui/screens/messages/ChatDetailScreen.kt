@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -22,18 +23,25 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import android.content.Context
+import androidx.compose.animation.AnimatedVisibility
+import androidx.core.content.edit
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AttachMoney
-import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -46,6 +54,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -55,11 +66,13 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -67,9 +80,12 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.example.microjob.data.LibreTranslateRepository
 import com.example.microjob.model.Job
 import com.example.microjob.model.Message
+import com.example.microjob.model.TranslationLanguage
 import com.example.microjob.viewmodel.ChatViewModel
+import kotlinx.coroutines.launch
 
 /**
  * The chat detail screen: a full conversation between the logged-in user and
@@ -144,7 +160,30 @@ fun ChatDetailScreen(
             }
         }
 
+    // ---- Translation bar state ----
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    var showTranslationBar by remember { mutableStateOf(false) }
+    var sourceLang by remember { mutableStateOf(loadChatTranslationSource(context)) }
+    var targetLang by remember { mutableStateOf(loadChatTranslationTarget(context)) }
+    var isTranslating by remember { mutableStateOf(false) }
+    var showTranslationHelp by remember { mutableStateOf(false) }
+
+    // First-time hint: show once globally, dismiss marks as shown
+    LaunchedEffect(Unit) {
+        val prefs = context.getSharedPreferences(PREFS_CHAT_TRANSLATION, Context.MODE_PRIVATE)
+        if (!prefs.getBoolean(KEY_CHAT_HINT_SHOWN, false)) {
+            showTranslationHelp = true
+        }
+    }
+    // Persist language choices
+    LaunchedEffect(sourceLang, targetLang) {
+        saveChatTranslationLangs(context, sourceLang, targetLang)
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -156,6 +195,11 @@ fun ChatDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { showTranslationHelp = true }) {
+                        Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = "Translation help")
                     }
                 },
                 windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)
@@ -203,6 +247,123 @@ fun ChatDetailScreen(
                 }
             }
 
+            // ---- Translation bar (toggle via + -> Translate Message, open-only, close with ×) ----
+            AnimatedVisibility(visible = showTranslationBar) {
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Box(modifier = Modifier.weight(1f)) {
+                                TranslationBarDropdown(
+                                    label = "From",
+                                    current = sourceLang,
+                                    onSelect = { selected ->
+                                        if (selected == targetLang) {
+                                            val oldSource = sourceLang
+                                            sourceLang = selected
+                                            targetLang = oldSource
+                                        } else {
+                                            sourceLang = selected
+                                        }
+                                    }
+                                )
+                            }
+                            IconButton(
+                                onClick = {
+                                    val tmp = sourceLang
+                                    sourceLang = targetLang
+                                    targetLang = tmp
+                                },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(Icons.Filled.SwapHoriz, contentDescription = "Swap languages", modifier = Modifier.size(20.dp))
+                            }
+                            Box(modifier = Modifier.weight(1f)) {
+                                TranslationBarDropdown(
+                                    label = "To",
+                                    current = targetLang,
+                                    onSelect = { selected ->
+                                        if (selected == sourceLang) {
+                                            val oldTarget = targetLang
+                                            targetLang = selected
+                                            sourceLang = oldTarget
+                                        } else {
+                                            targetLang = selected
+                                        }
+                                    }
+                                )
+                            }
+                            IconButton(
+                                onClick = { showTranslationBar = false },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(Icons.Filled.Close, contentDescription = "Close translator", modifier = Modifier.size(20.dp))
+                            }
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = "${sourceLang.label} → ${targetLang.label}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Button(
+                                onClick = {
+                                    if (text.isBlank()) {
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar("Type a message first")
+                                        }
+                                        return@Button
+                                    }
+                                    scope.launch {
+                                        isTranslating = true
+                                        var newText: String? = null
+                                        var error: String? = null
+                                        try {
+                                            val repo = LibreTranslateRepository()
+                                            newText = repo.translate(text, sourceLang, targetLang)
+                                        } catch (e: Exception) {
+                                            error = e.message ?: "Translation failed. Check connection."
+                                        } finally {
+                                            isTranslating = false
+                                        }
+                                        if (newText != null) {
+                                            text = newText
+                                        } else if (error != null) {
+                                            snackbarHostState.showSnackbar(error)
+                                        }
+                                    }
+                                },
+                                enabled = !isTranslating && text.isNotBlank(),
+                                modifier = Modifier.height(36.dp),
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                            ) {
+                                if (isTranslating) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.padding(end = 6.dp).size(14.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                }
+                                Text(if (isTranslating) "Translating..." else "Translate", style = MaterialTheme.typography.labelLarge)
+                            }
+                        }
+                    }
+                }
+            }
+
             // ---- Composer (hidden for system chat) ----
             if (otherUserId != 0L) {
                 Row(
@@ -217,6 +378,15 @@ fun ChatDetailScreen(
                             Icon(Icons.Filled.Add, contentDescription = "Attach")
                         }
                         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            DropdownMenuItem(
+                                text = { Text("Translate Message") },
+                                leadingIcon = { Icon(Icons.Filled.Translate, contentDescription = null) },
+                                onClick = {
+                                    menuOpen = false
+                                    showTranslationBar = true
+                                }
+                            )
+                            HorizontalDivider()
                             DropdownMenuItem(
                                 text = { Text("Photo") },
                                 leadingIcon = { Icon(Icons.Filled.PhotoCamera, contentDescription = null) },
@@ -396,6 +566,121 @@ fun ChatDetailScreen(
             confirmButton = { Button(onClick = { acceptedJob = null }) { Text("OK") } }
         )
     }
+
+    // ---- Translation help dialog (first time + ? button) ----
+    if (showTranslationHelp) {
+        AlertDialog(
+            onDismissRequest = {
+                showTranslationHelp = false
+                context.getSharedPreferences(PREFS_CHAT_TRANSLATION, Context.MODE_PRIVATE)
+                    .edit { putBoolean(KEY_CHAT_HINT_SHOWN, true) }
+            },
+            title = { Text("Chat Translation") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Tap + → Translate Message to open the translation bar above the message box.")
+                    Text("Choose From and To languages, type your message, then tap Translate — your text field will be replaced with the translation so you can edit it before sending.")
+                    Text(
+                        "Tap × on the bar to close it. Tap ? anytime to see this tip again.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    showTranslationHelp = false
+                    context.getSharedPreferences(PREFS_CHAT_TRANSLATION, Context.MODE_PRIVATE)
+                        .edit { putBoolean(KEY_CHAT_HINT_SHOWN, true) }
+                }) { Text("Got it") }
+            }
+        )
+    }
+}
+
+private const val PREFS_CHAT_TRANSLATION = "chat_translation_prefs"
+private const val KEY_CHAT_HINT_SHOWN = "hint_shown"
+private const val KEY_CHAT_SOURCE = "chat_source_lang"
+private const val KEY_CHAT_TARGET = "chat_target_lang"
+
+private fun loadChatTranslationSource(context: Context): TranslationLanguage {
+    val name = context.getSharedPreferences(PREFS_CHAT_TRANSLATION, Context.MODE_PRIVATE)
+        .getString(KEY_CHAT_SOURCE, TranslationLanguage.ENGLISH.name)
+    return try { TranslationLanguage.valueOf(name!!) } catch (_: Exception) { TranslationLanguage.ENGLISH }
+}
+
+private fun loadChatTranslationTarget(context: Context): TranslationLanguage {
+    val name = context.getSharedPreferences(PREFS_CHAT_TRANSLATION, Context.MODE_PRIVATE)
+        .getString(KEY_CHAT_TARGET, TranslationLanguage.MALAY.name)
+    return try { TranslationLanguage.valueOf(name!!) } catch (_: Exception) { TranslationLanguage.MALAY }
+}
+
+private fun saveChatTranslationLangs(context: Context, source: TranslationLanguage, target: TranslationLanguage) {
+    context.getSharedPreferences(PREFS_CHAT_TRANSLATION, Context.MODE_PRIVATE).edit {
+        putString(KEY_CHAT_SOURCE, source.name)
+        putString(KEY_CHAT_TARGET, target.name)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TranslationBarDropdown(
+    label: String,
+    current: TranslationLanguage,
+    onSelect: (TranslationLanguage) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it }
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true),
+            shape = RoundedCornerShape(8.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 1.dp
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = current.label,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Filled.SwapHoriz,
+                    contentDescription = null,
+                    modifier = Modifier.width(16.dp).height(16.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            TranslationLanguage.entries.forEach { language ->
+                DropdownMenuItem(
+                    text = { Text(language.label) },
+                    onClick = {
+                        onSelect(language)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
 }
 
 enum class JobPickerKind { INVITE, PAYMENT }
@@ -405,7 +690,7 @@ enum class JobPickerKind { INVITE, PAYMENT }
 private fun MessageBubble(
     message: Message,
     isMine: Boolean,
-    otherUserId: Long,
+    @Suppress("UNUSED_PARAMETER") otherUserId: Long,
     job: Job?,
     alreadyAccepted: Boolean,
     accepting: Boolean,
@@ -510,7 +795,7 @@ private fun CardStatusLine(text: String) {
 @Composable
 private fun ReviewPromptCard(
     text: String,
-    jobId: Int,
+    @Suppress("UNUSED_PARAMETER") jobId: Int,
     onClick: () -> Unit,
 ) {
     Column(
@@ -845,7 +1130,7 @@ private fun SettlePaymentDialog(
                 modifier = Modifier.weight(1f)
             )
             IconButton(onClick = { showDonationInfo = true }) {
-                Icon(Icons.Filled.HelpOutline, contentDescription = "Donation info")
+                Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = "Donation info")
             }
         }
         OutlinedTextField(
@@ -929,6 +1214,6 @@ private fun formatSettleDate(iso: String): String =
     try {
         val dt = java.time.OffsetDateTime.parse(iso)
         java.time.format.DateTimeFormatter.ofPattern("d MMM", java.util.Locale.ENGLISH).format(dt)
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         ""
     }
