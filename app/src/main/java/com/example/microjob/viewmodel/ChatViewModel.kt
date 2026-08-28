@@ -338,7 +338,7 @@ class ChatViewModel(
                         // Review persistence is secondary; ignore failures.
                     }
 
-                    onJobCompleted(updated.title, updated.price.toInt())
+                    onJobCompleted(updated.title, updated.price)
                     onReleased()
                 }
             } catch (_: Exception) {
