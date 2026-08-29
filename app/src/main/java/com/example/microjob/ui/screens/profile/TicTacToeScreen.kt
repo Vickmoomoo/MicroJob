@@ -66,7 +66,7 @@ fun TicTacToeScreen(
         board = board.toMutableList().also { it[index] = "X" }
         val result = checkWinner(board)
         when (result) {
-            "X" -> { message = "You win! +200 pts"; gameOver = true; onWin() }
+            "X" -> {                 message = "You win! +10 pts"; gameOver = true; onWin() }
             "Draw" -> { message = "It's a draw!"; gameOver = true }
             null -> { isPlayerTurn = false; message = "Computer's turn..."; computerMove() }
         }

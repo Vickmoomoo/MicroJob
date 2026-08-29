@@ -54,7 +54,7 @@ fun MemoryFlipScreen(
                     it[secondPick] = false
                 }
                 if (matched.all { it }) {
-                    message = "You win! +200 pts ($moves moves)"
+                    message = "You win! +10 pts ($moves moves)"
                     gameOver = true
                     onWin()
                 } else {

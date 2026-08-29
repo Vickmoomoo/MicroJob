@@ -46,7 +46,7 @@ fun NumberGuessScreen(
         guesses = guesses + num
         when {
             num == secretNumber -> {
-                message = "Correct! +200 pts ($attempts attempts)"
+                message = "Correct! +10 pts ($attempts attempts)"
                 gameOver = true
                 onWin()
             }

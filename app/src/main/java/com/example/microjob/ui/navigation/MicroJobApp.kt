@@ -703,11 +703,20 @@ fun MicroJobApp() {
                 popExitTransition = { fadeOut(animationSpec = tween(120)) },
                 route = MicroJobRoutes.MINI_GAME_MENU
             ) {
+                val socialImpactState by socialImpactVm.uiState.collectAsStateWithLifecycle()
                 MiniGameMenuScreen(
+                    gamesPlayedToday = socialImpactState.gamesPlayedToday,
+                    maxGamesPerDay = socialImpactState.maxGamesPerDay,
                     onBack = { navController.popBackStack() },
-                    onPlayTicTacToe = { navController.navigate(MicroJobRoutes.TIC_TAC_TOE) },
-                    onPlayNumberGuess = { navController.navigate(MicroJobRoutes.NUMBER_GUESS) },
-                    onPlayMemoryFlip = { navController.navigate(MicroJobRoutes.MEMORY_FLIP) }
+                    onPlayTicTacToe = {
+                        if (socialImpactVm.canPlayGame()) navController.navigate(MicroJobRoutes.TIC_TAC_TOE)
+                    },
+                    onPlayNumberGuess = {
+                        if (socialImpactVm.canPlayGame()) navController.navigate(MicroJobRoutes.NUMBER_GUESS)
+                    },
+                    onPlayMemoryFlip = {
+                        if (socialImpactVm.canPlayGame()) navController.navigate(MicroJobRoutes.MEMORY_FLIP)
+                    }
                 )
             }
             composable(
@@ -719,7 +728,7 @@ fun MicroJobApp() {
             ) {
                 TicTacToeScreen(
                     onBack = { navController.popBackStack() },
-                    onWin = { socialImpactVm.earnPoints("Won Tic Tac Toe", 200) }
+                    onWin = { socialImpactVm.earnPoints("Won Tic Tac Toe", 10) }
                 )
             }
             composable(
@@ -731,7 +740,7 @@ fun MicroJobApp() {
             ) {
                 NumberGuessScreen(
                     onBack = { navController.popBackStack() },
-                    onWin = { socialImpactVm.earnPoints("Won Number Guess", 200) }
+                    onWin = { socialImpactVm.earnPoints("Won Number Guess", 10) }
                 )
             }
             composable(
@@ -743,7 +752,7 @@ fun MicroJobApp() {
             ) {
                 MemoryFlipScreen(
                     onBack = { navController.popBackStack() },
-                    onWin = { socialImpactVm.earnPoints("Won Memory Flip", 200) }
+                    onWin = { socialImpactVm.earnPoints("Won Memory Flip", 10) }
                 )
             }
         }

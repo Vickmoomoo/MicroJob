@@ -1,6 +1,7 @@
 package com.example.microjob.viewmodel
 
 import android.app.Application
+import android.content.SharedPreferences
 import androidx.lifecycle.AndroidViewModel
 import com.example.microjob.model.DonationRecord
 import com.example.microjob.model.PointsHistoryEntry
@@ -18,14 +19,44 @@ data class SocialImpactUiState(
     val donationHistory: List<DonationRecord> = sampleDonations,
     val voucherList: List<VoucherItem> = sampleVouchers,
     val pointsHistory: List<PointsHistoryEntry> = emptyList(),
+    val gamesPlayedToday: Int = 0,
+    val maxGamesPerDay: Int = 3,
 )
 
 class SocialImpactViewModel(
     application: Application
 ) : AndroidViewModel(application) {
 
+    private val prefs: SharedPreferences =
+        application.getSharedPreferences("game_prefs", 0)
+
     private val _uiState = MutableStateFlow(SocialImpactUiState())
     val uiState: StateFlow<SocialImpactUiState> = _uiState.asStateFlow()
+
+    init {
+        loadGameCount()
+    }
+
+    private fun loadGameCount() {
+        val savedDate = prefs.getString("game_date", "")
+        val today = java.time.LocalDate.now().toString()
+        val count = if (savedDate == today) prefs.getInt("game_count", 0) else 0
+        _uiState.value = _uiState.value.copy(gamesPlayedToday = count)
+    }
+
+    fun canPlayGame(): Boolean {
+        val current = _uiState.value
+        if (current.gamesPlayedToday >= current.maxGamesPerDay) return false
+
+        val today = java.time.LocalDate.now().toString()
+        val newCount = current.gamesPlayedToday + 1
+        prefs.edit()
+            .putString("game_date", today)
+            .putInt("game_count", newCount)
+            .apply()
+        _uiState.value = current.copy(gamesPlayedToday = newCount)
+        return true
+    }
 
     fun redeemVoucher(voucher: VoucherItem) {
         val current = _uiState.value

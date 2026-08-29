@@ -103,7 +103,7 @@ val sampleVouchers = listOf(
         brand = "KFC",
         title = "KFC RM15 Voucher",
         validStores = "Valid at all KFC outlets nationwide",
-        pointsRequired = 700,
+        pointsRequired = 675,
         value = "RM 15",
         brandColor = Color(0xFFE4002B)
     ),
@@ -127,7 +127,7 @@ val sampleVouchers = listOf(
         brand = "Pizza Hut",
         title = "Pizza Hut RM18 Voucher",
         validStores = "Valid at all Pizza Hut restaurants",
-        pointsRequired = 800,
+        pointsRequired = 810,
         value = "RM 18",
         brandColor = Color(0xFFE4002B)
     )
