@@ -24,6 +24,7 @@ fun SocialImpactScreen(
     uiState: SocialImpactUiState,
     onViewAllDonations: () -> Unit = {},
     onViewAllVouchers: () -> Unit = {},
+    onVoucherClick: (Int) -> Unit = {},
     onRedeemVoucher: (VoucherItem) -> Unit = {}
 ) {
     val background = MaterialTheme.colorScheme.background
@@ -179,10 +180,10 @@ fun SocialImpactScreen(
                     }
                 }
                 Spacer(Modifier.height(10.dp))
-                uiState.voucherList.forEach { voucher ->
+                uiState.voucherList.forEachIndexed { index, voucher ->
                     VoucherItemCard(
                         voucher = voucher,
-                        onRedeem = { onRedeemVoucher(voucher) }
+                        onClick = { onVoucherClick(index) }
                     )
                     Spacer(Modifier.height(10.dp))
                 }
@@ -232,7 +233,7 @@ fun DonationHistoryItem(record: DonationRecord) {
 }
 
 @Composable
-fun VoucherItemCard(voucher: VoucherItem, onRedeem: () -> Unit) {
+fun VoucherItemCard(voucher: VoucherItem, onClick: () -> Unit) {
     val surface = MaterialTheme.colorScheme.surface
     val onSurface = MaterialTheme.colorScheme.onSurface
     val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
@@ -245,6 +246,7 @@ fun VoucherItemCard(voucher: VoucherItem, onRedeem: () -> Unit) {
             .clip(RoundedCornerShape(10.dp))
             .border(1.dp, outline.copy(alpha = 0.3f))
             .background(surface)
+            .clickable { onClick() }
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -273,15 +275,6 @@ fun VoucherItemCard(voucher: VoucherItem, onRedeem: () -> Unit) {
                 color = primary,
                 fontWeight = FontWeight.Medium
             )
-        }
-        Button(
-            onClick = onRedeem,
-            modifier = Modifier.height(32.dp),
-            shape = RoundedCornerShape(6.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = primary),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
-        ) {
-            Text("Redeem", fontSize = 12.sp)
         }
     }
 }

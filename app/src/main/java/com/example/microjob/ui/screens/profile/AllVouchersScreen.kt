@@ -19,7 +19,7 @@ import com.example.microjob.model.VoucherItem
 fun AllVouchersScreen(
     vouchers: List<VoucherItem>,
     onBack: () -> Unit,
-    onRedeemVoucher: (VoucherItem) -> Unit
+    onVoucherClick: (Int) -> Unit = {}
 ) {
     val background = MaterialTheme.colorScheme.background
 
@@ -45,10 +45,10 @@ fun AllVouchersScreen(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            vouchers.forEach { voucher ->
+            vouchers.forEachIndexed { index, voucher ->
                 VoucherItemCard(
                     voucher = voucher,
-                    onRedeem = { onRedeemVoucher(voucher) }
+                    onClick = { onVoucherClick(index) }
                 )
             }
         }

@@ -92,6 +92,10 @@ object MicroJobRoutes {
     /** All Vouchers page. */
     const val VOUCHER_REDEEM = "voucher_redeem"
 
+    /** Voucher detail page. */
+    const val VOUCHER_DETAIL = "voucher_detail/{voucherIndex}"
+    fun voucherDetail(voucherIndex: Int) = "voucher_detail/$voucherIndex"
+
     /** Points history page. */
     const val POINTS_HISTORY = "points_history"
 

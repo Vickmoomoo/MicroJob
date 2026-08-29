@@ -64,6 +64,7 @@ import com.example.microjob.ui.screens.profile.CourseScreen
 import com.example.microjob.ui.screens.profile.AllDonationsScreen
 import com.example.microjob.ui.screens.profile.AllVouchersScreen
 import com.example.microjob.ui.screens.profile.PointsHistoryScreen
+import com.example.microjob.ui.screens.profile.VoucherDetailScreen
 import com.example.microjob.ui.screens.profile.MiniGameMenuScreen
 import com.example.microjob.ui.screens.profile.TicTacToeScreen
 import com.example.microjob.ui.screens.profile.NumberGuessScreen
@@ -160,6 +161,7 @@ fun MicroJobApp() {
             currentRoute == MicroJobRoutes.COURSE ||
             currentRoute == MicroJobRoutes.DONATION_HISTORY ||
             currentRoute == MicroJobRoutes.VOUCHER_REDEEM ||
+            currentRoute?.startsWith("voucher_detail") == true ||
             currentRoute == MicroJobRoutes.POINTS_HISTORY ||
             currentRoute == MicroJobRoutes.MINI_GAME_MENU ||
             currentRoute == MicroJobRoutes.TIC_TAC_TOE ||
@@ -652,6 +654,7 @@ fun MicroJobApp() {
                     uiState = socialImpactState,
                     onViewAllDonations = { navController.navigate(MicroJobRoutes.DONATION_HISTORY) },
                     onViewAllVouchers = { navController.navigate(MicroJobRoutes.VOUCHER_REDEEM) },
+                    onVoucherClick = { index -> navController.navigate(MicroJobRoutes.voucherDetail(index)) },
                     onRedeemVoucher = { socialImpactVm.redeemVoucher(it) }
                 )
             }
@@ -679,7 +682,25 @@ fun MicroJobApp() {
                 AllVouchersScreen(
                     vouchers = socialImpactState.voucherList,
                     onBack = { navController.popBackStack() },
-                    onRedeemVoucher = { socialImpactVm.redeemVoucher(it) }
+                    onVoucherClick = { index -> navController.navigate(MicroJobRoutes.voucherDetail(index)) }
+                )
+            }
+            composable(
+                enterTransition = { fadeIn(animationSpec = tween(120)) },
+                exitTransition = { fadeOut(animationSpec = tween(120)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(120)) },
+                popExitTransition = { fadeOut(animationSpec = tween(120)) },
+                route = MicroJobRoutes.VOUCHER_DETAIL,
+                arguments = listOf(navArgument("voucherIndex") { type = NavType.IntType })
+            ) { entry ->
+                val index = entry.arguments?.getInt("voucherIndex") ?: return@composable
+                val socialImpactState by socialImpactVm.uiState.collectAsStateWithLifecycle()
+                val voucher = socialImpactState.voucherList.getOrNull(index) ?: return@composable
+                VoucherDetailScreen(
+                    voucher = voucher,
+                    userPoints = socialImpactState.userPoints,
+                    onBack = { navController.popBackStack() },
+                    onRedeem = { socialImpactVm.redeemVoucher(it) }
                 )
             }
             composable(
