@@ -20,7 +20,7 @@ data class SocialImpactUiState(
     val voucherList: List<VoucherItem> = sampleVouchers,
     val pointsHistory: List<PointsHistoryEntry> = emptyList(),
     val gamesPlayedToday: Int = 0,
-    val maxGamesPerDay: Int = 3,
+    val maxGamesPerDay: Int = 6,
 )
 
 class SocialImpactViewModel(

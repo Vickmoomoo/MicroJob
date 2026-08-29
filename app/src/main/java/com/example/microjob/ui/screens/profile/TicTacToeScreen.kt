@@ -1,6 +1,7 @@
 package com.example.microjob.ui.screens.profile
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,6 +34,7 @@ fun TicTacToeScreen(
     val primary = MaterialTheme.colorScheme.primary
     val onSurface = MaterialTheme.colorScheme.onSurface
     val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+    val outline = MaterialTheme.colorScheme.outline
 
     fun checkWinner(b: List<String>): String? {
         val lines = listOf(
@@ -125,6 +127,7 @@ fun TicTacToeScreen(
                             modifier = Modifier
                                 .size(90.dp)
                                 .clip(RoundedCornerShape(10.dp))
+                                .border(2.dp, outline.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
                                 .background(surface)
                                 .clickable { playerMove(index) },
                             contentAlignment = Alignment.Center
