@@ -33,14 +33,22 @@ class SocialImpactViewModel(
     private val _uiState = MutableStateFlow(SocialImpactUiState())
     val uiState: StateFlow<SocialImpactUiState> = _uiState.asStateFlow()
 
-    init {
+    private var currentUserId: Long? = null
+
+    fun setUserId(userId: Long) {
+        if (currentUserId == userId) return
+        currentUserId = userId
+        // Reset to initial state when switching accounts
+        _uiState.value = SocialImpactUiState()
         loadGameCount()
     }
 
     private fun loadGameCount() {
-        val savedDate = prefs.getString("game_date", "")
+        val userId = currentUserId ?: return
+        val keyPrefix = "user_${userId}_"
+        val savedDate = prefs.getString("${keyPrefix}game_date", "")
         val today = java.time.LocalDate.now().toString()
-        val count = if (savedDate == today) prefs.getInt("game_count", 0) else 0
+        val count = if (savedDate == today) prefs.getInt("${keyPrefix}game_count", 0) else 0
         _uiState.value = _uiState.value.copy(gamesPlayedToday = count)
     }
 
@@ -48,11 +56,13 @@ class SocialImpactViewModel(
         val current = _uiState.value
         if (current.gamesPlayedToday >= current.maxGamesPerDay) return false
 
+        val userId = currentUserId ?: return false
+        val keyPrefix = "user_${userId}_"
         val today = java.time.LocalDate.now().toString()
         val newCount = current.gamesPlayedToday + 1
         prefs.edit()
-            .putString("game_date", today)
-            .putInt("game_count", newCount)
+            .putString("${keyPrefix}game_date", today)
+            .putInt("${keyPrefix}game_count", newCount)
             .apply()
         _uiState.value = current.copy(gamesPlayedToday = newCount)
         return true

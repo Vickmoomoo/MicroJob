@@ -121,6 +121,14 @@ fun MicroJobApp() {
         authVm.loadCurrentUser()
     }
 
+    // Reset social impact state when user changes
+    LaunchedEffect(currentUser) {
+        val userId = currentUser?.id
+        if (userId != null) {
+            socialImpactVm.setUserId(userId)
+        }
+    }
+
     // Show a welcome snackbar right after login, then go back to Home.
     val isLoginScreen = currentRoute == MicroJobRoutes.LOGIN
     LaunchedEffect(currentUser) {
