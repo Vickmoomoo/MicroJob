@@ -71,7 +71,7 @@ fun SettingsScreen(
     val state by vm.uiState.collectAsStateWithLifecycle()
     val user = state.user ?: return
     val context = androidx.compose.ui.platform.LocalContext.current
-    val preferences = remember(context) { AppPreferences(context) }
+    val preferences = remember(context) { AppPreferences.getInstance(context) }
     val theme by preferences.theme.collectAsStateWithLifecycle()
     val language by preferences.language.collectAsStateWithLifecycle()
     val copy = settingsCopy(language)

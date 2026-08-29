@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class AppPreferences(context: Context) {
+class AppPreferences private constructor(context: Context) {
 
     companion object {
         const val THEME_SYSTEM = "System"
@@ -15,6 +15,15 @@ class AppPreferences(context: Context) {
         const val LANGUAGE_ENGLISH = "English"
         const val LANGUAGE_CHINESE = "Chinese"
         const val LANGUAGE_MALAY = "Malay"
+
+        @Volatile
+        private var INSTANCE: AppPreferences? = null
+
+        fun getInstance(context: Context): AppPreferences {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: AppPreferences(context.applicationContext).also { INSTANCE = it }
+            }
+        }
     }
 
     private val prefs: SharedPreferences =

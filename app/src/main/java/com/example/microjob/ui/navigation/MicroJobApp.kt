@@ -775,7 +775,7 @@ private data class BottomTab(
 
 private val bottomTabs = listOf(
     BottomTab(MicroJobRoutes.HOME, "Home", Icons.Filled.Home),
-    BottomTab(MicroJobRoutes.SOCIAL_IMPACT, "Social Impact", Icons.Filled.Favorite),
+    BottomTab(MicroJobRoutes.SOCIAL_IMPACT, "Social Impact", Icons.Filled.    Favorite),
     BottomTab(MicroJobRoutes.MESSAGES, "Messages", Icons.Filled.Email),
     BottomTab(MicroJobRoutes.PROFILE, "Profile", Icons.Filled.Person),
 )
