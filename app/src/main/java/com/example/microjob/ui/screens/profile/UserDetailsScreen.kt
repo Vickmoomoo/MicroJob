@@ -29,6 +29,14 @@ fun UserDetailsScreen(
     val state by vm.uiState.collectAsStateWithLifecycle()
     val user = state.user
 
+    val background = MaterialTheme.colorScheme.background
+    val surface = MaterialTheme.colorScheme.surface
+    val primaryContainer = MaterialTheme.colorScheme.primaryContainer
+    val onPrimaryContainer = MaterialTheme.colorScheme.onPrimaryContainer
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+    val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -38,7 +46,7 @@ fun UserDetailsScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = background)
             )
         }
     ) { paddingValues ->
@@ -46,66 +54,56 @@ fun UserDetailsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(MaterialTheme.colorScheme.background)
+                .background(background)
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Avatar
             Box(
                 modifier = Modifier
                     .size(80.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer)
+                    .background(primaryContainer)
                     .align(Alignment.CenterHorizontally),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = user?.name?.firstOrNull()?.uppercase() ?: "?",
                     style = MaterialTheme.typography.headlineLarge,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                    color = onPrimaryContainer
                 )
             }
 
             Spacer(Modifier.height(8.dp))
 
-            // Name
-            DetailRow("Name", user?.name ?: "Not set")
-
-            // Username
-            DetailRow("Username", "@${user?.username ?: "not set"}")
-
-            // Email
-            DetailRow("Email", user?.email?.ifBlank { "Not added" } ?: "Not added")
-
-            // Phone
-            DetailRow("Phone", user?.phoneNumber?.ifBlank { "Not added" } ?: "Not added")
-
-            // Bio
-            DetailRow("Bio", user?.bio?.ifBlank { "No bio yet" } ?: "No bio yet")
+            DetailRow("Name", user?.name ?: "Not set", surface, onSurface, onSurfaceVariant)
+            DetailRow("Username", "@${user?.username ?: "not set"}", surface, onSurface, onSurfaceVariant)
+            DetailRow("Email", user?.email?.ifBlank { "Not added" } ?: "Not added", surface, onSurface, onSurfaceVariant)
+            DetailRow("Phone", user?.phoneNumber?.ifBlank { "Not added" } ?: "Not added", surface, onSurface, onSurfaceVariant)
+            DetailRow("Bio", user?.bio?.ifBlank { "No bio yet" } ?: "No bio yet", surface, onSurface, onSurfaceVariant)
         }
     }
 }
 
 @Composable
-private fun DetailRow(label: String, value: String) {
+private fun DetailRow(label: String, value: String, surface: androidx.compose.ui.graphics.Color, onSurface: androidx.compose.ui.graphics.Color, onSurfaceVariant: androidx.compose.ui.graphics.Color) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+        colors = CardDefaults.cardColors(containerColor = surface)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 text = label,
                 fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = onSurfaceVariant,
                 fontWeight = FontWeight.Medium
             )
             Spacer(Modifier.height(4.dp))
             Text(
                 text = value,
                 fontSize = 15.sp,
-                fontWeight = FontWeight.Normal
+                color = onSurface
             )
         }
     }

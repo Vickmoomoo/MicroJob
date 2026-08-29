@@ -26,38 +26,41 @@ fun PointsHistoryScreen(
     pointsHistory: List<PointsHistoryEntry>,
     onBack: () -> Unit
 ) {
+    val background = MaterialTheme.colorScheme.background
+    val surface = MaterialTheme.colorScheme.surface
+    val primary = MaterialTheme.colorScheme.primary
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Points History", fontSize = 18.sp, fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
                     Box(
                         modifier = Modifier
-                            .background(Color(0xFF2563EB).copy(alpha = 0.1f), CircleShape)
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                            .background(primary.copy(alpha = 0.1f), CircleShape)
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("\u2B50", fontSize = 14.sp)
-                            Spacer(Modifier.width(4.dp))
+                            Text("\u2B50", fontSize = 12.sp)
+                            Spacer(Modifier.width(3.dp))
                             Text(
                                 text = "$userPoints pts",
-                                fontSize = 14.sp,
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = Color(0xFF2563EB)
+                                color = primary
                             )
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = background)
             )
         }
     ) { paddingValues ->
@@ -65,7 +68,7 @@ fun PointsHistoryScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(Color(0xFFF9FAFB))
+                .background(background)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -84,13 +87,13 @@ fun PointsHistoryScreen(
                             "No points yet",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color.Gray
+                            color = onSurfaceVariant
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
                             "Play mini games to earn points!",
                             fontSize = 13.sp,
-                            color = Color.Gray
+                            color = onSurfaceVariant
                         )
                     }
                 }
@@ -105,19 +108,23 @@ fun PointsHistoryScreen(
 
 @Composable
 fun PointsHistoryItem(entry: PointsHistoryEntry) {
+    val surface = MaterialTheme.colorScheme.surface
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
-            .background(Color.White)
+            .background(surface)
             .padding(14.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
-            Text(entry.source, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            Text(entry.source, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = onSurface)
             Spacer(Modifier.height(2.dp))
-            Text(entry.date, fontSize = 12.sp, color = Color.Gray)
+            Text(entry.date, fontSize = 12.sp, color = onSurfaceVariant)
         }
         Text(
             text = if (entry.isEarned) "+${entry.points}" else "${entry.points}",

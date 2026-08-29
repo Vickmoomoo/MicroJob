@@ -26,10 +26,17 @@ fun SocialImpactScreen(
     onViewAllVouchers: () -> Unit = {},
     onRedeemVoucher: (VoucherItem) -> Unit = {}
 ) {
+    val background = MaterialTheme.colorScheme.background
+    val surface = MaterialTheme.colorScheme.surface
+    val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+    val primary = MaterialTheme.colorScheme.primary
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF9FAFB))
+            .background(background)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -41,7 +48,7 @@ fun SocialImpactScreen(
         ) {
             Box(
                 modifier = Modifier
-                    .background(Color(0xFF2563EB).copy(alpha = 0.1f), CircleShape)
+                    .background(primary.copy(alpha = 0.1f), CircleShape)
                     .padding(horizontal = 8.dp, vertical = 4.dp),
                 contentAlignment = Alignment.Center
             ) {
@@ -52,7 +59,7 @@ fun SocialImpactScreen(
                         text = "${uiState.userPoints} pts",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFF2563EB)
+                        color = primary
                     )
                 }
             }
@@ -62,13 +69,14 @@ fun SocialImpactScreen(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(modifier = Modifier.padding(14.dp)) {
                 Text(
                     text = "Community Impact",
                     fontSize = 13.sp,
-                    color = Color.Gray,
+                    color = onSurfaceVariant,
                     fontWeight = FontWeight.Medium
                 )
                 Spacer(Modifier.height(10.dp))
@@ -79,7 +87,7 @@ fun SocialImpactScreen(
                     StatColumn(
                         value = "${uiState.peopleHelped}",
                         label = "People Helped",
-                        color = Color(0xFF2563EB)
+                        color = primary
                     )
                     StatColumn(
                         value = uiState.totalDonated,
@@ -94,6 +102,7 @@ fun SocialImpactScreen(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(modifier = Modifier.padding(14.dp)) {
@@ -105,7 +114,8 @@ fun SocialImpactScreen(
                     Text(
                         text = "Donation History",
                         fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
+                        color = onSurface
                     )
                     TextButton(
                         onClick = onViewAllDonations,
@@ -114,13 +124,13 @@ fun SocialImpactScreen(
                         Text(
                             text = "View All",
                             fontSize = 12.sp,
-                            color = Color(0xFF2563EB)
+                            color = primary
                         )
                         Icon(
                             imageVector = Icons.Default.ArrowForward,
                             contentDescription = "View All",
                             modifier = Modifier.size(14.dp),
-                            tint = Color(0xFF2563EB)
+                            tint = primary
                         )
                     }
                 }
@@ -136,6 +146,7 @@ fun SocialImpactScreen(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(modifier = Modifier.padding(14.dp)) {
@@ -147,7 +158,8 @@ fun SocialImpactScreen(
                     Text(
                         text = "Food Vouchers",
                         fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
+                        color = onSurface
                     )
                     TextButton(
                         onClick = onViewAllVouchers,
@@ -156,13 +168,13 @@ fun SocialImpactScreen(
                         Text(
                             text = "View All",
                             fontSize = 12.sp,
-                            color = Color(0xFF2563EB)
+                            color = primary
                         )
                         Icon(
                             imageVector = Icons.Default.ArrowForward,
                             contentDescription = "View All",
                             modifier = Modifier.size(14.dp),
-                            tint = Color(0xFF2563EB)
+                            tint = primary
                         )
                     }
                 }
@@ -187,24 +199,28 @@ fun SocialImpactScreen(
 fun StatColumn(value: String, label: String, color: Color) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(text = value, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = color)
-        Text(text = label, fontSize = 11.sp, color = Color.Gray)
+        Text(text = label, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
 @Composable
 fun DonationHistoryItem(record: DonationRecord) {
+    val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
-            .background(Color(0xFFF3F4F6))
+            .background(surfaceVariant)
             .padding(10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
-            Text(record.organization, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-            Text(record.date, fontSize = 11.sp, color = Color.Gray)
+            Text(record.organization, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = onSurface)
+            Text(record.date, fontSize = 11.sp, color = onSurfaceVariant)
         }
         Text(
             text = "+ ${record.amount}",
@@ -217,11 +233,18 @@ fun DonationHistoryItem(record: DonationRecord) {
 
 @Composable
 fun VoucherItemCard(voucher: VoucherItem, onRedeem: () -> Unit) {
+    val surface = MaterialTheme.colorScheme.surface
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+    val primary = MaterialTheme.colorScheme.primary
+    val outline = MaterialTheme.colorScheme.outline
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
-            .border(1.dp, Color(0xFFE5E7EB))
+            .border(1.dp, outline.copy(alpha = 0.3f))
+            .background(surface)
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -241,13 +264,13 @@ fun VoucherItemCard(voucher: VoucherItem, onRedeem: () -> Unit) {
         }
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(voucher.title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-            Text(voucher.validStores, fontSize = 11.sp, color = Color.Gray)
+            Text(voucher.title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = onSurface)
+            Text(voucher.validStores, fontSize = 11.sp, color = onSurfaceVariant)
             Spacer(Modifier.height(4.dp))
             Text(
                 text = "${voucher.pointsRequired} Points",
                 fontSize = 12.sp,
-                color = Color(0xFF2563EB),
+                color = primary,
                 fontWeight = FontWeight.Medium
             )
         }
@@ -255,7 +278,7 @@ fun VoucherItemCard(voucher: VoucherItem, onRedeem: () -> Unit) {
             onClick = onRedeem,
             modifier = Modifier.height(32.dp),
             shape = RoundedCornerShape(6.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB)),
+            colors = ButtonDefaults.buttonColors(containerColor = primary),
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
         ) {
             Text("Redeem", fontSize = 12.sp)

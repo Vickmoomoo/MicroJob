@@ -24,19 +24,21 @@ fun AllDonationsScreen(
     donations: List<DonationRecord>,
     onBack: () -> Unit
 ) {
+    val background = MaterialTheme.colorScheme.background
+    val surface = MaterialTheme.colorScheme.surface
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Donation History", fontSize = 18.sp, fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = background)
             )
         }
     ) { paddingValues ->
@@ -44,7 +46,7 @@ fun AllDonationsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(Color(0xFFF9FAFB))
+                .background(background)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -58,19 +60,23 @@ fun AllDonationsScreen(
 
 @Composable
 fun AllDonationHistoryItem(record: DonationRecord) {
+    val surface = MaterialTheme.colorScheme.surface
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
-            .background(Color.White)
+            .background(surface)
             .padding(14.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
-            Text(record.organization, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            Text(record.organization, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = onSurface)
             Spacer(Modifier.height(4.dp))
-            Text(record.date, fontSize = 12.sp, color = Color.Gray)
+            Text(record.date, fontSize = 12.sp, color = onSurfaceVariant)
         }
         Text(
             text = "+ ${record.amount}",

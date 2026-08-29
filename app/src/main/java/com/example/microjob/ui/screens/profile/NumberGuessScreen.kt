@@ -18,7 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.random.Random
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NumberGuessScreen(
     onBack: () -> Unit,
@@ -30,6 +30,11 @@ fun NumberGuessScreen(
     var attempts by remember { mutableIntStateOf(0) }
     var gameOver by remember { mutableStateOf(false) }
     var guesses by remember { mutableStateOf(listOf<Int>()) }
+
+    val background = MaterialTheme.colorScheme.background
+    val primary = MaterialTheme.colorScheme.primary
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
 
     fun checkGuess() {
         val num = guess.toIntOrNull()
@@ -74,7 +79,7 @@ fun NumberGuessScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = background)
             )
         }
     ) { paddingValues ->
@@ -82,7 +87,7 @@ fun NumberGuessScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(Color(0xFFF9FAFB))
+                .background(background)
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
@@ -99,8 +104,8 @@ fun NumberGuessScreen(
                 fontWeight = FontWeight.Medium,
                 color = when {
                     message.contains("Correct") -> Color(0xFF10B981)
-                    message.contains("Too") -> Color(0xFF2563EB)
-                    else -> Color.Black
+                    message.contains("Too") -> primary
+                    else -> onSurface
                 },
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(bottom = 24.dp)
@@ -123,7 +128,7 @@ fun NumberGuessScreen(
                 onClick = { checkGuess() },
                 enabled = !gameOver && guess.isNotEmpty(),
                 shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB)),
+                colors = ButtonDefaults.buttonColors(containerColor = primary),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Guess", fontSize = 14.sp)
@@ -134,7 +139,7 @@ fun NumberGuessScreen(
                 Text(
                     "Your guesses: ${guesses.joinToString(", ")}",
                     fontSize = 13.sp,
-                    color = Color.Gray
+                    color = onSurfaceVariant
                 )
             }
 

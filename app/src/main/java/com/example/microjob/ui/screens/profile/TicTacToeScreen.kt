@@ -28,6 +28,12 @@ fun TicTacToeScreen(
     var gameOver by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("Your turn (X)") }
 
+    val background = MaterialTheme.colorScheme.background
+    val surface = MaterialTheme.colorScheme.surface
+    val primary = MaterialTheme.colorScheme.primary
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+
     fun checkWinner(b: List<String>): String? {
         val lines = listOf(
             listOf(0, 1, 2), listOf(3, 4, 5), listOf(6, 7, 8),
@@ -60,7 +66,7 @@ fun TicTacToeScreen(
         board = board.toMutableList().also { it[index] = "X" }
         val result = checkWinner(board)
         when (result) {
-            "X" -> {                 message = "You win! +200 pts"; gameOver = true; onWin() }
+            "X" -> { message = "You win! +200 pts"; gameOver = true; onWin() }
             "Draw" -> { message = "It's a draw!"; gameOver = true }
             null -> { isPlayerTurn = false; message = "Computer's turn..."; computerMove() }
         }
@@ -82,7 +88,7 @@ fun TicTacToeScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = background)
             )
         }
     ) { paddingValues ->
@@ -90,7 +96,7 @@ fun TicTacToeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(Color(0xFFF9FAFB))
+                .background(background)
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
@@ -102,13 +108,12 @@ fun TicTacToeScreen(
                 color = when {
                     message.contains("You win") -> Color(0xFF10B981)
                     message.contains("Computer wins") -> Color(0xFFE4002B)
-                    message.contains("draw") -> Color.Gray
-                    else -> Color.Black
+                    message.contains("draw") -> onSurfaceVariant
+                    else -> onSurface
                 },
                 modifier = Modifier.padding(bottom = 24.dp)
             )
 
-            // Game board
             for (row in 0..2) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -120,7 +125,7 @@ fun TicTacToeScreen(
                             modifier = Modifier
                                 .size(90.dp)
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(Color.White)
+                                .background(surface)
                                 .clickable { playerMove(index) },
                             contentAlignment = Alignment.Center
                         ) {
@@ -128,7 +133,7 @@ fun TicTacToeScreen(
                                 text = board[index],
                                 fontSize = 36.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (board[index] == "X") Color(0xFF2563EB) else Color(0xFFE4002B)
+                                color = if (board[index] == "X") primary else Color(0xFFE4002B)
                             )
                         }
                     }
@@ -140,7 +145,7 @@ fun TicTacToeScreen(
             Button(
                 onClick = { resetGame() },
                 shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))
+                colors = ButtonDefaults.buttonColors(containerColor = primary)
             ) {
                 Text("New Game", fontSize = 14.sp)
             }

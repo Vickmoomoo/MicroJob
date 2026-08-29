@@ -34,6 +34,12 @@ fun MemoryFlipScreen(
     var gameOver by remember { mutableStateOf(false) }
     var moves by remember { mutableIntStateOf(0) }
 
+    val background = MaterialTheme.colorScheme.background
+    val surface = MaterialTheme.colorScheme.surface
+    val primary = MaterialTheme.colorScheme.primary
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+
     LaunchedEffect(firstPick, secondPick) {
         if (firstPick >= 0 && secondPick >= 0 && firstPick != secondPick) {
             lockInput = true
@@ -70,7 +76,6 @@ fun MemoryFlipScreen(
     fun onCardClick(index: Int) {
         if (lockInput || flipped[index] || matched[index] || gameOver) return
         flipped = flipped.toMutableList().also { it[index] = true }
-
         if (firstPick == -1) {
             firstPick = index
             message = "Pick another card"
@@ -81,8 +86,7 @@ fun MemoryFlipScreen(
     }
 
     fun resetGame() {
-        val newPairs = (emojis + emojis).shuffled()
-        cards = newPairs
+        cards = (emojis + emojis).shuffled()
         flipped = List(12) { false }
         matched = List(12) { false }
         firstPick = -1
@@ -102,7 +106,7 @@ fun MemoryFlipScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = background)
             )
         }
     ) { paddingValues ->
@@ -110,7 +114,7 @@ fun MemoryFlipScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(Color(0xFFF9FAFB))
+                .background(background)
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
@@ -121,8 +125,8 @@ fun MemoryFlipScreen(
                 fontWeight = FontWeight.Medium,
                 color = when {
                     message.contains("win") -> Color(0xFF10B981)
-                    message.contains("Matched") -> Color(0xFF2563EB)
-                    else -> Color.Black
+                    message.contains("Matched") -> primary
+                    else -> onSurface
                 },
                 modifier = Modifier.padding(bottom = 16.dp)
             )
@@ -130,7 +134,7 @@ fun MemoryFlipScreen(
             Text(
                 "Moves: $moves",
                 fontSize = 14.sp,
-                color = Color.Gray,
+                color = onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 20.dp)
             )
 
@@ -149,8 +153,8 @@ fun MemoryFlipScreen(
                                 .background(
                                     if (isRevealed) {
                                         if (matched[index]) Color(0xFF10B981).copy(alpha = 0.2f)
-                                        else Color.White
-                                    } else Color(0xFF2563EB)
+                                        else surface
+                                    } else primary
                                 )
                                 .clickable { onCardClick(index) },
                             contentAlignment = Alignment.Center
@@ -158,7 +162,7 @@ fun MemoryFlipScreen(
                             Text(
                                 text = if (isRevealed) cards[index] else "?",
                                 fontSize = 28.sp,
-                                color = if (isRevealed) Color.Black else Color.White,
+                                color = if (isRevealed) onSurface else Color.White,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -171,7 +175,7 @@ fun MemoryFlipScreen(
             Button(
                 onClick = { resetGame() },
                 shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))
+                colors = ButtonDefaults.buttonColors(containerColor = primary)
             ) {
                 Text("New Game", fontSize = 14.sp)
             }
