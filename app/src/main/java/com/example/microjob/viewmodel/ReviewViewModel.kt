@@ -4,7 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.microjob.data.JobRepository
-import com.example.microjob.data.LocalJobRepository
+import com.example.microjob.data.RepositoryProvider
 import com.example.microjob.data.SessionManager
 import com.example.microjob.model.Review
 import com.example.microjob.model.User
@@ -34,11 +34,11 @@ data class ReviewsListState(
 
 class ReviewViewModel(
     application: Application,
-    private val repository: JobRepository = LocalJobRepository(application)
+    private val repository: JobRepository = RepositoryProvider.jobRepository(application)
 ) : AndroidViewModel(application) {
 
     @Suppress("unused")
-    constructor(application: Application) : this(application, LocalJobRepository(application))
+    constructor(application: Application) : this(application, RepositoryProvider.jobRepository(application))
 
     private val sessionManager = SessionManager(application)
 
@@ -53,9 +53,8 @@ class ReviewViewModel(
         viewModelScope.launch {
             _listState.update { it.copy(isLoading = true) }
             try {
-                val localRepo = repository as? LocalJobRepository
                 val reviews = withContext(Dispatchers.IO) {
-                    localRepo?.getReviewsForUser(userId) ?: emptyList()
+                    repository.getReviewsForUser(userId)
                 }
 
                 // Load reviewer user names
@@ -92,9 +91,8 @@ class ReviewViewModel(
     fun loadReviewForEditById(userId: Long, reviewId: Long) {
         viewModelScope.launch {
             try {
-                val localRepo = repository as? LocalJobRepository
                 val reviews = withContext(Dispatchers.IO) {
-                    localRepo?.getReviewsForUser(userId) ?: emptyList()
+                    repository.getReviewsForUser(userId)
                 }
                 val existing = reviews.find { it.id == reviewId }
                 if (existing != null) {
@@ -150,9 +148,8 @@ class ReviewViewModel(
 
                 if (existingReviewId != null) {
                     // Update existing review
-                    val localRepo = repository as? LocalJobRepository
                     val reviews = withContext(Dispatchers.IO) {
-                        localRepo?.getReviewsForUser(reviewedUserId) ?: emptyList()
+                        repository.getReviewsForUser(reviewedUserId)
                     }
                     val existing = reviews.find { it.id == existingReviewId }
                     if (existing == null || existing.reviewerUserId != myId ||

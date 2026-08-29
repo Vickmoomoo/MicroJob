@@ -182,6 +182,13 @@ fun ChatDetailScreen(
         saveChatTranslationLangs(context, sourceLang, targetLang)
     }
 
+    // Surface repository errors (openConversation / sendMessage failures) so
+    // the user sees why nothing happened instead of a silent no-op.
+    val vmError by vm.error.collectAsState()
+    LaunchedEffect(vmError) {
+        vmError?.let { snackbarHostState.showSnackbar(it) }
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {

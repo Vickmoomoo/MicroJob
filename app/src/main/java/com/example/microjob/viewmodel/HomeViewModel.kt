@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.microjob.data.JobRepository
 import com.example.microjob.data.LocalJobRepository
+import com.example.microjob.data.RepositoryProvider
 import com.example.microjob.model.Category
 import com.example.microjob.model.Job
 import com.example.microjob.model.SampleData
@@ -39,7 +40,7 @@ private data class FilterState(
 
 class HomeViewModel(
     application: Application,
-    private val repository: JobRepository = LocalJobRepository(application)
+    private val repository: JobRepository = RepositoryProvider.jobRepository(application)
 ) : AndroidViewModel(application) {
 
     /**
@@ -47,7 +48,7 @@ class HomeViewModel(
      * (AndroidViewModelFactory reflects on an (Application) constructor).
      */
     @Suppress("unused")
-    constructor(application: Application) : this(application, LocalJobRepository(application))
+    constructor(application: Application) : this(application, RepositoryProvider.jobRepository(application))
 
     init {
         // Seed SampleData into local JSON files on first launch.

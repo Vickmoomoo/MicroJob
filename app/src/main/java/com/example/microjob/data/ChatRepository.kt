@@ -5,6 +5,7 @@ import com.example.microjob.model.Conversation
 import com.example.microjob.model.Job
 import com.example.microjob.model.Message
 import com.example.microjob.model.User
+import kotlinx.coroutines.flow.Flow
 
 /**
  * Data source for chat conversations and messages.
@@ -49,4 +50,16 @@ interface ChatRepository {
 
     /** Returns the total unread message count across all conversations for a user. */
     suspend fun getUnreadCount(userId: Long): Int
+
+    /**
+     * Emits Unit each time a new message lands in the conversation
+     * (Supabase: Realtime WebSocket; local: a single refresh on subscribe).
+     */
+    fun observeMessages(conversationId: String): Flow<Unit>
+
+    /**
+     * Emits Unit each time any job row changes (accept / status / payment).
+     * Lets the other side learn "invite accepted" without refreshing.
+     */
+    fun observeJobChanges(): Flow<Unit>
 }

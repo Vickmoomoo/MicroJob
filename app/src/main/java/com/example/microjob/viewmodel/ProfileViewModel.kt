@@ -4,7 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.microjob.data.JobRepository
-import com.example.microjob.data.LocalJobRepository
+import com.example.microjob.data.RepositoryProvider
 import com.example.microjob.data.SessionManager
 import com.example.microjob.model.Job
 import com.example.microjob.model.Review
@@ -31,11 +31,11 @@ data class ProfileUiState(
 
 class ProfileViewModel(
     application: Application,
-    private val repository: JobRepository = LocalJobRepository(application)
+    private val repository: JobRepository = RepositoryProvider.jobRepository(application)
 ) : AndroidViewModel(application) {
 
     @Suppress("unused")
-    constructor(application: Application) : this(application, LocalJobRepository(application))
+    constructor(application: Application) : this(application, RepositoryProvider.jobRepository(application))
 
     private val sessionManager = SessionManager(application)
 
@@ -56,15 +56,14 @@ class ProfileViewModel(
                     return@launch
                 }
 
-                val localRepo = repository as? LocalJobRepository
                 val reviews = withContext(Dispatchers.IO) {
-                    localRepo?.getReviewsForUser(userId) ?: emptyList()
+                    repository.getReviewsForUser(userId)
                 }
                 val postedJobs = withContext(Dispatchers.IO) {
-                    localRepo?.getPostedJobs(userId) ?: emptyList()
+                    repository.getPostedJobs(userId)
                 }
                 val acceptedJobs = withContext(Dispatchers.IO) {
-                    localRepo?.getAcceptedJobs(userId) ?: emptyList()
+                    repository.getAcceptedJobs(userId)
                 }
 
                 val avgRating = if (reviews.isNotEmpty()) {
@@ -90,21 +89,6 @@ class ProfileViewModel(
         }
     }
 
-    /** Updates the user's name. */
-    fun updateName(newName: String) {
-        val user = _uiState.value.user ?: return
-        if (newName.isBlank()) return
-        viewModelScope.launch {
-            val updated = user.copy(name = newName.trim())
-            withContext(Dispatchers.IO) { repository.updateUser(updated) }
-            _uiState.update { it.copy(user = updated) }
-            // Also update session if it's my profile
-            if (_uiState.value.isMyProfile) {
-                sessionManager.currentUserId?.let { loadProfile(it) }
-            }
-        }
-    }
-
     /** Updates the user's username. */
     fun updateUsername(newUsername: String) {
         val user = _uiState.value.user ?: return
@@ -121,45 +105,6 @@ class ProfileViewModel(
         val user = _uiState.value.user ?: return
         viewModelScope.launch {
             val updated = user.copy(bio = newBio.trim())
-            withContext(Dispatchers.IO) { repository.updateUser(updated) }
-            _uiState.update { it.copy(user = updated) }
-        }
-    }
-
-    /** Updates the user's email. */
-    fun updateEmail(newEmail: String) {
-        val user = _uiState.value.user ?: return
-        viewModelScope.launch {
-            val updated = user.copy(email = newEmail.trim())
-            withContext(Dispatchers.IO) { repository.updateUser(updated) }
-            _uiState.update { it.copy(user = updated) }
-        }
-    }
-
-    /** Persists the editable fields shown on User Details in one update. */
-    fun updateUserDetails(
-        name: String,
-        username: String,
-        bio: String,
-        region: String,
-        skills: List<String>,
-        email: String,
-        birthdate: String,
-        phoneNumber: String,
-    ) {
-        val user = _uiState.value.user ?: return
-        if (name.isBlank() || username.isBlank()) return
-        viewModelScope.launch {
-            val updated = user.copy(
-                name = name.trim(),
-                username = username.trim(),
-                bio = bio.trim(),
-                region = region.trim(),
-                skills = skills.map(String::trim).filter(String::isNotBlank).distinct(),
-                email = email.trim(),
-                birthdate = birthdate.trim(),
-                phoneNumber = phoneNumber.trim()
-            )
             withContext(Dispatchers.IO) { repository.updateUser(updated) }
             _uiState.update { it.copy(user = updated) }
         }

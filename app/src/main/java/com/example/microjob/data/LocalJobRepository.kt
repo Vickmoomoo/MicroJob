@@ -7,7 +7,6 @@ import com.example.microjob.model.Job
 import com.example.microjob.model.Review
 import com.example.microjob.model.SampleData
 import com.example.microjob.model.User
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
 
@@ -242,18 +241,20 @@ class LocalJobRepository(private val context: Context) : JobRepository {
     // ---------- helpers used by the UI ----------
 
     /** Returns all reviews for a user (used by future profile pages). */
-    fun getReviewsForUser(userId: Long): List<Review> =
+    override suspend fun getReviewsForUser(userId: Long): List<Review> =
         readList<Review>("reviews.json", emptyList()).filter { it.reviewedUserId == userId }
 
     /** Returns all reviews (for job detail). */
-    fun getAllReviews(): List<Review> =
+    override suspend fun getAllReviews(): List<Review> =
         readList<Review>("reviews.json", emptyList())
 
     /** Jobs posted by a user (poster history). */
-    fun getPostedJobs(userId: Long): List<Job> = readJobs().filter { it.posterId == userId }
+    override suspend fun getPostedJobs(userId: Long): List<Job> =
+        readJobs().filter { it.posterId == userId }
 
     /** Jobs accepted by a user (worker history). */
-    fun getAcceptedJobs(userId: Long): List<Job> = readJobs().filter { it.workerId == userId }
+    override suspend fun getAcceptedJobs(userId: Long): List<Job> =
+        readJobs().filter { it.workerId == userId }
 
     /** Seeds initial data from SampleData on first launch. */
     fun seedIfEmpty() {

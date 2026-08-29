@@ -94,4 +94,16 @@ interface JobRepository {
 
     /** Inserts or updates a review keyed by (reviewer, reviewed, jobId). Returns the persisted review. */
     suspend fun upsertReview(review: Review): Review
+
+    /** Returns all reviews written ABOUT a user (for the profile page). */
+    suspend fun getReviewsForUser(userId: Long): List<Review>
+
+    /** Returns all reviews (used by job review screens). */
+    suspend fun getAllReviews(): List<Review>
+
+    /** Jobs posted by a user (poster history). */
+    suspend fun getPostedJobs(userId: Long): List<Job>
+
+    /** Jobs accepted by a user (worker history). */
+    suspend fun getAcceptedJobs(userId: Long): List<Job>
 }

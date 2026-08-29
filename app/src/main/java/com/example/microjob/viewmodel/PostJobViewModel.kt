@@ -8,7 +8,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.microjob.data.JobRepository
-import com.example.microjob.data.LocalJobRepository
+import com.example.microjob.data.RepositoryProvider
 import com.example.microjob.data.SessionManager
 import com.example.microjob.model.Job
 import kotlinx.coroutines.CancellationException
@@ -68,7 +68,7 @@ fun postJobViewModelFactory(): ViewModelProvider.Factory = viewModelFactory {
 
 class PostJobViewModel(
     application: Application,
-    private val repository: JobRepository = LocalJobRepository(application),
+    private val repository: JobRepository = RepositoryProvider.jobRepository(application),
     private val session: SessionManager = SessionManager(application)
 ) : AndroidViewModel(application) {
 
@@ -77,7 +77,7 @@ class PostJobViewModel(
      * (AndroidViewModelFactory reflects on an (Application) constructor).
      */
     @Suppress("unused")
-    constructor(application: Application) : this(application, LocalJobRepository(application))
+    constructor(application: Application) : this(application, RepositoryProvider.jobRepository(application))
 
     // --- Form fields (two-way bound to the UI) ---
     val title = MutableStateFlow("")
@@ -237,7 +237,10 @@ class PostJobViewModel(
             state.value.orEmpty()
         ).filter { it.isNotBlank() }.joinToString(", ")
 
-        // Build ISO-8601 scheduledAt from date + 24h time
+        // Build ISO-8601 scheduledAt from date + 24h time.
+        // NOTE: ZonedDateTime.toString() emits "[Asia/Kuala_Lumpur]"-style
+        // region suffixes that Postgres timestamptz rejects — strip them
+        // by converting to OffsetDateTime first.
         val scheduledAt = run {
             val millis = scheduledDateMillis.value!!
             val hour = scheduledHour.value!!
@@ -245,7 +248,10 @@ class PostJobViewModel(
             val zone = java.time.ZoneId.systemDefault()
             val date = java.time.Instant.ofEpochMilli(millis).atZone(zone).toLocalDate()
             val time = java.time.LocalTime.of(hour, minute)
-            java.time.LocalDateTime.of(date, time).atZone(zone).toString()
+            java.time.LocalDateTime.of(date, time)
+                .atZone(zone)
+                .toOffsetDateTime()
+                .toString()
         }
 
         val job = Job(
@@ -295,9 +301,11 @@ class PostJobViewModel(
                 _uiState.value = PostJobUiState.Success(created.id)
             } catch (e: CancellationException) {
                 throw e
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                // Surface the real reason so the user (or us) can diagnose;
+                // e.g. "Cannot read the selected image." / Supabase HTTP errors.
                 _uiState.value = PostJobUiState.Error(
-                    "Failed to publish the job. Please try again."
+                    "Failed to publish the job. ${e.message ?: "Please try again."}"
                 )
             }
         }

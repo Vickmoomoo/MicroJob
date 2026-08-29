@@ -6,7 +6,8 @@ import com.example.microjob.model.Conversation
 import com.example.microjob.model.Job
 import com.example.microjob.model.Message
 import com.example.microjob.model.User
-import kotlinx.serialization.encodeToString
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.serialization.json.Json
 import java.io.File
 
@@ -151,4 +152,10 @@ class LocalChatRepository(private val context: Context) : ChatRepository {
             .filter { userId in it.participantIds }
             .sumOf { it.unreadCountFor(userId) }
     }
+
+    /** Local mode has no push channel — emit once so the UI refreshes once. */
+    override fun observeMessages(conversationId: String): Flow<Unit> = flowOf(Unit)
+
+    /** Local mode has no push channel — emit once so the UI refreshes once. */
+    override fun observeJobChanges(): Flow<Unit> = flowOf(Unit)
 }

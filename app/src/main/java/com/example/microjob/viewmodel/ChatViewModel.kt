@@ -5,11 +5,12 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.microjob.data.ChatRepository
-import com.example.microjob.data.LocalChatRepository
+import com.example.microjob.data.RepositoryProvider
 import com.example.microjob.data.SessionManager
 import com.example.microjob.model.Conversation
 import com.example.microjob.model.Job
 import com.example.microjob.model.Message
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,12 +26,12 @@ import java.time.OffsetDateTime
  */
 class ChatViewModel(
     application: Application,
-    private val repository: ChatRepository = LocalChatRepository(application),
+    private val repository: ChatRepository = RepositoryProvider.chatRepository(application),
     private val session: SessionManager = SessionManager(application)
 ) : AndroidViewModel(application) {
 
     @Suppress("unused")
-    constructor(application: Application) : this(application, LocalChatRepository(application))
+    constructor(application: Application) : this(application, RepositoryProvider.chatRepository(application))
 
     /** The conversation list for the logged-in user, newest first. */
     private val _conversations = MutableStateFlow<List<Conversation>>(emptyList())
@@ -75,13 +76,21 @@ class ChatViewModel(
             // local chat repo delegates to LocalJobRepository, so we reuse its getUser.
             val me = session.currentUserId ?: return@launch
             // Build a set of ids from current conversations, then resolve users lazily.
-            resolveUsersFor(me)
+            try {
+                resolveUsersFor(me)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // Chat user list is secondary — never crash the app over it.
+            }
         }
     }
 
     private suspend fun resolveUsersFor(me: Long) {
         // Load all users that appear in my conversations, plus demo users 1..4.
-        val ids = repository.getConversations(me)
+        // NOTE: every repository call must run on an IO dispatcher — network on
+        // the main dispatcher would crash the app.
+        val ids = withContext(Dispatchers.IO) { repository.getConversations(me) }
             .flatMap { it.participantIds }
             .toMutableSet()
         ids.addAll(listOf(1L, 2L, 3L, 4L))
@@ -100,13 +109,19 @@ class ChatViewModel(
     private val _myPostedJobs = MutableStateFlow<List<Job>>(emptyList())
     val myPostedJobs: StateFlow<List<Job>> = _myPostedJobs.asStateFlow()
 
-    /** Reloads the current user's posted jobs from the local job repository. */
+    /** Reloads the current user's posted jobs from the job repository. */
     fun refreshMyJobs() {
         viewModelScope.launch {
-            val me = session.currentUserId ?: return@launch
-            val jobRepo = com.example.microjob.data.LocalJobRepository(getApplication())
-            _myPostedJobs.value = withContext(Dispatchers.IO) {
-                jobRepo.getPostedJobs(me).sortedByDescending { it.id }
+            try {
+                val me = session.currentUserId ?: return@launch
+                val jobRepo = RepositoryProvider.jobRepository(getApplication())
+                _myPostedJobs.value = withContext(Dispatchers.IO) {
+                    jobRepo.getPostedJobs(me).sortedByDescending { it.id }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // posted-jobs picker is best-effort
             }
         }
     }
@@ -115,28 +130,90 @@ class ChatViewModel(
     fun loadConversations() {
         val me = session.currentUserId ?: return
         viewModelScope.launch {
-            _conversations.value = withContext(Dispatchers.IO) {
-                repository.getConversations(me).filterNot { 0L in it.participantIds }
+            try {
+                _conversations.value = withContext(Dispatchers.IO) {
+                    repository.getConversations(me).filterNot { 0L in it.participantIds }
+                }
+                // Re-resolve participant users (a new account may have joined since
+                // the initial load), so every row shows a real name, not "Chat".
+                resolveUsersFor(me)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // keep whatever conversations were already loaded
             }
-            // Re-resolve participant users (a new account may have joined since
-            // the initial load), so every row shows a real name, not "Chat".
-            resolveUsersFor(me)
         }
     }
 
     /** Opens (or creates) a conversation with [otherUserId]; returns its id. */
     fun openConversation(otherUserId: Long, onOpened: (String) -> Unit) {
         viewModelScope.launch {
-            val me = session.currentUserId ?: return@launch
-            val conv = withContext(Dispatchers.IO) { repository.openConversation(me, otherUserId) }
-            _activeConversation.value = conv
-            onOpened(conv.id)
-            loadMessagesInto(conv.id)
-            _otherUser.value = withContext(Dispatchers.IO) { repository.getUser(otherUserId) }
-            // Mark conversation as read
-            withContext(Dispatchers.IO) { repository.markAsRead(conv.id, me) }
-            refreshUnreadCount()
+            try {
+                val me = session.currentUserId ?: return@launch
+                val conv = withContext(Dispatchers.IO) { repository.openConversation(me, otherUserId) }
+                _activeConversation.value = conv
+                onOpened(conv.id)
+                loadMessagesInto(conv.id)
+                observeMessagesIn(conv.id)
+                observeJobChanges()
+                _otherUser.value = withContext(Dispatchers.IO) { repository.getUser(otherUserId) }
+                // Mark conversation as read
+                withContext(Dispatchers.IO) { repository.markAsRead(conv.id, me) }
+                refreshUnreadCount()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.d("MicroJobSB", "openConversation failed", e)
+                _error.value = e.message ?: "Failed to open the conversation."
+            }
         }
+    }
+
+    /** Active realtime subscription for the currently open conversation. */
+    private var messageObserveJob: kotlinx.coroutines.Job? = null
+
+    /** Active realtime subscription for job changes (invite / payment cards). */
+    private var jobObserveJob: kotlinx.coroutines.Job? = null
+
+    /** Subscribes to new-message events (Supabase Realtime; local refreshes once). */
+    private fun observeMessagesIn(conversationId: String) {
+        messageObserveJob?.cancel()
+        messageObserveJob = viewModelScope.launch {
+            try {
+                repository.observeMessages(conversationId).collect {
+                    loadMessagesInto(conversationId)
+                    refreshUnreadCount()
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // realtime is best-effort; the manual load above still works
+            }
+        }
+    }
+
+    /** Subscribes to job changes so invite/payment cards refresh on both sides. */
+    private fun observeJobChanges() {
+        jobObserveJob?.cancel()
+        jobObserveJob = viewModelScope.launch {
+            try {
+                repository.observeJobChanges().collect { refreshCachedJobs() }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // best-effort, cards refresh on next manual action anyway
+            }
+        }
+    }
+
+    /** Re-reads every job currently in the cache (accept/payment updates). */
+    private suspend fun refreshCachedJobs() {
+        val ids = _jobCache.value.keys
+        if (ids.isEmpty()) return
+        val fresh = ids.mapNotNull { id ->
+            withContext(Dispatchers.IO) { repository.getJob(id)?.let { id to it } }
+        }.toMap()
+        _jobCache.value = _jobCache.value + fresh
     }
 
     @Suppress("unused")
@@ -147,8 +224,14 @@ class ChatViewModel(
 
     private fun loadMessagesInto(conversationId: String) {
         viewModelScope.launch {
-            _messages.value = withContext(Dispatchers.IO) {
-                repository.getMessages(conversationId)
+            try {
+                _messages.value = withContext(Dispatchers.IO) {
+                    repository.getMessages(conversationId)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // keep whatever messages were already shown
             }
         }
     }
@@ -159,14 +242,41 @@ class ChatViewModel(
         send(Message(text = text.trim(), type = "TEXT"), conversationId, recipientId)
     }
 
-    /** Sends a photo message from a content uri. */
+    /**
+     * Sends a photo message from a content uri.
+     * Optimistic: the bubble appears at once (Coil can render the content uri),
+     * the upload happens in the background, then the bubble is swapped for the
+     * stored server copy (with its public URL).
+     */
     fun sendImage(conversationId: String, recipientId: Long, uri: Uri) {
+        val me = session.currentUserId ?: return
+        val optimistic = Message(
+            id = "pending_img_${System.currentTimeMillis()}",
+            conversationId = conversationId,
+            senderId = me,
+            recipientId = recipientId,
+            type = "IMAGE",
+            images = listOf(uri.toString()),
+            createdAt = OffsetDateTime.now().toString()
+        )
+        _messages.value = _messages.value + optimistic
+
         viewModelScope.launch {
             try {
-                val path = withContext(Dispatchers.IO) { repository.savePickedPhoto(uri) }
-                send(Message(images = listOf(path), type = "IMAGE"), conversationId, recipientId)
-            } catch (_: Exception) {
-                _error.value = "Could not send the photo."
+                // 1. Upload to storage, get the public url.
+                val url = withContext(Dispatchers.IO) { repository.savePickedPhoto(uri) }
+                // 2. Persist the message with the final url.
+                val stored = withContext(Dispatchers.IO) {
+                    repository.sendMessage(optimistic.copy(id = "", images = listOf(url)))
+                }
+                // 3. Swap the optimistic bubble for the stored one.
+                _messages.value = _messages.value.filterNot { it.id == optimistic.id } + stored
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.d("MicroJobSB", "sendImage failed", e)
+                _messages.value = _messages.value.filterNot { it.id == optimistic.id }
+                _error.value = "Could not send the photo. ${e.message ?: "Please try again."}"
             }
         }
     }
@@ -199,22 +309,42 @@ class ChatViewModel(
 
     private fun send(message: Message, conversationId: String, recipientId: Long) {
         val me = session.currentUserId ?: return
+        // Optimistic message: show the bubble IMMEDIATELY, before the network
+        // round-trip finishes. It is replaced by the stored server copy later.
+        val optimistic = message.copy(
+            id = "pending_${System.currentTimeMillis()}",
+            conversationId = conversationId,
+            senderId = me,
+            recipientId = recipientId,
+            createdAt = OffsetDateTime.now().toString()
+        )
+        _messages.value = _messages.value + optimistic
+
         viewModelScope.launch {
             try {
                 val stored = withContext(Dispatchers.IO) {
-                    repository.sendMessage(
-                        message.copy(
-                            conversationId = conversationId,
-                            senderId = me,
-                            recipientId = recipientId,
-                            createdAt = OffsetDateTime.now().toString()
-                        )
-                    )
+                    repository.sendMessage(optimistic)
                 }
-                _messages.value = _messages.value + stored
-                _conversations.value = withContext(Dispatchers.IO) { repository.getConversations(me).filterNot { 0L in it.participantIds } }
+                // Swap the optimistic bubble for the stored one (single state
+                // update so the list does not flicker).
+                _messages.value = _messages.value.filterNot { it.id == optimistic.id } + stored
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.d("MicroJobSB", "sendMessage failed", e)
+                // Roll back the optimistic bubble so the failure is visible.
+                _messages.value = _messages.value.filterNot { it.id == optimistic.id }
+                _error.value = "Failed to send the message. ${e.message ?: "Please try again."}"
+            }
+            // Refresh the conversation list preview (best-effort, never an error).
+            try {
+                _conversations.value = withContext(Dispatchers.IO) {
+                    repository.getConversations(me).filterNot { 0L in it.participantIds }
+                }
+            } catch (e: CancellationException) {
+                throw e
             } catch (_: Exception) {
-                _error.value = "Failed to send the message."
+                // preview refresh is best-effort
             }
         }
     }
@@ -289,13 +419,13 @@ class ChatViewModel(
                     try {
                         val me = session.currentUserId
                         if (me != null) {
-                            val localJobRepo = com.example.microjob.data.LocalJobRepository(getApplication())
+                            val jobRepo = RepositoryProvider.jobRepository(getApplication())
 
                             // 1) Worker → owner review from the settle sheet.
                             if (workerRating > 0f || workerComment.isNotBlank()) {
                                 val posterId = updated.posterId
                                 if (posterId != 0L && posterId != me) {
-                                    localJobRepo.upsertReview(
+                                    jobRepo.upsertReview(
                                         com.example.microjob.model.Review(
                                             id = 0,
                                             reviewedUserId = posterId,
@@ -319,7 +449,7 @@ class ChatViewModel(
                                 if (latestCard != null) {
                                     val ownerId = latestCard.senderId
                                     if (ownerId != 0L && ownerId != me) {
-                                        localJobRepo.upsertReview(
+                                        jobRepo.upsertReview(
                                             com.example.microjob.model.Review(
                                                 id = 0,
                                                 reviewedUserId = me,
@@ -350,8 +480,14 @@ class ChatViewModel(
     /** Refreshes the unread message count for the current user. */
     fun refreshUnreadCount() {
         viewModelScope.launch {
-            val me = session.currentUserId ?: return@launch
-            _unreadCount.value = withContext(Dispatchers.IO) { repository.getUnreadCount(me) }
+            try {
+                val me = session.currentUserId ?: return@launch
+                _unreadCount.value = withContext(Dispatchers.IO) { repository.getUnreadCount(me) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // unread badge is best-effort
+            }
         }
     }
 }

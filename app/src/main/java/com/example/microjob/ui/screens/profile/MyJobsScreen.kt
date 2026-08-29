@@ -40,7 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.example.microjob.data.LocalJobRepository
+import com.example.microjob.data.RepositoryProvider
 import com.example.microjob.model.Job
 import com.example.microjob.model.SampleData
 
@@ -74,9 +74,13 @@ fun MyJobsScreen(
     var acceptedJobs by remember { mutableStateOf<List<Job>>(emptyList()) }
 
     LaunchedEffect(userId) {
-        val repo = LocalJobRepository(context.applicationContext)
-        postedJobs = repo.getPostedJobs(userId).sortedByDescending { it.id }
-        acceptedJobs = repo.getAcceptedJobs(userId).sortedByDescending { it.id }
+        val repo = RepositoryProvider.jobRepository(context.applicationContext)
+        try {
+            postedJobs = repo.getPostedJobs(userId).sortedByDescending { it.id }
+            acceptedJobs = repo.getAcceptedJobs(userId).sortedByDescending { it.id }
+        } catch (_: Exception) {
+            // load failure = empty lists; nothing to crash over
+        }
     }
 
     Scaffold(

@@ -4,8 +4,8 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.microjob.data.JobRepository
-import com.example.microjob.data.LocalJobRepository
 import com.example.microjob.data.PasswordResetResult
+import com.example.microjob.data.RepositoryProvider
 import com.example.microjob.data.SessionManager
 import com.example.microjob.model.SampleData
 import com.example.microjob.model.User
@@ -30,12 +30,12 @@ sealed interface AuthUiState {
 
 class AuthViewModel(
     application: Application,
-    private val repository: JobRepository = LocalJobRepository(application),
+    private val repository: JobRepository = RepositoryProvider.jobRepository(application),
     private val session: SessionManager = SessionManager(application)
 ) : AndroidViewModel(application) {
 
     @Suppress("unused")
-    constructor(application: Application) : this(application, LocalJobRepository(application))
+    constructor(application: Application) : this(application, RepositoryProvider.jobRepository(application))
 
     /** Form fields. */
     val username = MutableStateFlow("")

@@ -299,9 +299,11 @@ fun MicroJobApp() {
                     onOpenReview = { jobId ->
                         val myId = authVm.currentUser.value?.id
                         if (myId != null) {
-                            val localRepo = com.example.microjob.data.LocalJobRepository(context.applicationContext)
+                            val localRepo = com.example.microjob.data.RepositoryProvider.jobRepository(context.applicationContext)
                             scope.launch {
-                                val job = withContext(Dispatchers.IO) { localRepo.getJob(jobId) }
+                                val job = try {
+                                    withContext(Dispatchers.IO) { localRepo.getJob(jobId) }
+                                } catch (_: Exception) { null }
                                 if (job != null) {
                                     val reviewedUserId = if (myId == job.posterId) {
                                         job.workerId ?: 0L
@@ -519,8 +521,8 @@ fun MicroJobApp() {
                 var postedJobs by remember { mutableStateOf(emptyList<com.example.microjob.model.Job>()) }
                 val ctx = androidx.compose.ui.platform.LocalContext.current
                 LaunchedEffect(userId) {
-                    val localRepo = com.example.microjob.data.LocalJobRepository(ctx.applicationContext)
-                    postedJobs = withContext(Dispatchers.IO) { localRepo.getPostedJobs(userId) }
+                    val localRepo = com.example.microjob.data.RepositoryProvider.jobRepository(ctx.applicationContext)
+                    try { postedJobs = withContext(Dispatchers.IO) { localRepo.getPostedJobs(userId) } } catch (_: Exception) { }
                 }
                 JobListScreen(
                     title = "Posted Jobs",
@@ -541,8 +543,8 @@ fun MicroJobApp() {
                 var acceptedJobs by remember { mutableStateOf(emptyList<com.example.microjob.model.Job>()) }
                 val ctx = androidx.compose.ui.platform.LocalContext.current
                 LaunchedEffect(userId) {
-                    val localRepo = com.example.microjob.data.LocalJobRepository(ctx.applicationContext)
-                    acceptedJobs = withContext(Dispatchers.IO) { localRepo.getAcceptedJobs(userId) }
+                    val localRepo = com.example.microjob.data.RepositoryProvider.jobRepository(ctx.applicationContext)
+                    try { acceptedJobs = withContext(Dispatchers.IO) { localRepo.getAcceptedJobs(userId) } } catch (_: Exception) { }
                 }
                 JobListScreen(
                     title = "Accepted Jobs",

@@ -34,7 +34,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.microjob.data.LocalJobRepository
+import com.example.microjob.data.RepositoryProvider
 import com.example.microjob.model.Job
 import com.example.microjob.model.Review
 
@@ -50,11 +50,15 @@ fun ReviewJobDetailScreen(
     var loading by remember { mutableStateOf(true) }
 
     LaunchedEffect(jobId) {
-        val repo = LocalJobRepository(context.applicationContext)
-        job = repo.getJob(jobId)
-        // Load both direction reviews for this job
-        val all = repo.getAllReviews().filter { it.jobId == jobId.toLong() }
-        reviews = all
+        val repo = RepositoryProvider.jobRepository(context.applicationContext)
+        try {
+            job = repo.getJob(jobId)
+            // Load both direction reviews for this job
+            val all = repo.getAllReviews().filter { it.jobId == jobId.toLong() }
+            reviews = all
+        } catch (_: Exception) {
+            // ignore — the "Job not found" state below handles it
+        }
         loading = false
     }
 

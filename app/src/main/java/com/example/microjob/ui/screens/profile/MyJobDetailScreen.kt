@@ -44,7 +44,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.microjob.data.LocalJobRepository
+import com.example.microjob.data.RepositoryProvider
 import com.example.microjob.model.Job
 import com.example.microjob.model.Review
 import java.time.Instant
@@ -67,9 +67,13 @@ fun MyJobDetailScreen(
     var showCalendar by remember { mutableStateOf(false) }
 
     LaunchedEffect(jobId) {
-        val repo = LocalJobRepository(context.applicationContext)
-        job = repo.getJob(jobId)
-        reviews = repo.getAllReviews().filter { it.jobId == jobId.toLong() }
+        val repo = RepositoryProvider.jobRepository(context.applicationContext)
+        try {
+            job = repo.getJob(jobId)
+            reviews = repo.getAllReviews().filter { it.jobId == jobId.toLong() }
+        } catch (_: Exception) {
+            // ignore — the "Job not found" state below handles it
+        }
         loading = false
     }
 

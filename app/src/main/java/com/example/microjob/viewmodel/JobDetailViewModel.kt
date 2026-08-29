@@ -4,7 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.microjob.data.JobRepository
-import com.example.microjob.data.LocalJobRepository
+import com.example.microjob.data.RepositoryProvider
 import com.example.microjob.model.Job
 import com.example.microjob.model.SampleData
 import com.example.microjob.model.User
@@ -25,7 +25,7 @@ sealed interface JobDetailUiState {
 
 class JobDetailViewModel(
     application: Application,
-    private val repository: JobRepository = LocalJobRepository(application)
+    private val repository: JobRepository = RepositoryProvider.jobRepository(application)
 ) : AndroidViewModel(application) {
 
     /**
@@ -33,7 +33,7 @@ class JobDetailViewModel(
      * (AndroidViewModelFactory reflects on an (Application) constructor).
      */
     @Suppress("unused")
-    constructor(application: Application) : this(application, LocalJobRepository(application))
+    constructor(application: Application) : this(application, RepositoryProvider.jobRepository(application))
 
     private val _uiState = MutableStateFlow<JobDetailUiState>(JobDetailUiState.Loading)
     val uiState: StateFlow<JobDetailUiState> = _uiState.asStateFlow()
