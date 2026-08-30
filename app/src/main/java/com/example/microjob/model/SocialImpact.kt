@@ -63,8 +63,8 @@ val sampleCourseCategories = listOf(
         name = "Housekeeping",
         emoji = "\uD83E\uDDF9",
         courses = listOf(
-            Course(1, "Basic Cleaning Techniques", "Housekeeping", "\uD83E\uDDF9", 8, "2h 30m", "Learn professional home cleaning methods.", enrolled = true, progress = 100),
-            Course(2, "Kitchen Deep Cleaning", "Housekeeping", "\uD83E\uDDF9", 6, "2h", "Master kitchen deep cleaning techniques.", enrolled = true, progress = 45),
+            Course(1, "Basic Cleaning Techniques", "Housekeeping", "\uD83E\uDDF9", 8, "2h 30m", "Learn professional home cleaning methods.", enrolled = false, progress = 0),
+            Course(2, "Kitchen Deep Cleaning", "Housekeeping", "\uD83E\uDDF9", 6, "2h", "Master kitchen deep cleaning techniques.", enrolled = false, progress = 0),
             Course(3, "Laundry & Ironing Basics", "Housekeeping", "\uD83E\uDDF9", 5, "1h 30m", "Proper laundry and ironing skills.", enrolled = false, progress = 0),
             Course(4, "Advanced Cleaning & Specialised Surface Care", "Housekeeping", "\uD83E\uDDF9", 10, "4h", "Advanced cleaning techniques for marble, wood, glass and other special surfaces.", enrolled = false, progress = 0),
             Course(5, "Professional Organising & Decluttering", "Housekeeping", "\uD83E\uDDF9", 8, "3h", "Professional tidying and space organisation methods (KonMari, etc).", enrolled = false, progress = 0)
@@ -74,7 +74,7 @@ val sampleCourseCategories = listOf(
         name = "Caregiving",
         emoji = "\uD83D\uDC76",
         courses = listOf(
-            Course(6, "Elderly Care Fundamentals", "Caregiving", "\uD83D\uDC76", 10, "4h", "Essential skills for elderly care.", enrolled = true, progress = 70),
+            Course(6, "Elderly Care Fundamentals", "Caregiving", "\uD83D\uDC76", 10, "4h", "Essential skills for elderly care.", enrolled = false, progress = 0),
             Course(7, "Pet Grooming & Care", "Caregiving", "\uD83D\uDC3E", 7, "2h 45m", "How to groom and care for pets.", enrolled = false, progress = 0),
             Course(8, "Professional Confinement Nanny & Infant Care", "Caregiving", "\uD83D\uDC76", 12, "5h", "Newborn care, breastfeeding support, and confinement practices.", enrolled = false, progress = 0),
             Course(9, "Elderly & Dementia Care Certification", "Caregiving", "\uD83D\uDC76", 14, "6h", "Specialised care for elderly patients including dementia and Alzheimer's.", enrolled = false, progress = 0),
@@ -86,7 +86,7 @@ val sampleCourseCategories = listOf(
         name = "Delivery & Transport",
         emoji = "\uD83D\uDEF5",
         courses = listOf(
-            Course(12, "Food Delivery Safety", "Delivery", "\uD83D\uDEF5", 5, "1h 15m", "Safety guidelines for food delivery riders.", enrolled = true, progress = 60),
+            Course(12, "Food Delivery Safety", "Delivery", "\uD83D\uDEF5", 5, "1h 15m", "Safety guidelines for food delivery riders.", enrolled = false, progress = 0),
             Course(13, "Navigation & Route Planning", "Delivery", "\uD83D\uDDFA\uFE0F", 6, "2h", "Optimize your delivery routes.", enrolled = false, progress = 0)
         )
     ),
@@ -111,7 +111,7 @@ val sampleCourseCategories = listOf(
         name = "Soft Skills & Professional Ethics",
         emoji = "\uD83D\uDCAC",
         courses = listOf(
-            Course(19, "Customer Service Excellence", "Soft Skills", "\uD83D\uDCAC", 6, "2h", "Communicate professionally with clients.", enrolled = true, progress = 30),
+            Course(19, "Customer Service Excellence", "Soft Skills", "\uD83D\uDCAC", 6, "2h", "Communicate professionally with clients.", enrolled = false, progress = 0),
             Course(20, "Workplace Communication & Etiquette", "Soft Skills", "\uD83D\uDCAC", 5, "1h 45m", "Professional communication and workplace manners.", enrolled = false, progress = 0),
             Course(21, "Time Management & Productivity", "Soft Skills", "\u23F0", 6, "2h", "Manage your time effectively and boost productivity.", enrolled = false, progress = 0),
             Course(22, "Basic Foreign Language & Dialect", "Soft Skills", "\uD83C\uDF0D", 10, "4h", "Learn essential phrases in English, Mandarin, Malay or other languages for daily work.", enrolled = false, progress = 0)
@@ -119,10 +119,7 @@ val sampleCourseCategories = listOf(
     )
 )
 
-val sampleCertificates = listOf(
-    Certificate(1, "Basic Cleaning Techniques", "15 Aug 2026", "MJ-CLN-2026-001"),
-    Certificate(2, "Food Delivery Safety", "01 Aug 2026", "MJ-DEL-2026-042")
-)
+val sampleCertificates = emptyList<Certificate>()
 
 val sampleVouchers = listOf(
     VoucherItem(

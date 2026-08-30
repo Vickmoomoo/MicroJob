@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -24,11 +25,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.microjob.model.Certificate
 import com.example.microjob.model.Course
 import com.example.microjob.model.CourseCategory
-import com.example.microjob.model.sampleCertificates
-import com.example.microjob.model.sampleCourseCategories
+import com.example.microjob.viewmodel.CourseViewModel
 
 private val primaryBlue = Color(0xFF2563EB)
 private val green = Color(0xFF10B981)
@@ -36,8 +38,11 @@ private val green = Color(0xFF10B981)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CourseScreen(
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    vm: CourseViewModel = viewModel()
 ) {
+    val categories by vm.categories.collectAsStateWithLifecycle()
+    val certificates by vm.certificates.collectAsStateWithLifecycle()
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("Courses", "Certificates")
 
@@ -79,29 +84,45 @@ fun CourseScreen(
             }
 
             when (selectedTab) {
-                0 -> CourseCategoryList(categories = sampleCourseCategories)
-                1 -> CertificateList(certificates = sampleCertificates)
+                0 -> CourseCategoryList(
+                    categories = categories,
+                    onStartCourse = { courseId -> vm.startCourse(courseId) },
+                    onUpdateProgress = { courseId, progress -> vm.updateProgress(courseId, progress) }
+                )
+                1 -> CertificateList(certificates = certificates)
             }
         }
     }
 }
 
 @Composable
-private fun CourseCategoryList(categories: List<CourseCategory>) {
+private fun CourseCategoryList(
+    categories: List<CourseCategory>,
+    onStartCourse: (Int) -> Unit,
+    onUpdateProgress: (Int, Int) -> Unit
+) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         items(categories) { category ->
-            ExpandableCategory(category = category)
+            ExpandableCategory(
+                category = category,
+                onStartCourse = onStartCourse,
+                onUpdateProgress = onUpdateProgress
+            )
         }
         item { Spacer(Modifier.height(8.dp)) }
     }
 }
 
 @Composable
-private fun ExpandableCategory(category: CourseCategory) {
+private fun ExpandableCategory(
+    category: CourseCategory,
+    onStartCourse: (Int) -> Unit,
+    onUpdateProgress: (Int, Int) -> Unit
+) {
     var expanded by remember { mutableStateOf(false) }
 
     Card(
@@ -146,7 +167,11 @@ private fun ExpandableCategory(category: CourseCategory) {
             if (expanded) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
                 category.courses.forEach { course ->
-                    CourseRow(course = course)
+                    CourseRow(
+                        course = course,
+                        onStartCourse = onStartCourse,
+                        onUpdateProgress = onUpdateProgress
+                    )
                 }
             }
         }
@@ -154,7 +179,11 @@ private fun ExpandableCategory(category: CourseCategory) {
 }
 
 @Composable
-private fun CourseRow(course: Course) {
+private fun CourseRow(
+    course: Course,
+    onStartCourse: (Int) -> Unit,
+    onUpdateProgress: (Int, Int) -> Unit
+) {
     var showDetail by remember { mutableStateOf(false) }
 
     Column {
@@ -248,39 +277,45 @@ private fun CourseRow(course: Course) {
                 Spacer(Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (!course.enrolled) {
-                        Button(
-                            onClick = { },
-                            modifier = Modifier.height(30.dp),
-                            shape = RoundedCornerShape(6.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = primaryBlue),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
-                        ) {
-                            Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(14.dp))
-                            Spacer(Modifier.width(3.dp))
-                            Text("Start Course", fontSize = 11.sp)
+                    when {
+                        !course.enrolled -> {
+                            Button(
+                                onClick = { onStartCourse(course.id) },
+                                modifier = Modifier.height(30.dp),
+                                shape = RoundedCornerShape(6.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = primaryBlue),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                            ) {
+                                Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(14.dp))
+                                Spacer(Modifier.width(3.dp))
+                                Text("Start Course", fontSize = 11.sp)
+                            }
                         }
-                    } else if (course.progress < 100) {
-                        Button(
-                            onClick = { },
-                            modifier = Modifier.height(30.dp),
-                            shape = RoundedCornerShape(6.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = primaryBlue),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
-                        ) {
-                            Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(14.dp))
-                            Spacer(Modifier.width(3.dp))
-                            Text("Continue", fontSize = 11.sp)
+                        course.progress < 100 -> {
+                            val nextProgress = (course.progress + 25).coerceAtMost(100)
+                            Button(
+                                onClick = { onUpdateProgress(course.id, nextProgress) },
+                                modifier = Modifier.height(30.dp),
+                                shape = RoundedCornerShape(6.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = primaryBlue),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                            ) {
+                                Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(14.dp))
+                                Spacer(Modifier.width(3.dp))
+                                Text("Continue (+25%)", fontSize = 11.sp)
+                            }
                         }
-                    } else {
-                        Text(
-                            text = "\u2714 Certificate earned",
-                            fontSize = 11.sp,
-                            color = green,
-                            fontWeight = FontWeight.Medium
-                        )
+                        else -> {
+                            Text(
+                                text = "\u2714 Certificate earned",
+                                fontSize = 11.sp,
+                                color = green,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     }
                 }
             }
