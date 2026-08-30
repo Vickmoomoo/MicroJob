@@ -31,6 +31,7 @@ fun NumberGuessScreen(
     var attempts by remember { mutableIntStateOf(0) }
     var gameOver by remember { mutableStateOf(false) }
     var guesses by remember { mutableStateOf(listOf<Int>()) }
+    var showLimitDialog by remember { mutableStateOf(false) }
 
     val background = MaterialTheme.colorScheme.background
     val primary = MaterialTheme.colorScheme.primary
@@ -147,7 +148,9 @@ fun NumberGuessScreen(
             if (gameOver) {
                 Spacer(Modifier.height(16.dp))
                 Button(
-                    onClick = { if (onNewGame()) resetGame() },
+                    onClick = {
+                        if (onNewGame()) resetGame() else showLimitDialog = true
+                    },
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981))
                 ) {
@@ -155,5 +158,18 @@ fun NumberGuessScreen(
                 }
             }
         }
+    }
+
+    if (showLimitDialog) {
+        AlertDialog(
+            onDismissRequest = { showLimitDialog = false },
+            title = { Text("Daily Limit Reached") },
+            text = { Text("You've used all 6 plays for today. Come back tomorrow for more!") },
+            confirmButton = {
+                TextButton(onClick = { showLimitDialog = false }) {
+                    Text("OK")
+                }
+            }
+        )
     }
 }

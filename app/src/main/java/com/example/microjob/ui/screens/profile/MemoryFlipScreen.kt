@@ -35,6 +35,7 @@ fun MemoryFlipScreen(
     var message by remember { mutableStateOf("Tap a card to flip it") }
     var gameOver by remember { mutableStateOf(false) }
     var moves by remember { mutableIntStateOf(0) }
+    var showLimitDialog by remember { mutableStateOf(false) }
 
     val background = MaterialTheme.colorScheme.background
     val surface = MaterialTheme.colorScheme.surface
@@ -177,12 +178,27 @@ fun MemoryFlipScreen(
             Spacer(Modifier.height(20.dp))
 
             Button(
-                onClick = { if (onNewGame()) resetGame() },
+                onClick = {
+                    if (onNewGame()) resetGame() else showLimitDialog = true
+                },
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = primary)
             ) {
                 Text("New Game", fontSize = 14.sp)
             }
         }
+    }
+
+    if (showLimitDialog) {
+        AlertDialog(
+            onDismissRequest = { showLimitDialog = false },
+            title = { Text("Daily Limit Reached") },
+            text = { Text("You've used all 6 plays for today. Come back tomorrow for more!") },
+            confirmButton = {
+                TextButton(onClick = { showLimitDialog = false }) {
+                    Text("OK")
+                }
+            }
+        )
     }
 }
