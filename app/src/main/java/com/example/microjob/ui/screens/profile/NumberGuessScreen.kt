@@ -22,7 +22,8 @@ import kotlin.random.Random
 @Composable
 fun NumberGuessScreen(
     onBack: () -> Unit,
-    onWin: () -> Unit
+    onWin: () -> Unit,
+    onNewGame: () -> Boolean = { true }
 ) {
     var secretNumber by remember { mutableIntStateOf(Random.nextInt(1, 11)) }
     var guess by remember { mutableStateOf("") }
@@ -146,7 +147,7 @@ fun NumberGuessScreen(
             if (gameOver) {
                 Spacer(Modifier.height(16.dp))
                 Button(
-                    onClick = { resetGame() },
+                    onClick = { if (onNewGame()) resetGame() },
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981))
                 ) {

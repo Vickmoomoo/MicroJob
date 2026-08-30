@@ -22,7 +22,8 @@ import kotlinx.coroutines.delay
 @Composable
 fun MemoryFlipScreen(
     onBack: () -> Unit,
-    onWin: () -> Unit
+    onWin: () -> Unit,
+    onNewGame: () -> Boolean = { true }
 ) {
     val emojis = listOf("\uD83D\uDC36", "\uD83D\uDC31", "\uD83D\uDC3B", "\uD83D\uDC2F", "\uD83E\uDD81", "\uD83D\uDC38")
     var cards by remember { mutableStateOf((emojis + emojis).shuffled()) }
@@ -176,7 +177,7 @@ fun MemoryFlipScreen(
             Spacer(Modifier.height(20.dp))
 
             Button(
-                onClick = { resetGame() },
+                onClick = { if (onNewGame()) resetGame() },
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = primary)
             ) {

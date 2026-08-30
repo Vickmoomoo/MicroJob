@@ -22,7 +22,8 @@ import kotlin.random.Random
 @Composable
 fun TicTacToeScreen(
     onBack: () -> Unit,
-    onWin: () -> Unit
+    onWin: () -> Unit,
+    onNewGame: () -> Boolean = { true }
 ) {
     var board by remember { mutableStateOf(List(9) { "" }) }
     var isPlayerTurn by remember { mutableStateOf(true) }
@@ -146,7 +147,7 @@ fun TicTacToeScreen(
             Spacer(Modifier.height(24.dp))
 
             Button(
-                onClick = { resetGame() },
+                onClick = { if (onNewGame()) resetGame() },
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = primary)
             ) {

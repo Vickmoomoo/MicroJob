@@ -772,7 +772,8 @@ fun MicroJobApp() {
             ) {
                 TicTacToeScreen(
                     onBack = { navController.popBackStack() },
-                    onWin = { socialImpactVm.earnPoints("Won Tic Tac Toe", 10) }
+                    onWin = { socialImpactVm.earnPoints("Won Tic Tac Toe", 10) },
+                    onNewGame = { socialImpactVm.canPlayGame() }
                 )
             }
             composable(
@@ -784,7 +785,8 @@ fun MicroJobApp() {
             ) {
                 NumberGuessScreen(
                     onBack = { navController.popBackStack() },
-                    onWin = { socialImpactVm.earnPoints("Won Number Guess", 10) }
+                    onWin = { socialImpactVm.earnPoints("Won Number Guess", 10) },
+                    onNewGame = { socialImpactVm.canPlayGame() }
                 )
             }
             composable(
@@ -796,7 +798,8 @@ fun MicroJobApp() {
             ) {
                 MemoryFlipScreen(
                     onBack = { navController.popBackStack() },
-                    onWin = { socialImpactVm.earnPoints("Won Memory Flip", 10) }
+                    onWin = { socialImpactVm.earnPoints("Won Memory Flip", 10) },
+                    onNewGame = { socialImpactVm.canPlayGame() }
                 )
             }
         }
