@@ -62,6 +62,7 @@ import com.example.microjob.ui.screens.profile.SettingsScreen
 import com.example.microjob.ui.screens.profile.SocialImpactScreen
 import com.example.microjob.ui.screens.profile.CourseScreen
 import com.example.microjob.ui.screens.profile.CourseDetailScreen
+import com.example.microjob.ui.screens.profile.VideoPlayerScreen
 import com.example.microjob.ui.screens.profile.AllDonationsScreen
 import com.example.microjob.ui.screens.profile.AllVouchersScreen
 import com.example.microjob.ui.screens.profile.PointsHistoryScreen
@@ -81,6 +82,7 @@ import com.example.microjob.viewmodel.HomeViewModel
 import com.example.microjob.viewmodel.PostJobViewModel
 import com.example.microjob.viewmodel.ProfileViewModel
 import com.example.microjob.viewmodel.ReviewViewModel
+import com.example.microjob.viewmodel.CourseViewModel
 import com.example.microjob.viewmodel.SocialImpactViewModel
 import com.example.microjob.viewmodel.postJobViewModelFactory
 import kotlinx.coroutines.Dispatchers
@@ -98,6 +100,7 @@ fun MicroJobApp() {
     val profileVm: ProfileViewModel = viewModel()
     val reviewVm: ReviewViewModel = viewModel()
     val socialImpactVm: SocialImpactViewModel = viewModel()
+    val courseVm: CourseViewModel = viewModel()
     val currentUser by authVm.currentUser.collectAsStateWithLifecycle()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
@@ -248,7 +251,8 @@ fun MicroJobApp() {
                     onBack = { navController.popBackStack() },
                     onStartCourse = { courseId ->
                         navController.navigate(MicroJobRoutes.courseDetail(courseId))
-                    }
+                    },
+                    vm = courseVm
                 )
             }
             composable(
@@ -259,7 +263,33 @@ fun MicroJobApp() {
                 CourseDetailScreen(
                     courseId = courseId,
                     onBack = { navController.popBackStack() },
-                    onCompleted = { navController.popBackStack() }
+                    onCompleted = { navController.popBackStack() },
+                    onWatchEpisode = { ep, total ->
+                        navController.navigate(MicroJobRoutes.videoPlayer(courseId, ep, total))
+                    },
+                    vm = courseVm
+                )
+            }
+            composable(
+                route = MicroJobRoutes.VIDEO_PLAYER,
+                arguments = listOf(
+                    navArgument("courseId") { type = NavType.IntType },
+                    navArgument("episode") { type = NavType.IntType },
+                    navArgument("totalEpisodes") { type = NavType.IntType }
+                )
+            ) { entry ->
+                val courseId = entry.arguments?.getInt("courseId") ?: return@composable
+                val episode = entry.arguments?.getInt("episode") ?: return@composable
+                val totalEpisodes = entry.arguments?.getInt("totalEpisodes") ?: return@composable
+                VideoPlayerScreen(
+                    courseId = courseId,
+                    episode = episode,
+                    totalEpisodes = totalEpisodes,
+                    onBack = { navController.popBackStack() },
+                    onWatched = {
+                        courseVm.markEpisodeWatched(courseId, episode)
+                        navController.popBackStack()
+                    }
                 )
             }
             composable(

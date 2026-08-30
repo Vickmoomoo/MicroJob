@@ -85,15 +85,32 @@ fun CourseScreen(
             }
 
             when (selectedTab) {
-                0 -> CourseCategoryList(
-                    categories = categories,
-                    onStartCourse = { courseId ->
-                        vm.startCourse(courseId)
-                        onStartCourse(courseId)
-                    },
-                    onUpdateProgress = { courseId, progress -> vm.updateProgress(courseId, progress) }
-                )
-                1 -> CertificateList(certificates = certificates)
+                0 -> {
+                    // Only show courses not yet started
+                    val filteredCategories = categories.map { cat ->
+                        cat.copy(courses = cat.courses.filter { !it.enrolled })
+                    }.filter { it.courses.isNotEmpty() }
+
+                    CourseCategoryList(
+                        categories = filteredCategories,
+                        onStartCourse = { courseId ->
+                            vm.startCourse(courseId)
+                            onStartCourse(courseId)
+                        },
+                        onUpdateProgress = { courseId, progress -> vm.updateProgress(courseId, progress) }
+                    )
+                }
+                1 -> {
+                    // Started courses (in progress) + completed certificates
+                    val startedCourses = categories.flatMap { cat ->
+                        cat.courses.filter { it.enrolled }
+                    }
+                    CertificateList(
+                        certificates = certificates,
+                        startedCourses = startedCourses,
+                        onCourseClick = onStartCourse
+                    )
+                }
             }
         }
     }
@@ -334,8 +351,10 @@ private fun CourseRow(
 }
 
 @Composable
-private fun CertificateList(certificates: List<Certificate>) {
-    if (certificates.isEmpty()) {
+private fun CertificateList(certificates: List<Certificate>, startedCourses: List<Course>, onCourseClick: (Int) -> Unit) {
+    val hasContent = certificates.isNotEmpty() || startedCourses.isNotEmpty()
+
+    if (!hasContent) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -345,10 +364,10 @@ private fun CertificateList(certificates: List<Certificate>) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("\uD83C\uDFC6", fontSize = 48.sp)
                 Spacer(Modifier.height(12.dp))
-                Text("No Certificates Yet", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text("No Courses Yet", fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "Complete courses to earn certificates.",
+                    "Start a course to see it here.",
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
@@ -361,9 +380,36 @@ private fun CertificateList(certificates: List<Certificate>) {
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            items(certificates) { cert ->
-                CertificateCard(cert = cert)
+            // In-progress courses
+            if (startedCourses.isNotEmpty()) {
+                item {
+                    Text(
+                        text = "In Progress",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                }
+                items(startedCourses) { course ->
+                    StartedCourseCard(course = course, onClick = { onCourseClick(course.id) })
+                }
             }
+
+            // Completed certificates
+            if (certificates.isNotEmpty()) {
+                item {
+                    Text(
+                        text = "Certificates",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                    )
+                }
+                items(certificates) { cert ->
+                    CertificateCard(cert = cert)
+                }
+            }
+
             item { Spacer(Modifier.height(8.dp)) }
         }
     }
@@ -417,6 +463,67 @@ private fun CertificateCard(cert: Certificate) {
                 tint = green,
                 modifier = Modifier.size(22.dp)
             )
+        }
+    }
+}
+
+@Composable
+private fun StartedCourseCard(course: Course, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Emoji icon
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(primaryBlue.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(course.emoji, fontSize = 22.sp)
+            }
+            Spacer(Modifier.width(12.dp))
+            // Title
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = course.title.uppercase(),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    letterSpacing = 0.5.sp
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            // Circular progress indicator
+            Box(
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    progress = { course.progress / 100f },
+                    modifier = Modifier.size(48.dp),
+                    color = if (course.progress == 100) green else primaryBlue,
+                    trackColor = MaterialTheme.colorScheme.outlineVariant,
+                    strokeWidth = 4.dp
+                )
+                Text(
+                    text = "${course.progress}%",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (course.progress == 100) green else primaryBlue
+                )
+            }
         }
     }
 }

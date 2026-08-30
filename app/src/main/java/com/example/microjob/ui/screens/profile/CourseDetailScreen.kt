@@ -9,7 +9,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,7 +22,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.microjob.viewmodel.CourseViewModel
-import kotlinx.coroutines.delay
 
 private val primaryBlue = Color(0xFF2563EB)
 private val green = Color(0xFF10B981)
@@ -34,6 +32,7 @@ fun CourseDetailScreen(
     courseId: Int,
     onBack: () -> Unit,
     onCompleted: () -> Unit,
+    onWatchEpisode: (Int, Int) -> Unit = { _, _ -> },
     vm: CourseViewModel = viewModel()
 ) {
     val categories by vm.categories.collectAsStateWithLifecycle()
@@ -48,35 +47,32 @@ fun CourseDetailScreen(
         }
     }
 
-    // Video state
-    var isPlaying by remember { mutableStateOf(false) }
-    var videoProgress by remember { mutableIntStateOf(0) }
-    val videoDuration = 10 // seconds needed to unlock test
-    val videoComplete = videoProgress >= videoDuration
-    val videoPercent = ((videoProgress.toFloat() / videoDuration) * 100).toInt().coerceAtMost(100)
+    // Episode state — total lessons = total episodes
+    val totalEpisodes = course?.lessons ?: 1
+    val watchedEpisodes by vm.watchedEpisodes.collectAsStateWithLifecycle()
+    val myWatched = watchedEpisodes[courseId] ?: emptySet()
+    var selectedEpisode by remember { mutableIntStateOf(1) }
+    var currentPage by remember { mutableIntStateOf(0) }
+    val episodesPerPage = 10
+    val totalPages = (totalEpisodes + episodesPerPage - 1) / episodesPerPage
+    val videoPercent = ((myWatched.size.toFloat() / totalEpisodes) * 100).toInt().coerceAtMost(100)
+    val videoComplete = myWatched.size >= totalEpisodes
 
-    // Test state
-    var testCompleted by remember { mutableStateOf(false) }
+    // Test state — from ViewModel
+    val testCompletedMap by vm.testCompleted.collectAsStateWithLifecycle()
+    val testCompleted = testCompletedMap[courseId] == true
     val testPercent = if (testCompleted) 100 else 0
 
     // Overall progress: 80% video + 20% test
     val overallProgress = when {
         course == null -> 0
-        course.progress == 100 -> 100
         !course.enrolled -> 0
         else -> (videoPercent * 0.8 + testPercent * 0.2).toInt()
     }
 
-    // Simulate video playback
-    LaunchedEffect(isPlaying, videoProgress) {
-        if (isPlaying && videoProgress < videoDuration) {
-            delay(1000)
-            videoProgress = (videoProgress + 1).coerceAtMost(videoDuration)
-            if (videoProgress >= videoDuration) {
-                isPlaying = false
-            }
-        }
-    }
+    // Current page episodes
+    val pageStart = currentPage * episodesPerPage + 1
+    val pageEnd = minOf(pageStart + episodesPerPage - 1, totalEpisodes)
 
     Scaffold(
         topBar = {
@@ -270,81 +266,134 @@ fun CourseDetailScreen(
 
                 HorizontalDivider()
 
-                // Video player section (only when enrolled)
+                // Course description
+                Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                    Text(
+                        text = course.description,
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 20.sp
+                    )
+                }
+
+                HorizontalDivider()
+
+                // Episode selector section (only when enrolled)
                 if (course.enrolled && course.progress < 100) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
-                        Column {
-                            // Video area
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .aspectRatio(16f / 9f)
-                                    .clickable {
-                                        if (videoProgress < videoDuration) {
-                                            isPlaying = !isPlaying
-                                        }
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (videoProgress >= videoDuration) {
-                                    // Video completed
-                                    Icon(
-                                        imageVector = Icons.Filled.CheckCircle,
-                                        contentDescription = "Completed",
-                                        tint = green,
-                                        modifier = Modifier.size(64.dp)
-                                    )
-                                } else if (isPlaying) {
-                                    // Playing indicator
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(48.dp),
-                                        color = primaryBlue,
-                                        strokeWidth = 4.dp
-                                    )
-                                } else {
-                                    // Play button
-                                    Icon(
-                                        imageVector = Icons.Filled.PlayArrow,
-                                        contentDescription = "Play",
-                                        tint = primaryBlue,
-                                        modifier = Modifier.size(64.dp)
-                                    )
-                                }
-                            }
-                            // Video progress bar
-                            LinearProgressIndicator(
-                                progress = { videoProgress.toFloat() / videoDuration },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(4.dp),
-                                color = if (videoComplete) green else primaryBlue,
-                                trackColor = MaterialTheme.colorScheme.outlineVariant,
-                            )
-                            // Video info
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            // Header: Episodes + progress
                             Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = if (videoComplete) "Video watched" else "Watching... ${videoProgress}/${videoDuration}s",
+                                    text = "Episodes",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Watched ${myWatched.size}/$totalEpisodes episodes",
                                     fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                if (!videoComplete) {
-                                    Text(
-                                        text = "Watch ${videoDuration - videoProgress}s more to unlock test",
-                                        fontSize = 11.sp,
-                                        color = primaryBlue
-                                    )
+                            }
+
+                            Spacer(Modifier.height(10.dp))
+
+                            // Progress bar
+                            LinearProgressIndicator(
+                                progress = { myWatched.size.toFloat() / totalEpisodes },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(4.dp)
+                                    .clip(RoundedCornerShape(2.dp)),
+                                color = if (videoComplete) green else primaryBlue,
+                                trackColor = MaterialTheme.colorScheme.outlineVariant,
+                            )
+
+                            Spacer(Modifier.height(12.dp))
+
+                            // Page tabs (1-10, 11-20, ...)
+                            if (totalPages > 1) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    for (page in 0 until totalPages) {
+                                        val start = page * episodesPerPage + 1
+                                        val end = minOf(start + episodesPerPage - 1, totalEpisodes)
+                                        Text(
+                                            text = "$start-$end",
+                                            fontSize = 13.sp,
+                                            fontWeight = if (currentPage == page) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (currentPage == page) primaryBlue else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.clickable { currentPage = page }
+                                        )
+                                    }
                                 }
+                                Spacer(Modifier.height(12.dp))
+                            }
+
+                            // Episode grid (5 per row)
+                            val columns = 5
+                            val rows = (pageEnd - pageStart + 1 + columns - 1) / columns
+                            for (row in 0 until rows) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    for (col in 0 until columns) {
+                                        val ep = pageStart + row * columns + col
+                                        if (ep <= pageEnd) {
+                                            val isWatched = ep in myWatched
+                                            val isSelected = ep == selectedEpisode
+                                            Box(
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .aspectRatio(1f)
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(
+                                                        when {
+                                                            isSelected -> primaryBlue
+                                                            isWatched -> green.copy(alpha = 0.15f)
+                                                            else -> MaterialTheme.colorScheme.surfaceVariant
+                                                        }
+                                                    )
+                                                    .clickable {
+                                                        selectedEpisode = ep
+                                                        onWatchEpisode(ep, totalEpisodes)
+                                                    },
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                if (isWatched) {
+                                                    Icon(
+                                                        imageVector = Icons.Filled.CheckCircle,
+                                                        contentDescription = "Watched",
+                                                        tint = green,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                } else {
+                                                    Text(
+                                                        text = "$ep",
+                                                        fontSize = 14.sp,
+                                                        fontWeight = FontWeight.Medium,
+                                                        color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                }
+                                            }
+                                        } else {
+                                            Spacer(modifier = Modifier.weight(1f))
+                                        }
+                                    }
+                                }
+                                Spacer(Modifier.height(8.dp))
                             }
                         }
                     }
@@ -396,7 +445,7 @@ fun CourseDetailScreen(
                         )
                         Spacer(Modifier.height(12.dp))
                         OutlinedButton(
-                            onClick = { testCompleted = true },
+                            onClick = { vm.markTestCompleted(courseId) },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(8.dp),
                             enabled = (videoComplete || course.progress == 100) && !testCompleted
