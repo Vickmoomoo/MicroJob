@@ -61,6 +61,7 @@ import com.example.microjob.ui.screens.profile.JobListScreen
 import com.example.microjob.ui.screens.profile.SettingsScreen
 import com.example.microjob.ui.screens.profile.SocialImpactScreen
 import com.example.microjob.ui.screens.profile.CourseScreen
+import com.example.microjob.ui.screens.profile.CourseDetailScreen
 import com.example.microjob.ui.screens.profile.AllDonationsScreen
 import com.example.microjob.ui.screens.profile.AllVouchersScreen
 import com.example.microjob.ui.screens.profile.PointsHistoryScreen
@@ -244,7 +245,21 @@ fun MicroJobApp() {
             composable(
                 route = MicroJobRoutes.COURSE) {
                 CourseScreen(
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
+                    onStartCourse = { courseId ->
+                        navController.navigate(MicroJobRoutes.courseDetail(courseId))
+                    }
+                )
+            }
+            composable(
+                route = MicroJobRoutes.COURSE_DETAIL,
+                arguments = listOf(navArgument("courseId") { type = NavType.IntType })
+            ) { entry ->
+                val courseId = entry.arguments?.getInt("courseId") ?: return@composable
+                CourseDetailScreen(
+                    courseId = courseId,
+                    onBack = { navController.popBackStack() },
+                    onCompleted = { navController.popBackStack() }
                 )
             }
             composable(

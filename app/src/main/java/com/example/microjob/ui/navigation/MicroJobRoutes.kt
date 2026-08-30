@@ -110,4 +110,8 @@ object MicroJobRoutes {
 
     /** Memory Flip game. */
     const val MEMORY_FLIP = "memory_flip"
+
+    /** Course detail page. Route pattern: "course_detail/{courseId}" */
+    const val COURSE_DETAIL = "course_detail/{courseId}"
+    fun courseDetail(courseId: Int) = "course_detail/$courseId"
 }

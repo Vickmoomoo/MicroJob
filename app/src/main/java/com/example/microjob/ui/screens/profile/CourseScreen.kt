@@ -39,6 +39,7 @@ private val green = Color(0xFF10B981)
 @Composable
 fun CourseScreen(
     onBack: () -> Unit,
+    onStartCourse: (Int) -> Unit = {},
     vm: CourseViewModel = viewModel()
 ) {
     val categories by vm.categories.collectAsStateWithLifecycle()
@@ -86,7 +87,10 @@ fun CourseScreen(
             when (selectedTab) {
                 0 -> CourseCategoryList(
                     categories = categories,
-                    onStartCourse = { courseId -> vm.startCourse(courseId) },
+                    onStartCourse = { courseId ->
+                        vm.startCourse(courseId)
+                        onStartCourse(courseId)
+                    },
                     onUpdateProgress = { courseId, progress -> vm.updateProgress(courseId, progress) }
                 )
                 1 -> CertificateList(certificates = certificates)
