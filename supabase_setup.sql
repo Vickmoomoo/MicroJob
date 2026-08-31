@@ -79,10 +79,13 @@ create table reviews (
   reviewed_user_id bigint not null,
   reviewer_user_id bigint not null,
   rating real not null default 5 check (rating between 0.5 and 5),
-  comment text not null default '',
+  comment text not null default '' check (char_length(comment) <= 500),
   job_id bigint,
   created_at timestamptz not null default now()
 );
+-- Prevent duplicate reviews for same job (allow multiple reviews when job_id is null)
+create unique index if not exists reviews_unique_job on reviews (reviewer_user_id, reviewed_user_id, job_id);
+create unique index if not exists reviews_unique_no_job on reviews (reviewer_user_id, reviewed_user_id) where job_id is null;
 
 -- ---------- 5. 会话 + 消息（对齐 Conversation/Message） ----------
 create table conversations (

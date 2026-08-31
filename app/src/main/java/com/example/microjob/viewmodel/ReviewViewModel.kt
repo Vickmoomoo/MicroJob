@@ -136,8 +136,8 @@ class ReviewViewModel(
         existingReviewId: Long? = null,
     ) {
         val state = _formState.value
-        if (state.rating < 0.5f) {
-            _formState.update { it.copy(error = "Please select a rating") }
+        if (state.rating < 0.5f || state.rating > 5f) {
+            _formState.update { it.copy(error = "Rating must be between 0.5 and 5") }
             return
         }
 
@@ -164,22 +164,37 @@ class ReviewViewModel(
                     withContext(Dispatchers.IO) { repository.updateReview(updated) }
                 } else {
                     // Create new review
+                    val normalizedJobId = if (jobId == 0L) null else jobId
                     val alreadyReviewed = withContext(Dispatchers.IO) {
-                        repository.hasReviewed(myId, reviewedUserId, jobId)
+                        repository.hasReviewed(myId, reviewedUserId, normalizedJobId)
                     }
                     if (alreadyReviewed) {
                         throw IllegalStateException("You have already reviewed this user for this job")
+                    }
+                    if (state.comment.trim().length > 500) {
+                        throw IllegalStateException("Comment must be 500 characters or fewer")
+                    }
+                    if (state.comment.trim().isEmpty() && state.rating == 0f) {
+                        throw IllegalStateException("Please provide a rating or comment")
                     }
                     val review = Review(
                         id = 0,
                         reviewedUserId = reviewedUserId,
                         reviewerUserId = myId,
                         rating = state.rating,
-                        comment = state.comment.trim(),
-                        jobId = jobId,
+                        comment = state.comment.trim().take(500),
+                        jobId = normalizedJobId,
                         createdAt = java.time.OffsetDateTime.now().toString()
                     )
-                    withContext(Dispatchers.IO) { repository.addReview(review) }
+                    try {
+                        withContext(Dispatchers.IO) { repository.addReview(review) }
+                    } catch (e: Exception) {
+                        // Handle unique constraint violation from concurrent duplicate (Postgres 23505)
+                        if (e.message?.contains("duplicate", ignoreCase = true) == true ||
+                            e.message?.contains("23505") == true) {
+                            throw IllegalStateException("You have already reviewed this user for this job")
+                        } else throw e
+                    }
                 }
 
                 _formState.update { it.copy(isSubmitting = false, submitted = true) }

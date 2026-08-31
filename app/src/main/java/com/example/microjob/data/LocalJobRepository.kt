@@ -125,7 +125,7 @@ class LocalJobRepository(private val context: Context) : JobRepository {
         return PasswordResetResult.SUCCESS
     }
 
-    override suspend fun acceptJob(jobId: Int, workerId: Long): Job? {
+    override suspend fun acceptJob(jobId: Int, workerId: Long): Job? = synchronized(this) {
         val jobs = readJobs().toMutableList()
         val index = jobs.indexOfFirst { it.id == jobId }
         if (index == -1) return null

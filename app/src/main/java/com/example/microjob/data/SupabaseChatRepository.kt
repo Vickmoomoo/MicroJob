@@ -36,9 +36,11 @@ class SupabaseChatRepository(private val context: Context) : ChatRepository {
 
     override suspend fun getConversations(userId: Long): List<Conversation> =
         client.from("conversations")
-            .select { order("last_message_at", Order.DESCENDING) }
+            .select {
+                filter { contains("participant_ids", listOf(userId)) }
+                order("last_message_at", Order.DESCENDING)
+            }
             .decodeList<Conversation>()
-            .filter { userId in it.participantIds }
 
     override suspend fun getMessages(conversationId: String): List<Message> =
         client.from("messages")
@@ -66,7 +68,7 @@ class SupabaseChatRepository(private val context: Context) : ChatRepository {
         // Server copy always gets a fresh m_ id (the optimistic bubble carries
         // its own pending id until the swap).
         val stored = message.copy(
-            id = "m_${System.currentTimeMillis()}",
+            id = "m_${java.util.UUID.randomUUID()}",
             createdAt = message.createdAt.ifBlank { OffsetDateTime.now().toString() }
         )
 

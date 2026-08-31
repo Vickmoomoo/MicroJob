@@ -205,6 +205,10 @@ class PostJobViewModel(
         description.value.isBlank() -> "Please enter a description."
         price.value.toDoubleOrNull() == null || price.value.toDoubleOrNull()!! <= 0 ->
             "Please enter a valid price greater than 0."
+        price.value.toDoubleOrNull() != null && price.value.toDoubleOrNull()!! > 100000 ->
+            "Price cannot exceed RM 100,000."
+        price.value.toDoubleOrNull() != null && donation > price.value.toDoubleOrNull()!! ->
+            "Donation cannot exceed job price."
         category.value.isNullOrBlank() -> "Please select a category."
         // At least one photo is required.
         _photoUris.value.isEmpty() -> "Please add at least one photo."
@@ -225,13 +229,14 @@ class PostJobViewModel(
      * with the returned URLs. On success the UI navigates back.
      */
     fun submit() {
+        if (_uiState.value is PostJobUiState.Submitting || _uiState.value is PostJobUiState.RedirectingToPayment || _uiState.value is PostJobUiState.PaymentSuccess) return
         val error = validationError()
         if (error != null) {
             _uiState.value = PostJobUiState.Error(error)
             return
         }
 
-        val location = listOf(
+        val location = if (jobType.value == "remote") "Remote / Online" else listOf(
             addressDetail.value.trim(),
             area.value.orEmpty(),
             state.value.orEmpty()
@@ -316,8 +321,15 @@ class PostJobViewModel(
         val resolver = getApplication<Application>().contentResolver
         val result = mutableListOf<String>()
         uris.forEachIndexed { index, uri ->
+            val mime = resolver.getType(uri) ?: ""
+            if (mime.isNotBlank() && !mime.startsWith("image/")) {
+                throw IllegalStateException("Only images are allowed.")
+            }
             val bytes = resolver.openInputStream(uri)?.use { it.readBytes() }
                 ?: throw IllegalStateException("Cannot read the selected image.")
+            if (bytes.size > 5 * 1024 * 1024) {
+                throw IllegalStateException("Image too large (max 5MB).")
+            }
             val path = "jobs/${System.currentTimeMillis()}-$index.jpg"
             result.add(repository.uploadJobImage(path, bytes))
         }

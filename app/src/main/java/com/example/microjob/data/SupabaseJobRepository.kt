@@ -111,10 +111,10 @@ class SupabaseJobRepository(private val context: Context) : JobRepository {
         securityQuestion: String,
         securityAnswer: String
     ): User {
-        // Username & email must be unique.
+        // Username & email must be unique (case-insensitive).
         val existing = client.from("users").select {
             filter {
-                or { eq("username", username); eq("email", email) }
+                or { ilike("username", username); ilike("email", email) }
             }
         }.decodeList<User>()
         if (existing.any { it.username.equals(username, ignoreCase = true) }) {
@@ -139,7 +139,7 @@ class SupabaseJobRepository(private val context: Context) : JobRepository {
     override suspend fun login(username: String, password: String): User? = client
         .from("users")
         .select {
-            filter { eq("username", username); eq("password", password) }
+            filter { ilike("username", username); eq("password", password) }
             limit(1L)
         }
         .decodeSingleOrNull<User>()
@@ -153,10 +153,10 @@ class SupabaseJobRepository(private val context: Context) : JobRepository {
         val target = client.from("users").select {
             filter {
                 and {
-                    or { eq("username", usernameOrEmail.trim()); eq("email", usernameOrEmail.trim()) }
+                    or { ilike("username", usernameOrEmail.trim()); ilike("email", usernameOrEmail.trim()) }
                     eq("security_question", securityQuestion)
                 }
-                eq("security_answer", securityAnswer.trim())
+                ilike("security_answer", securityAnswer.trim())
             }
             limit(1L)
         }.decodeSingleOrNull<User>()
@@ -259,7 +259,7 @@ class SupabaseJobRepository(private val context: Context) : JobRepository {
                 select()
             }.decodeSingle<Review>()
         } else {
-            addReview(review.copy(id = existing?.id ?: 0L))
+            addReview(review.copy(id = 0))
         }
     }
 

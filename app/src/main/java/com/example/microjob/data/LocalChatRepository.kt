@@ -73,7 +73,7 @@ class LocalChatRepository(private val context: Context) : ChatRepository {
     override suspend fun sendMessage(message: Message): Message {
         val messages = readMessages().toMutableList()
         val stored = if (message.id.isBlank()) {
-            message.copy(id = "m_${System.currentTimeMillis()}")
+            message.copy(id = "m_${java.util.UUID.randomUUID()}")
         } else {
             message
         }

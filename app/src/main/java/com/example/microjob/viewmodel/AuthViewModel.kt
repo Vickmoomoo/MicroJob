@@ -82,17 +82,21 @@ class AuthViewModel(
     }
 
     fun submit() {
+        if (_uiState.value is AuthUiState.Submitting) return
         val error = when {
             username.value.isBlank() -> "Please enter a username."
-            !isForgotPasswordMode.value && username.value.contains(" ") -> "Username cannot contain spaces."
+            !isForgotPasswordMode.value && username.value.trim().contains(" ") -> "Username cannot contain spaces."
             password.value.isBlank() -> "Please enter a password."
             isForgotPasswordMode.value && confirmPassword.value != password.value -> "Passwords do not match."
             isForgotPasswordMode.value && securityQuestion.value.isBlank() ->
                 "Please choose a security question."
             isForgotPasswordMode.value && securityAnswer.value.isBlank() ->
                 "Please answer the security question."
+            isForgotPasswordMode.value && password.value.length < 6 ->
+                "New password must be at least 6 characters."
             !isRegisterMode.value -> null
             confirmPassword.value != password.value -> "Passwords do not match."
+            password.value.length < 6 -> "Password must be at least 6 characters."
             !isValidEmail(email.value) -> "Please enter a valid email address."
             securityQuestion.value.isBlank() -> "Please choose a security question."
             securityAnswer.value.isBlank() -> "Please answer the security question."
@@ -244,13 +248,7 @@ class AuthViewModel(
         _uiState.value = AuthUiState.Idle
     }
 
-    /**
-     * Email must contain an "@" and a "." after it (basic check),
-     * plus the stricter Android email pattern.
-     */
     private fun isValidEmail(email: String): Boolean {
-        val hasAt = email.contains("@")
-        val dotAfterAt = email.indexOf('@') in 0 until email.lastIndexOf('.')
-        return hasAt && dotAfterAt && android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
+        return android.util.Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches()
     }
 }

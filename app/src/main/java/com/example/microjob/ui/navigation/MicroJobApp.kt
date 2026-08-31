@@ -8,8 +8,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.FabPosition
@@ -47,7 +45,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.microjob.ui.screens.PlaceholderScreen
 import com.example.microjob.ui.screens.detail.JobDetailScreen
 import com.example.microjob.ui.screens.home.HomeScreen
 import com.example.microjob.ui.screens.login.LoginScreen
@@ -218,12 +215,6 @@ fun MicroJobApp() {
             if (showChrome && currentRoute == MicroJobRoutes.HOME) {
                 FloatingActionButton(onClick = { requireLogin(MicroJobRoutes.POST_JOB) }) {
                     Icon(imageVector = Icons.Filled.Add, contentDescription = "Post Job")
-                }
-            } else if (showChrome && currentRoute == MicroJobRoutes.MESSAGES) {
-                FloatingActionButton(
-                    onClick = { navController.navigate(MicroJobRoutes.VOICE_TRANSLATION) }
-                ) {
-                    Icon(imageVector = Icons.Filled.Translate, contentDescription = "Voice translation")
                 }
             }
         },
@@ -667,6 +658,7 @@ fun MicroJobApp() {
                 JobDetailScreen(
                     jobId = jobId,
                     onBack = { navController.popBackStack() },
+                    currentUserId = currentUser?.id,
                     onContactPoster = { poster ->
                         val posterId = poster?.id
                         val me = authVm.currentUser.value?.id

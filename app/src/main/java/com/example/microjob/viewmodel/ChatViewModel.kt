@@ -150,6 +150,10 @@ class ChatViewModel(
         viewModelScope.launch {
             try {
                 val me = session.currentUserId ?: return@launch
+                if (otherUserId == me) {
+                    _error.value = "You cannot message yourself."
+                    return@launch
+                }
                 val conv = withContext(Dispatchers.IO) { repository.openConversation(me, otherUserId) }
                 _activeConversation.value = conv
                 onOpened(conv.id)
@@ -251,7 +255,7 @@ class ChatViewModel(
     fun sendImage(conversationId: String, recipientId: Long, uri: Uri) {
         val me = session.currentUserId ?: return
         val optimistic = Message(
-            id = "pending_img_${System.currentTimeMillis()}",
+            id = "pending_img_${java.util.UUID.randomUUID()}",
             conversationId = conversationId,
             senderId = me,
             recipientId = recipientId,
@@ -312,7 +316,7 @@ class ChatViewModel(
         // Optimistic message: show the bubble IMMEDIATELY, before the network
         // round-trip finishes. It is replaced by the stored server copy later.
         val optimistic = message.copy(
-            id = "pending_${System.currentTimeMillis()}",
+            id = "pending_${java.util.UUID.randomUUID()}",
             conversationId = conversationId,
             senderId = me,
             recipientId = recipientId,

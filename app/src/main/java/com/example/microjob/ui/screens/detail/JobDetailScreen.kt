@@ -31,7 +31,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -73,6 +72,7 @@ fun JobDetailScreen(
     onBack: () -> Unit,
     onContactPoster: (com.example.microjob.model.User?) -> Unit,
     onPosterClick: (Long) -> Unit = {},
+    currentUserId: Long? = null,
     vm: JobDetailViewModel = viewModel(),
 ) {
     val uiState by vm.uiState.collectAsStateWithLifecycle()
@@ -102,7 +102,8 @@ fun JobDetailScreen(
                 poster = state.poster,
                 innerPadding = innerPadding,
                 onContactPoster = onContactPoster,
-                onPosterClick = onPosterClick
+                onPosterClick = onPosterClick,
+                currentUserId = currentUserId
             )
         }
     }
@@ -146,6 +147,7 @@ private fun JobDetailContent(
     innerPadding: androidx.compose.foundation.layout.PaddingValues,
     onContactPoster: (com.example.microjob.model.User?) -> Unit,
     onPosterClick: (Long) -> Unit = {},
+    currentUserId: Long? = null,
 ) {
     val context = LocalContext.current
     val hasRequirements = job.requireGps || job.toolsRequired.isNotBlank()
@@ -285,19 +287,22 @@ private fun JobDetailContent(
         }
 
         // Contact the job poster — pinned to the bottom, not scrolled with content.
-        Button(
-            onClick = { onContactPoster(poster) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-                .height(52.dp)
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.Chat,
-                contentDescription = null
-            )
-            Spacer(Modifier.width(8.dp))
-            Text("Contact Job Poster")
+        val isOwnJob = currentUserId != null && poster?.id == currentUserId
+        if (!isOwnJob) {
+            Button(
+                onClick = { onContactPoster(poster) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .height(52.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Chat,
+                    contentDescription = null
+                )
+                Spacer(Modifier.width(8.dp))
+                Text("Contact Job Poster")
+            }
         }
     }
 }
