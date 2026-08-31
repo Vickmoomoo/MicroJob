@@ -33,6 +33,7 @@ fun CourseDetailScreen(
     onBack: () -> Unit,
     onCompleted: () -> Unit,
     onWatchEpisode: (Int, Int) -> Unit = { _, _ -> },
+    onStartTest: (Int) -> Unit = {},
     vm: CourseViewModel = viewModel()
 ) {
     val categories by vm.categories.collectAsStateWithLifecycle()
@@ -445,7 +446,7 @@ fun CourseDetailScreen(
                         )
                         Spacer(Modifier.height(12.dp))
                         OutlinedButton(
-                            onClick = { vm.markTestCompleted(courseId) },
+                            onClick = { onStartTest(courseId) },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(8.dp),
                             enabled = (videoComplete || course.progress == 100) && !testCompleted

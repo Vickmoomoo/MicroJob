@@ -63,6 +63,7 @@ import com.example.microjob.ui.screens.profile.SocialImpactScreen
 import com.example.microjob.ui.screens.profile.CourseScreen
 import com.example.microjob.ui.screens.profile.CourseDetailScreen
 import com.example.microjob.ui.screens.profile.VideoPlayerScreen
+import com.example.microjob.ui.screens.profile.TestQuizScreen
 import com.example.microjob.ui.screens.profile.AllDonationsScreen
 import com.example.microjob.ui.screens.profile.AllVouchersScreen
 import com.example.microjob.ui.screens.profile.PointsHistoryScreen
@@ -267,6 +268,9 @@ fun MicroJobApp() {
                     onWatchEpisode = { ep, total ->
                         navController.navigate(MicroJobRoutes.videoPlayer(courseId, ep, total))
                     },
+                    onStartTest = { id ->
+                        navController.navigate(MicroJobRoutes.testQuiz(id))
+                    },
                     vm = courseVm
                 )
             }
@@ -288,6 +292,20 @@ fun MicroJobApp() {
                     onBack = { navController.popBackStack() },
                     onWatched = {
                         courseVm.markEpisodeWatched(courseId, episode)
+                        navController.popBackStack()
+                    }
+                )
+            }
+            composable(
+                route = MicroJobRoutes.TEST_QUIZ,
+                arguments = listOf(navArgument("courseId") { type = NavType.IntType })
+            ) { entry ->
+                val courseId = entry.arguments?.getInt("courseId") ?: return@composable
+                TestQuizScreen(
+                    courseId = courseId,
+                    onBack = { navController.popBackStack() },
+                    onPassed = {
+                        courseVm.markTestCompleted(courseId)
                         navController.popBackStack()
                     }
                 )

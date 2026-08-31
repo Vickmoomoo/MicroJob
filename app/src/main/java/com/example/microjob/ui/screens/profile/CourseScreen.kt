@@ -50,7 +50,7 @@ fun CourseScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Course & Certificate", fontSize = 18.sp, fontWeight = FontWeight.SemiBold) },
+                title = { Text("Course and Certificates", fontSize = 18.sp, fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -101,9 +101,9 @@ fun CourseScreen(
                     )
                 }
                 1 -> {
-                    // Started courses (in progress) + completed certificates
+                    // Started courses (in progress, exclude completed) + completed certificates
                     val startedCourses = categories.flatMap { cat ->
-                        cat.courses.filter { it.enrolled }
+                        cat.courses.filter { it.enrolled && it.progress < 100 }
                     }
                     CertificateList(
                         certificates = certificates,

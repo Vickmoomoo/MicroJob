@@ -118,4 +118,8 @@ object MicroJobRoutes {
     /** Video player page. Route pattern: "video_player/{courseId}/{episode}/{totalEpisodes}" */
     const val VIDEO_PLAYER = "video_player/{courseId}/{episode}/{totalEpisodes}"
     fun videoPlayer(courseId: Int, episode: Int, totalEpisodes: Int) = "video_player/$courseId/$episode/$totalEpisodes"
+
+    /** Test quiz page. Route pattern: "test_quiz/{courseId}" */
+    const val TEST_QUIZ = "test_quiz/{courseId}"
+    fun testQuiz(courseId: Int) = "test_quiz/$courseId"
 }
