@@ -9,6 +9,10 @@
 drop table if exists messages;
 drop table if exists conversations;
 drop table if exists reviews;
+drop table if exists points_history;
+drop table if exists user_points;
+drop table if exists donation_history;
+drop table if exists vouchers;
 drop table if exists users;
 drop table if exists jobs;
 drop table if exists categories;
@@ -111,13 +115,57 @@ create table messages (
   review_comment text not null default ''
 );
 
--- ---------- 6. RLS 策略（demo：anon token 全表读写） ----------
+-- ---------- 6. Social Impact tables ----------
+create table donation_history (
+  id bigserial primary key,
+  user_id bigint not null,
+  organization text not null,
+  date text not null,
+  amount text not null,
+  created_at timestamptz not null default now()
+);
+
+create table vouchers (
+  id serial primary key,
+  brand text not null,
+  title text not null,
+  valid_stores text not null,
+  points_required int not null,
+  value text not null,
+  brand_color bigint not null,
+  description text not null default '',
+  rules text[] not null default '{}',
+  is_active boolean not null default true
+);
+
+create table user_points (
+  id bigserial primary key,
+  user_id bigint not null unique,
+  points int not null default 0,
+  updated_at timestamptz not null default now()
+);
+
+create table points_history (
+  id bigserial primary key,
+  user_id bigint not null,
+  source text not null,
+  points int not null,
+  date text not null,
+  is_earned boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+-- ---------- 7. RLS 策略（demo：anon token 全表读写） ----------
 alter table categories   enable row level security;
 alter table jobs         enable row level security;
 alter table users        enable row level security;
 alter table reviews      enable row level security;
 alter table conversations enable row level security;
 alter table messages     enable row level security;
+alter table donation_history enable row level security;
+alter table vouchers     enable row level security;
+alter table user_points  enable row level security;
+alter table points_history enable row level security;
 
 drop policy if exists "public read categories"   on categories;
 create policy "public read categories"   on categories   for select using (true);
@@ -137,6 +185,18 @@ create policy "public read conversations" on conversations for select using (tru
 drop policy if exists "public read messages"   on messages;
 create policy "public read messages"     on messages     for select using (true);
 
+drop policy if exists "public read donation_history" on donation_history;
+create policy "public read donation_history" on donation_history for select using (true);
+
+drop policy if exists "public read vouchers" on vouchers;
+create policy "public read vouchers" on vouchers for select using (true);
+
+drop policy if exists "public read user_points" on user_points;
+create policy "public read user_points" on user_points for select using (true);
+
+drop policy if exists "public read points_history" on points_history;
+create policy "public read points_history" on points_history for select using (true);
+
 drop policy if exists "public insert jobs"   on jobs;
 create policy "public insert jobs"          on jobs          for insert with check (true);
 
@@ -152,6 +212,15 @@ create policy "public insert conversations" on conversations for insert with che
 drop policy if exists "public insert messages"   on messages;
 create policy "public insert messages"      on messages      for insert with check (true);
 
+drop policy if exists "public insert donation_history" on donation_history;
+create policy "public insert donation_history" on donation_history for insert with check (true);
+
+drop policy if exists "public insert user_points" on user_points;
+create policy "public insert user_points" on user_points for insert with check (true);
+
+drop policy if exists "public insert points_history" on points_history;
+create policy "public insert points_history" on points_history for insert with check (true);
+
 drop policy if exists "public update jobs"   on jobs;
 create policy "public update jobs"          on jobs          for update using (true);
 
@@ -163,6 +232,9 @@ create policy "public update reviews"       on reviews       for update using (t
 
 drop policy if exists "public update conversations"   on conversations;
 create policy "public update conversations" on conversations for update using (true);
+
+drop policy if exists "public update user_points" on user_points;
+create policy "public update user_points" on user_points for update using (true);
 
 drop policy if exists "public delete jobs"   on jobs;
 create policy "public delete jobs" on jobs for delete using (true);
@@ -247,6 +319,18 @@ insert into reviews (reviewed_user_id, reviewer_user_id, rating, comment, job_id
   (1, 2, 5, 'Very clear instructions, paid on time.', 2),
   (2, 1, 4, 'Good work, but arrived a bit late.', 6),
   (3, 1, 5, 'Quick and creative designs!', 4);
+
+insert into vouchers (brand, title, valid_stores, points_required, value, brand_color, description, rules) values
+  ('KFC', 'KFC RM15 Voucher', 'Valid at all KFC outlets nationwide', 675, 'RM 15', 14935083, 'Get RM15 off your next KFC meal.', '{"Valid at all KFC outlets","Minimum purchase RM15","One-time use only","Not valid with other promotions"}'),
+  ('McDonald''s', 'McDonald''s RM10 Voucher', 'Valid at all McDonald''s restaurants', 450, 'RM 10', 16763180, 'Enjoy RM10 off your McDonald''s order.', '{"Valid at all McDonald''s outlets","Minimum purchase RM10","One-time use only","Not valid for McDelivery"}'),
+  ('Domino''s', 'Domino''s RM20 Voucher', 'Valid at all Domino''s Pizza outlets', 900, 'RM 20', 275361, 'Save RM20 on your Domino''s Pizza order.', '{"Valid at all Domino''s outlets","Minimum purchase RM20","One-time use only","Valid for pickup and delivery"}'),
+  ('Pizza Hut', 'Pizza Hut RM18 Voucher', 'Valid at all Pizza Hut restaurants', 810, 'RM 18', 14935083, 'Get RM18 off your Pizza Hut meal.', '{"Valid at all Pizza Hut outlets","Minimum purchase RM18","One-time use only","Not valid with other promos"}');
+
+insert into donation_history (user_id, organization, date, amount) values
+  (1, 'Penang Food Aid Foundation', '12 Aug 2026', 'RM 500'),
+  (1, 'Children Education Fund', '03 Aug 2026', 'RM 300'),
+  (1, 'Flood Relief Community', '15 Jul 2026', 'RM 1,000'),
+  (1, 'Old Folks Home Support', '28 Jun 2026', 'RM 200');
 
 -- ============================================================
 -- 完成后在 Dashboard 复制两样东西填进 App：

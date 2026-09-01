@@ -3,14 +3,20 @@ package com.example.microjob.viewmodel
 import android.app.Application
 import android.content.SharedPreferences
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.microjob.data.RepositoryProvider
 import com.example.microjob.model.DonationRecord
 import com.example.microjob.model.PointsHistoryEntry
+import com.example.microjob.model.UserPoints
 import com.example.microjob.model.VoucherItem
 import com.example.microjob.model.sampleDonations
 import com.example.microjob.model.sampleVouchers
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class SocialImpactUiState(
     val userPoints: Int = 0,
@@ -21,6 +27,7 @@ data class SocialImpactUiState(
     val pointsHistory: List<PointsHistoryEntry> = emptyList(),
     val gamesPlayedToday: Int = 0,
     val maxGamesPerDay: Int = 6,
+    val isLoading: Boolean = false,
 )
 
 class SocialImpactViewModel(
@@ -30,6 +37,8 @@ class SocialImpactViewModel(
     private val prefs: SharedPreferences =
         application.getSharedPreferences("game_prefs", 0)
 
+    private val repository = RepositoryProvider.socialImpactRepository(application)
+
     private val _uiState = MutableStateFlow(SocialImpactUiState())
     val uiState: StateFlow<SocialImpactUiState> = _uiState.asStateFlow()
 
@@ -38,9 +47,31 @@ class SocialImpactViewModel(
     fun setUserId(userId: Long) {
         if (currentUserId == userId) return
         currentUserId = userId
-        // Reset to initial state when switching accounts
         _uiState.value = SocialImpactUiState()
         loadGameCount()
+        loadData()
+    }
+
+    private fun loadData() {
+        val userId = currentUserId ?: return
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            try {
+                val donations = withContext(Dispatchers.IO) { repository.getDonationHistory(userId) }
+                val vouchers = withContext(Dispatchers.IO) { repository.getVouchers() }
+                val userPoints = withContext(Dispatchers.IO) { repository.getUserPoints(userId) }
+                val pointsHistory = withContext(Dispatchers.IO) { repository.getPointsHistory(userId) }
+                _uiState.value = _uiState.value.copy(
+                    donationHistory = donations.ifEmpty { sampleDonations },
+                    voucherList = vouchers.ifEmpty { sampleVouchers },
+                    userPoints = userPoints?.points ?: 0,
+                    pointsHistory = pointsHistory,
+                    isLoading = false
+                )
+            } catch (_: Exception) {
+                _uiState.value = _uiState.value.copy(isLoading = false)
+            }
+        }
     }
 
     private fun loadGameCount() {
@@ -72,8 +103,9 @@ class SocialImpactViewModel(
         val current = _uiState.value
         val cost = voucher.pointsRequired
         if (current.userPoints >= cost) {
+            val newPoints = current.userPoints - cost
             _uiState.value = current.copy(
-                userPoints = current.userPoints - cost,
+                userPoints = newPoints,
                 pointsHistory = current.pointsHistory + PointsHistoryEntry(
                     source = "Redeemed ${voucher.title}",
                     points = -cost,
@@ -81,13 +113,27 @@ class SocialImpactViewModel(
                     isEarned = false
                 )
             )
+            val userId = currentUserId ?: return
+            viewModelScope.launch {
+                withContext(Dispatchers.IO) {
+                    repository.upsertUserPoints(userId, newPoints)
+                    repository.addPointsHistory(PointsHistoryEntry(
+                        userId = userId,
+                        source = "Redeemed ${voucher.title}",
+                        points = -cost,
+                        date = "Today",
+                        isEarned = false
+                    ))
+                }
+            }
         }
     }
 
     fun earnPoints(source: String, points: Int) {
         val current = _uiState.value
+        val newPoints = current.userPoints + points
         _uiState.value = current.copy(
-            userPoints = current.userPoints + points,
+            userPoints = newPoints,
             pointsHistory = current.pointsHistory + PointsHistoryEntry(
                 source = source,
                 points = points,
@@ -95,5 +141,18 @@ class SocialImpactViewModel(
                 isEarned = true
             )
         )
+        val userId = currentUserId ?: return
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                repository.upsertUserPoints(userId, newPoints)
+                repository.addPointsHistory(PointsHistoryEntry(
+                    userId = userId,
+                    source = source,
+                    points = points,
+                    date = "Today",
+                    isEarned = true
+                ))
+            }
+        }
     }
 }

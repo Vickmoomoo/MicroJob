@@ -25,4 +25,11 @@ object RepositoryProvider {
         } else {
             LocalChatRepository(context)
         }
+
+    fun socialImpactRepository(context: Context): SocialImpactRepository =
+        if (SupabaseConfig.isConfigured) {
+            SupabaseSocialImpactRepository(context)
+        } else {
+            LocalSocialImpactRepository(context)
+        }
 }
