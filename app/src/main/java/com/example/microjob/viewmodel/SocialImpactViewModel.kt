@@ -69,7 +69,11 @@ class SocialImpactViewModel(
                     isLoading = false
                 )
             } catch (_: Exception) {
-                _uiState.value = _uiState.value.copy(isLoading = false)
+                _uiState.value = _uiState.value.copy(
+                    donationHistory = sampleDonations,
+                    voucherList = sampleVouchers,
+                    isLoading = false
+                )
             }
         }
     }

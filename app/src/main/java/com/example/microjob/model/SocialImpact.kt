@@ -4,6 +4,16 @@ import androidx.compose.ui.graphics.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+fun safeColor(hex: Long): Color {
+    return try {
+        val value = hex.toInt()
+        if (value == 0) Color.Gray
+        else Color(value or 0xFF000000.toInt())
+    } catch (_: Exception) {
+        Color.Gray
+    }
+}
+
 @Serializable
 data class DonationRecord(
     val id: Long = 0,
@@ -26,7 +36,7 @@ data class VoucherItem(
     val rules: List<String> = emptyList()
 ) {
     val brandColor: Color
-        get() = Color(brandColorHex.toULong())
+        get() = safeColor(brandColorHex)
 }
 
 @Serializable

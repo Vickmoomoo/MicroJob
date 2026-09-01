@@ -29,7 +29,7 @@ import java.time.OffsetDateTime
  * in realtime through the Realtime WebSocket channel (messages publication).
  */
 @Suppress("unused") // context kept for construction symmetry with LocalChatRepository
-class SupabaseChatRepository(private val context: Context) : ChatRepository {
+class       SupabaseChatRepository(private val context: Context) : ChatRepository {
 
     private val client = SupabaseClientHolder.client
     private val jobRepo by lazy { SupabaseJobRepository(context) }
