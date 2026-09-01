@@ -59,6 +59,7 @@ fun VideoPlayerScreen(
     Scaffold(
         topBar = {
             TopAppBar(
+                windowInsets = WindowInsets(0, 0, 0, 0),
                 title = { Text("Episode $episode / $totalEpisodes", fontSize = 16.sp) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

@@ -61,6 +61,13 @@ private fun categoryEmoji(job: Job): String =
 private fun formatDate(iso: String): String =
     runCatching { OffsetDateTime.parse(iso).toLocalDate().toString() }.getOrDefault(iso)
 
+/** Formats ISO-8601 into "yyyy-MM-dd HH:mm", or returns raw text. */
+private fun formatDateTime(iso: String): String =
+    runCatching {
+        val odt = OffsetDateTime.parse(iso)
+        "${odt.toLocalDate()} ${odt.toLocalTime().toString().substring(0, 5)}"
+    }.getOrDefault(iso)
+
 /**
  * Full-screen job detail page. Shows every field of the job plus a
  * poster row (avatar + name). Bottom navigation is hidden on this page.
@@ -216,29 +223,45 @@ private fun JobDetailContent(
             Spacer(Modifier.height(16.dp))
             HorizontalDivider()
 
-            // Location — tap to open Google Maps navigation from current position.
-            InfoRow(
-                icon = "📍",
-                label = "Location",
-                value = job.location,
-                onClick = {
-                    val query = Uri.encode(job.location)
-                    val intent = Intent(
-                        Intent.ACTION_VIEW,
-                        Uri.parse("https://www.google.com/maps/dir/?api=1&destination=$query")
-                    )
-                    context.startActivity(intent)
-                }
-            )
+            // Location — remote jobs just show "Remote" (not clickable), onsite opens Google Maps
+            if (job.jobType.equals("remote", ignoreCase = true)) {
+                InfoRow(
+                    icon = "📍",
+                    label = "Location",
+                    value = "Remote"
+                )
+            } else {
+                InfoRow(
+                    icon = "📍",
+                    label = "Location",
+                    value = job.location,
+                    onClick = {
+                        val query = Uri.encode(job.location)
+                        val intent = Intent(
+                            Intent.ACTION_VIEW,
+                            Uri.parse("https://www.google.com/maps/dir/?api=1&destination=$query")
+                        )
+                        context.startActivity(intent)
+                    }
+                )
+            }
             InfoRow(
                 icon = "🗣️",
                 label = "Recommended language",
                 value = job.language.ifBlank { "Not specified" }
             )
+            // Payment method removed per request
+            if (job.scheduledAt != null) {
+                InfoRow(
+                    icon = "📅",
+                    label = "Scheduled",
+                    value = formatDateTime(job.scheduledAt)
+                )
+            }
             InfoRow(
-                icon = "💳",
-                label = "Payment method",
-                value = job.paymentMethod
+                icon = "🕒",
+                label = "Posted",
+                value = formatDateTime(job.createdAt).ifBlank { "Just now" }
             )
             if (job.deadline != null) {
                 InfoRow(

@@ -107,11 +107,22 @@ fun ChatDetailScreen(
     val myId = vm.myId()
     val listState = rememberLazyListState()
 
-    // Open the conversation once; capture the conversation id for sending.
+    // Open the conversation; capture the conversation id for sending.
+    // Fix #3: key on otherUserId so re-entering after pop correctly re-subscribes
+    // to Realtime. The repository now uses a unique channel name per subscription
+    // to avoid name collision when the previous channel is still unsubscribing.
     var convId by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(otherUserId) {
         vm.openConversation(otherUserId) { id ->
             convId = id
+        }
+    }
+    androidx.compose.runtime.DisposableEffect(otherUserId) {
+        onDispose {
+            // Cancel per-conversation realtime so the channel can unsubscribe cleanly
+            // before a new channel with the same conversationId is created on re-enter.
+            // Global inbox realtime (for badge/list) stays alive in the ViewModel.
+            vm.clearConversationObservers()
         }
     }
     LaunchedEffect(messages.size) {

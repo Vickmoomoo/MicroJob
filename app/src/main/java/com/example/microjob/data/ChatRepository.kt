@@ -62,4 +62,17 @@ interface ChatRepository {
      * Lets the other side learn "invite accepted" without refreshing.
      */
     fun observeJobChanges(): Flow<Unit>
+
+    /**
+     * Emits Unit each time inbox data changes (new message or conversation update).
+     * Used for realtime unread badge and conversation list preview.
+     * Supabase: Realtime WebSocket on messages+conversations; local: never emits.
+     */
+    fun observeInbox(): Flow<Unit>
+
+    /** Emits Unit each time any message is inserted (global, for inbox). */
+    fun observeAllMessages(): Flow<Unit>
+
+    /** Emits Unit each time any conversation row changes (global, for inbox). */
+    fun observeConversations(): Flow<Unit>
 }

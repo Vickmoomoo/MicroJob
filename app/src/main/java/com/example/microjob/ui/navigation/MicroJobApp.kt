@@ -169,6 +169,9 @@ fun MicroJobApp() {
             currentRoute?.startsWith("my_job_detail") == true ||
             currentRoute?.startsWith("review_job") == true ||
             currentRoute == MicroJobRoutes.COURSE ||
+            currentRoute?.startsWith("course_detail") == true ||
+            currentRoute?.startsWith("video_player") == true ||
+            currentRoute?.startsWith("test_quiz") == true ||
             currentRoute == MicroJobRoutes.DONATION_HISTORY ||
             currentRoute == MicroJobRoutes.VOUCHER_REDEEM ||
             currentRoute?.startsWith("voucher_detail") == true ||

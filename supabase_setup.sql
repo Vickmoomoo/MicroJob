@@ -155,7 +155,8 @@ create table points_history (
   created_at timestamptz not null default now()
 );
 
--- ---------- 7. RLS 策略（demo：anon token 全表读写） ----------
+-- ---------- 7. RLS 策略（public 读 + authenticated 写，贴近朋友做法／正规） ----------
+-- 读：公开表谁都能看（anon + authenticated）；写：jobs/chat/users 等必须登录（authenticated）
 alter table categories   enable row level security;
 alter table jobs         enable row level security;
 alter table users        enable row level security;
@@ -167,98 +168,131 @@ alter table vouchers     enable row level security;
 alter table user_points  enable row level security;
 alter table points_history enable row level security;
 
+-- 清理旧 demo 策略（兼容旧名）
 drop policy if exists "public read categories"   on categories;
-create policy "public read categories"   on categories   for select using (true);
-
-drop policy if exists "public read jobs"   on jobs;
-create policy "public read jobs"         on jobs         for select using (true);
-
-drop policy if exists "public read users"   on users;
-create policy "public read users"        on users        for select using (true);
-
-drop policy if exists "public read reviews"   on reviews;
-create policy "public read reviews"      on reviews      for select using (true);
-
-drop policy if exists "public read conversations"   on conversations;
-create policy "public read conversations" on conversations for select using (true);
-
-drop policy if exists "public read messages"   on messages;
-create policy "public read messages"     on messages     for select using (true);
-
+drop policy if exists "public can read categories" on categories;
+drop policy if exists "public read jobs"         on jobs;
+drop policy if exists "public can read jobs" on jobs;
+drop policy if exists "authenticated can read jobs" on jobs;
+drop policy if exists "public read users"        on users;
+drop policy if exists "public can read users" on users;
+drop policy if exists "authenticated can read users" on users;
+drop policy if exists "public read reviews"      on reviews;
+drop policy if exists "public can read reviews" on reviews;
+drop policy if exists "public read conversations" on conversations;
+drop policy if exists "public can read conversations" on conversations;
+drop policy if exists "authenticated can read conversations" on conversations;
+drop policy if exists "public read messages"     on messages;
+drop policy if exists "public can read messages" on messages;
+drop policy if exists "authenticated can read messages" on messages;
 drop policy if exists "public read donation_history" on donation_history;
-create policy "public read donation_history" on donation_history for select using (true);
-
 drop policy if exists "public read vouchers" on vouchers;
-create policy "public read vouchers" on vouchers for select using (true);
-
+drop policy if exists "public can read vouchers" on vouchers;
 drop policy if exists "public read user_points" on user_points;
-create policy "public read user_points" on user_points for select using (true);
-
 drop policy if exists "public read points_history" on points_history;
-create policy "public read points_history" on points_history for select using (true);
-
-drop policy if exists "public insert jobs"   on jobs;
-create policy "public insert jobs"          on jobs          for insert with check (true);
-
-drop policy if exists "public insert users"   on users;
-create policy "public insert users"         on users         for insert with check (true);
-
-drop policy if exists "public insert reviews"   on reviews;
-create policy "public insert reviews"       on reviews       for insert with check (true);
-
-drop policy if exists "public insert conversations"   on conversations;
-create policy "public insert conversations" on conversations for insert with check (true);
-
-drop policy if exists "public insert messages"   on messages;
-create policy "public insert messages"      on messages      for insert with check (true);
-
+drop policy if exists "public insert jobs"          on jobs;
+drop policy if exists "public can insert jobs" on jobs;
+drop policy if exists "authenticated can insert jobs" on jobs;
+drop policy if exists "public insert users"         on users;
+drop policy if exists "public can insert users" on users;
+drop policy if exists "authenticated can insert own profile" on users;
+drop policy if exists "public insert reviews"       on reviews;
+drop policy if exists "authenticated can insert reviews" on reviews;
+drop policy if exists "public insert conversations" on conversations;
+drop policy if exists "authenticated can insert conversations" on conversations;
+drop policy if exists "public insert messages"      on messages;
+drop policy if exists "authenticated can insert messages" on messages;
 drop policy if exists "public insert donation_history" on donation_history;
-create policy "public insert donation_history" on donation_history for insert with check (true);
-
 drop policy if exists "public insert user_points" on user_points;
-create policy "public insert user_points" on user_points for insert with check (true);
-
 drop policy if exists "public insert points_history" on points_history;
-create policy "public insert points_history" on points_history for insert with check (true);
-
-drop policy if exists "public update jobs"   on jobs;
-create policy "public update jobs"          on jobs          for update using (true);
-
-drop policy if exists "public update users"   on users;
-create policy "public update users"         on users         for update using (true);
-
-drop policy if exists "public update reviews"   on reviews;
-create policy "public update reviews"       on reviews       for update using (true);
-
-drop policy if exists "public update conversations"   on conversations;
-create policy "public update conversations" on conversations for update using (true);
-
+drop policy if exists "public update jobs"          on jobs;
+drop policy if exists "public can update jobs" on jobs;
+drop policy if exists "authenticated can update jobs" on jobs;
+drop policy if exists "public update users"         on users;
+drop policy if exists "public can update users" on users;
+drop policy if exists "authenticated can update own profile" on users;
+drop policy if exists "authenticated can update users" on users;
+drop policy if exists "public update reviews"       on reviews;
+drop policy if exists "public update conversations" on conversations;
+drop policy if exists "authenticated can update conversations" on conversations;
 drop policy if exists "public update user_points" on user_points;
-create policy "public update user_points" on user_points for update using (true);
+drop policy if exists "public delete jobs" on jobs;
+drop policy if exists "authenticated can delete jobs" on jobs;
 
-drop policy if exists "public delete jobs"   on jobs;
-create policy "public delete jobs" on jobs for delete using (true);
+-- 读策略：公开表 public（anon + authenticated 谁都能读，首页不登录也能刷）
+create policy "public can read categories" on categories for select to anon, authenticated using (true);
+create policy "public can read vouchers"   on vouchers   for select to anon, authenticated using (true);
+create policy "public can read jobs"       on jobs       for select to anon, authenticated using (true);
+create policy "public can read users"      on users      for select to anon, authenticated using (true);
+create policy "public can read reviews"    on reviews    for select to anon, authenticated using (true);
+-- 私有表：只有登录能读（messages / conversations / points / donation_history）
+create policy "authenticated can read conversations" on conversations for select to authenticated using (true);
+create policy "authenticated can read messages"      on messages      for select to authenticated using (true);
+create policy "authenticated can read donation_history" on donation_history for select to authenticated using (true);
+create policy "authenticated can read user_points"   on user_points   for select to authenticated using (true);
+create policy "authenticated can read points_history" on points_history for select to authenticated using (true);
 
--- ---------- 7. Data API 权限（官方要求：给 anon/authenticated 角色授权） ----------
-grant select, insert, update, delete on all tables in schema public to anon;
-grant select, insert, update, delete on all tables in schema public to authenticated;
+-- 写策略：jobs / users / reviews / chat 必须登录（authenticated）
+create policy "authenticated can insert jobs" on jobs for insert to authenticated with check (true);
+create policy "authenticated can update jobs" on jobs for update to authenticated using (true) with check (true);
+create policy "authenticated can delete jobs" on jobs for delete to authenticated using (true);
+
+-- users：注册时 anon 也需能 insert（兼容旧 App 明文注册），登录后 update 必须 authenticated
+create policy "public can insert users" on users for insert to anon, authenticated with check (true);
+create policy "authenticated can update users" on users for update to authenticated using (true) with check (true);
+
+create policy "authenticated can insert reviews" on reviews for insert to authenticated with check (true);
+create policy "authenticated can update reviews" on reviews for update to authenticated using (true) with check (true);
+create policy "authenticated can delete reviews" on reviews for delete to authenticated using (true);
+
+create policy "authenticated can insert conversations" on conversations for insert to authenticated with check (true);
+create policy "authenticated can update conversations" on conversations for update to authenticated using (true) with check (true);
+create policy "authenticated can insert messages" on messages for insert to authenticated with check (true);
+
+create policy "authenticated can insert donation_history" on donation_history for insert to authenticated with check (true);
+create policy "authenticated can insert user_points" on user_points for insert to authenticated with check (true);
+create policy "authenticated can update user_points" on user_points for update to authenticated using (true) with check (true);
+create policy "authenticated can insert points_history" on points_history for insert to authenticated with check (true);
+
+-- 找回密码 RPC：security definer，允许 anon 调用（已校验安全问题才放行）
+create or replace function reset_password_by_security_question(p_username text, p_question text, p_answer text, p_new_password text)
+returns boolean language plpgsql security definer as $$
+declare v_id bigint;
+begin
+  select id into v_id from public.users
+  where (username ilike p_username or email ilike p_username)
+    and security_question = p_question
+    and security_answer ilike p_answer;
+  if v_id is null then return false; end if;
+  update public.users set password = p_new_password where id = v_id;
+  return true;
+end; $$;
+grant execute on function reset_password_by_security_question(text,text,text,text) to anon, authenticated;
+
+-- ---------- 7b. Data API 权限（细粒度授权，贴近正规） ----------
+-- 公开读：anon 只能 select 公开表
+grant select on categories, vouchers, jobs, users, reviews to anon;
+grant select, insert, update, delete on categories, vouchers, jobs, users, reviews to authenticated;
+-- 私有表：仅 authenticated
+grant select, insert, update, delete on conversations, messages, donation_history, user_points, points_history to authenticated;
 grant all on all tables in schema public to service_role;
 grant usage on schema public to anon, authenticated;
 grant usage, select on all sequences in schema public to anon, authenticated;
 
--- ---------- 8. Storage：job-images 桶（public）+ 上传/读取策略 ----------
+-- ---------- 8. Storage：job-images 桶（public 读 + authenticated 上传） ----------
 insert into storage.buckets (id, name, public)
   values ('job-images', 'job-images', true)
   on conflict (id) do nothing;
 
 drop policy if exists "public upload job images" on storage.objects;
-create policy "public upload job images"
-  on storage.objects for insert
+drop policy if exists "authenticated upload job images" on storage.objects;
+create policy "authenticated upload job images"
+  on storage.objects for insert to authenticated
   with check (bucket_id = 'job-images');
 
 drop policy if exists "public read job images" on storage.objects;
 create policy "public read job images"
-  on storage.objects for select
+  on storage.objects for select to anon, authenticated
   using (bucket_id = 'job-images');
 
 -- ---------- 9. Realtime：让 chat 能订阅（messages + conversations + jobs） ----------

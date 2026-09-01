@@ -176,24 +176,29 @@ class       SupabaseChatRepository(private val context: Context) : ChatRepositor
      * used — supabase-kt 3.5.0 drops events whose filter `PostgresJoinConfig`
      * does not match the (filter-less) server reply, which would silently
      * kill per-conversation subscriptions.
+     *
+     * Fix bug #3: use a unique channel name per subscription (UUID suffix) so
+     * re-entering the same conversation after leaving does not collide with
+     * the previous channel that may still be unsubscribing.
      */
     override fun observeMessages(conversationId: String): Flow<Unit> = channelFlow {
-        val channel = client.channel("messages-$conversationId")
+        val channelName = "messages-$conversationId-${java.util.UUID.randomUUID()}"
+        val channel = client.channel(channelName)
         val events = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
             table = "messages"
         }
         launch {
             channel.status.collect {
-                android.util.Log.d("MicroJobSB", "messages channel status=$it")
+                android.util.Log.d("MicroJobSB", "messages channel status=$it name=$channelName")
             }
         }
         // NOTE: postgresChangeFlow must be registered BEFORE subscribe(),
         // and subscribe() is what actually joins the WebSocket channel.
         try {
             channel.subscribe()
-            android.util.Log.d("MicroJobSB", "messages channel subscribed")
+            android.util.Log.d("MicroJobSB", "messages channel subscribed name=$channelName")
         } catch (t: Throwable) {
-            android.util.Log.d("MicroJobSB", "messages channel subscribe FAILED", t)
+            android.util.Log.d("MicroJobSB", "messages channel subscribe FAILED name=$channelName", t)
             throw t
         }
         val job = launch { events.collect { send(Unit) } }
@@ -208,20 +213,92 @@ class       SupabaseChatRepository(private val context: Context) : ChatRepositor
      * payment released), so job-invite / payment cards update on both sides.
      */
     override fun observeJobChanges(): Flow<Unit> = channelFlow {
-        val channel = client.channel("jobs-channel")
+        val channelName = "jobs-${java.util.UUID.randomUUID()}"
+        val channel = client.channel(channelName)
         val events = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
             table = "jobs"
         }
         try {
             channel.subscribe()
-            android.util.Log.d("MicroJobSB", "jobs channel subscribed")
+            android.util.Log.d("MicroJobSB", "jobs channel subscribed name=$channelName")
         } catch (t: Throwable) {
-            android.util.Log.d("MicroJobSB", "jobs channel subscribe FAILED", t)
+            android.util.Log.d("MicroJobSB", "jobs channel subscribe FAILED name=$channelName", t)
             throw t
         }
         val job = launch { events.collect { send(Unit) } }
         awaitClose {
             job.cancel()
+            launch { channel.unsubscribe() }
+        }
+    }
+
+    /** Realtime inbox: emits when any message is inserted (global). */
+    override fun observeAllMessages(): Flow<Unit> = channelFlow {
+        val channelName = "messages-global-${java.util.UUID.randomUUID()}"
+        val channel = client.channel(channelName)
+        val events = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+            table = "messages"
+        }
+        try {
+            channel.subscribe()
+            android.util.Log.d("MicroJobSB", "messages-global channel subscribed name=$channelName")
+        } catch (t: Throwable) {
+            android.util.Log.d("MicroJobSB", "messages-global subscribe FAILED", t)
+            throw t
+        }
+        val job = launch { events.collect { send(Unit) } }
+        awaitClose {
+            job.cancel()
+            launch { channel.unsubscribe() }
+        }
+    }
+
+    /** Realtime inbox: emits when any conversation row changes (preview/unread). */
+    override fun observeConversations(): Flow<Unit> = channelFlow {
+        val channelName = "conversations-global-${java.util.UUID.randomUUID()}"
+        val channel = client.channel(channelName)
+        val events = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+            table = "conversations"
+        }
+        try {
+            channel.subscribe()
+            android.util.Log.d("MicroJobSB", "conversations-global channel subscribed name=$channelName")
+        } catch (t: Throwable) {
+            android.util.Log.d("MicroJobSB", "conversations-global subscribe FAILED", t)
+            throw t
+        }
+        val job = launch { events.collect { send(Unit) } }
+        awaitClose {
+            job.cancel()
+            launch { channel.unsubscribe() }
+        }
+    }
+
+    /**
+     * Realtime inbox: emits on any message OR conversation change.
+     * Single subscription covering both tables – used for unread badge + list preview.
+     */
+    override fun observeInbox(): Flow<Unit> = channelFlow {
+        val channelName = "inbox-global-${java.util.UUID.randomUUID()}"
+        val channel = client.channel(channelName)
+        val msgEvents = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+            table = "messages"
+        }
+        val convEvents = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+            table = "conversations"
+        }
+        try {
+            channel.subscribe()
+            android.util.Log.d("MicroJobSB", "inbox channel subscribed name=$channelName")
+        } catch (t: Throwable) {
+            android.util.Log.d("MicroJobSB", "inbox channel subscribe FAILED", t)
+            throw t
+        }
+        val j1 = launch { msgEvents.collect { send(Unit) } }
+        val j2 = launch { convEvents.collect { send(Unit) } }
+        awaitClose {
+            j1.cancel()
+            j2.cancel()
             launch { channel.unsubscribe() }
         }
     }

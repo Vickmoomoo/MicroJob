@@ -7,8 +7,11 @@ import com.example.microjob.data.JobRepository
 import com.example.microjob.data.PasswordResetResult
 import com.example.microjob.data.RepositoryProvider
 import com.example.microjob.data.SessionManager
+import com.example.microjob.data.SupabaseClientHolder
 import com.example.microjob.model.SampleData
 import com.example.microjob.model.User
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -55,27 +58,42 @@ class AuthViewModel(
     val currentUser: StateFlow<User?> = _currentUser.asStateFlow()
 
     @Suppress("unused")
-    val isLoggedIn: Boolean get() = session.isLoggedIn
+    val isLoggedIn: Boolean get() = session.isLoggedIn || runCatching { SupabaseClientHolder.client.auth.currentSessionOrNull() != null }.getOrDefault(false)
 
     /** Security questions reloaded every time the screen opens. */
     val securityQuestions: List<String> get() = SampleData.securityQuestions
 
-    /** Loads the current user from the session if any. */
+    /** Loads the current user from the session if any. Prioritizes Supabase Auth session (authenticated). */
     fun loadCurrentUser() {
-        val id = session.currentUserId ?: return
         viewModelScope.launch {
             try {
+                val authUser = try {
+                    withContext(Dispatchers.IO) { SupabaseClientHolder.client.auth.currentUserOrNull() }
+                } catch (_: Exception) { null }
+                if (authUser?.email != null) {
+                    val profile = try {
+                        withContext(Dispatchers.IO) {
+                            SupabaseClientHolder.client.from("users").select {
+                                filter { eq("email", authUser.email!!) }
+                                limit(1L)
+                            }.decodeSingleOrNull<User>()
+                        }
+                    } catch (_: Exception) { null }
+                    if (profile != null) {
+                        session.currentUserId = profile.id
+                        _currentUser.value = profile
+                        return@launch
+                    }
+                }
+                val id = session.currentUserId ?: return@launch
                 val user = withContext(Dispatchers.IO) { repository.getUser(id) }
                 if (user != null) {
                     _currentUser.value = user
                 } else {
-                    // The session points at a user that no longer exists —
-                    // clear the stale session so login checks work again.
                     session.currentUserId = null
                     _currentUser.value = null
                 }
             } catch (_: Exception) {
-                // session may point at a deleted user; ignore
                 _currentUser.value = null
             }
         }
@@ -233,10 +251,11 @@ class AuthViewModel(
     }
 
     fun logout() {
+        viewModelScope.launch {
+            try { withContext(Dispatchers.IO) { SupabaseClientHolder.client.auth.signOut() } } catch (_: Exception) {}
+        }
         session.logout()
         _currentUser.value = null
-        // Clear every form field so the login/register screens start empty
-        // the next time they are opened.
         username.value = ""
         password.value = ""
         confirmPassword.value = ""

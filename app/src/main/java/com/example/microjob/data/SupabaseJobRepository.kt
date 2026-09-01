@@ -6,9 +6,14 @@ import com.example.microjob.model.Job
 import com.example.microjob.model.Review
 import com.example.microjob.model.User
 import io.github.jan.supabase.createSupabaseClient
+import io.github.jan.supabase.auth.Auth
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Order
+import io.github.jan.supabase.postgrest.rpc
 import io.github.jan.supabase.realtime.Realtime
 import io.github.jan.supabase.storage.Storage
 import io.github.jan.supabase.storage.storage
@@ -16,7 +21,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.time.OffsetDateTime
 
-/** Shared Supabase client (one connection, used by job + chat repositories). */
+/** Shared Supabase client (one connection, used by job + chat + auth repositories). */
 internal object SupabaseClientHolder {
     val client by lazy {
         createSupabaseClient(
@@ -26,6 +31,10 @@ internal object SupabaseClientHolder {
             install(Postgrest)
             install(Storage)
             install(Realtime)
+            install(Auth) {
+                autoLoadFromStorage = true
+                autoSaveToStorage = true
+            }
         }
     }
 }
@@ -111,7 +120,6 @@ class SupabaseJobRepository(private val context: Context) : JobRepository {
         securityQuestion: String,
         securityAnswer: String
     ): User {
-        // Username & email must be unique (case-insensitive).
         val existing = client.from("users").select {
             filter {
                 or { ilike("username", username); ilike("email", email) }
@@ -123,7 +131,17 @@ class SupabaseJobRepository(private val context: Context) : JobRepository {
         if (existing.any { it.email.equals(email, ignoreCase = true) }) {
             throw IllegalArgumentException("Email already registered.")
         }
-
+        try {
+            client.auth.signUpWith(Email) {
+                this.email = email.trim()
+                this.password = password
+            }
+        } catch (e: Exception) {
+            val msg = e.message ?: ""
+            if (msg.contains("already registered", ignoreCase = true) || msg.contains("User already", ignoreCase = true)) {
+                throw IllegalArgumentException("Email already registered.")
+            }
+        }
         val input = UserInput(
             name = username.trim(),
             username = username.trim(),
@@ -136,13 +154,33 @@ class SupabaseJobRepository(private val context: Context) : JobRepository {
         return client.from("users").insert(input) { select() }.decodeSingle<User>()
     }
 
-    override suspend fun login(username: String, password: String): User? = client
-        .from("users")
-        .select {
-            filter { ilike("username", username); eq("password", password) }
-            limit(1L)
+    override suspend fun login(username: String, password: String): User? {
+        val isEmail = username.contains("@")
+        val email = if (isEmail) {
+            username.trim()
+        } else {
+            val profile = client.from("users").select {
+                filter { ilike("username", username.trim()) }
+                limit(1L)
+            }.decodeSingleOrNull<User>() ?: return null
+            profile.email
         }
-        .decodeSingleOrNull<User>()
+        try {
+            client.auth.signInWith(Email) {
+                this.email = email
+                this.password = password
+            }
+        } catch (_: Exception) {
+            return client.from("users").select {
+                filter { ilike("username", username.trim()); eq("password", password) }
+                limit(1L)
+            }.decodeSingleOrNull<User>()
+        }
+        return client.from("users").select {
+            filter { ilike("email", email) }
+            limit(1L)
+        }.decodeSingleOrNull<User>()
+    }
 
     override suspend fun resetPassword(
         usernameOrEmail: String,
@@ -162,10 +200,27 @@ class SupabaseJobRepository(private val context: Context) : JobRepository {
         }.decodeSingleOrNull<User>()
         if (target == null) return PasswordResetResult.INVALID_DETAILS
         if (target.password == newPassword) return PasswordResetResult.SAME_AS_CURRENT_PASSWORD
-
-        client.from("users").update({ set("password", newPassword) }) {
-            filter { eq("id", target.id) }
+        try {
+            client.postgrest.rpc(
+                "reset_password_by_security_question",
+                mapOf(
+                    "p_username" to usernameOrEmail.trim(),
+                    "p_question" to securityQuestion,
+                    "p_answer" to securityAnswer.trim(),
+                    "p_new_password" to newPassword
+                )
+            )
+        } catch (_: Exception) {
+            client.from("users").update({ set("password", newPassword) }) {
+                filter { eq("id", target.id) }
+            }
         }
+        try {
+            val currentUser = try { client.auth.currentUserOrNull() } catch (_: Exception) { null }
+            if (currentUser?.email?.equals(target.email, ignoreCase = true) == true) {
+                client.auth.updateUser { password = newPassword }
+            }
+        } catch (_: Exception) {}
         return PasswordResetResult.SUCCESS
     }
 

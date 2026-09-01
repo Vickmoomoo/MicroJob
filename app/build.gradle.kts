@@ -58,6 +58,7 @@ dependencies {
     implementation(libs.supabase.postgrest)
     implementation(libs.supabase.realtime)
     implementation(libs.supabase.storage)
+    implementation(libs.supabase.auth)
     implementation(libs.ktor.client.okhttp)
     implementation(libs.kotlinx.coroutines.android)
     testImplementation(libs.junit)

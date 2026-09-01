@@ -7,6 +7,7 @@ import com.example.microjob.model.Job
 import com.example.microjob.model.Message
 import com.example.microjob.model.User
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -158,4 +159,11 @@ class LocalChatRepository(private val context: Context) : ChatRepository {
 
     /** Local mode has no push channel — emit once so the UI refreshes once. */
     override fun observeJobChanges(): Flow<Unit> = flowOf(Unit)
+
+    /** Local mode has no realtime inbox — never emits. */
+    override fun observeInbox(): Flow<Unit> = emptyFlow()
+
+    override fun observeAllMessages(): Flow<Unit> = emptyFlow()
+
+    override fun observeConversations(): Flow<Unit> = emptyFlow()
 }

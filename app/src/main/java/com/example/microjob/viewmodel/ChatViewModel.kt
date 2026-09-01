@@ -66,6 +66,40 @@ class ChatViewModel(
 
     init {
         loadUsers()
+        startInboxObserving()
+    }
+
+    /** Global inbox realtime job for unread badge + conversation list. */
+    private var inboxObserveJob: kotlinx.coroutines.Job? = null
+
+    /** Starts (or restarts) the global inbox realtime subscription. */
+    fun startInboxObserving() {
+        inboxObserveJob?.cancel()
+        inboxObserveJob = viewModelScope.launch {
+            try {
+                repository.observeInbox().collect {
+                    loadConversations()
+                    refreshUnreadCount()
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // inbox realtime is best-effort; manual refresh still works
+            }
+        }
+    }
+
+    fun stopInboxObserving() {
+        inboxObserveJob?.cancel()
+        inboxObserveJob = null
+    }
+
+    /** Clears per-conversation realtime jobs (called when leaving ChatDetail). */
+    fun clearConversationObservers() {
+        messageObserveJob?.cancel()
+        messageObserveJob = null
+        jobObserveJob?.cancel()
+        jobObserveJob = null
     }
 
     private fun loadUsers() {
@@ -274,7 +308,9 @@ class ChatViewModel(
                     repository.sendMessage(optimistic.copy(id = "", images = listOf(url)))
                 }
                 // 3. Swap the optimistic bubble for the stored one.
-                _messages.value = _messages.value.filterNot { it.id == optimistic.id } + stored
+                // Fix #1: also filter out stored.id to avoid duplicate when
+                // realtime's loadMessagesInto already inserted the server copy.
+                _messages.value = _messages.value.filterNot { it.id == optimistic.id || it.id == stored.id } + stored
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -331,7 +367,10 @@ class ChatViewModel(
                 }
                 // Swap the optimistic bubble for the stored one (single state
                 // update so the list does not flicker).
-                _messages.value = _messages.value.filterNot { it.id == optimistic.id } + stored
+                // Fix #1: also filter out stored.id to avoid duplicate when
+                // realtime's loadMessagesInto already inserted the server copy
+                // (race between send()'s swap and the realtime reload).
+                _messages.value = _messages.value.filterNot { it.id == optimistic.id || it.id == stored.id } + stored
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
