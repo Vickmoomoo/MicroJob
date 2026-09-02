@@ -4,19 +4,18 @@ import com.example.microjob.model.Certificate
 import com.example.microjob.model.Course
 import com.example.microjob.model.CourseCategory
 import io.github.jan.supabase.postgrest.from
-import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-private data class CourseCategoryRow(
+internal data class CourseCategoryRow(
     val id: Int,
     val name: String,
     val emoji: String
 )
 
 @Serializable
-private data class CourseRow(
+internal data class CourseRow(
     val id: Int,
     @SerialName("category_id") val categoryId: Int,
     val title: String,
@@ -27,7 +26,7 @@ private data class CourseRow(
 )
 
 @Serializable
-private data class CourseProgressRow(
+internal data class CourseProgressRow(
     val id: Long,
     @SerialName("user_id") val userId: Long,
     @SerialName("course_id") val courseId: Int,
@@ -38,7 +37,7 @@ private data class CourseProgressRow(
 )
 
 @Serializable
-private data class CourseCertificateRow(
+internal data class CourseCertificateRow(
     val id: Long,
     @SerialName("user_id") val userId: Long,
     @SerialName("course_id") val courseId: Int,
@@ -82,7 +81,7 @@ object SupabaseCourseRepository {
     }
 
     /** Get or create progress for a user + course. */
-    suspend fun getProgress(userId: Long, courseId: Int): CourseProgressRow? {
+    internal suspend fun getProgress(userId: Long, courseId: Int): CourseProgressRow? {
         return client.from("course_progress")
             .select {
                 filter {
@@ -95,7 +94,7 @@ object SupabaseCourseRepository {
     }
 
     /** Get all progress entries for a user. */
-    suspend fun getAllProgress(userId: Long): List<CourseProgressRow> {
+    internal suspend fun getAllProgress(userId: Long): List<CourseProgressRow> {
         return client.from("course_progress")
             .select {
                 filter { eq("user_id", userId) }
