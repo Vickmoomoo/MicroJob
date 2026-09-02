@@ -11,6 +11,7 @@ import com.example.microjob.data.SupabaseClientHolder
 import com.example.microjob.model.SampleData
 import com.example.microjob.model.User
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -163,11 +164,33 @@ class AuthViewModel(
                             securityAnswer = securityAnswer.value.trim()
                         )
                     }
+                    // Sign up with Supabase Auth for RLS
+                    try {
+                        withContext(Dispatchers.IO) {
+                            SupabaseClientHolder.client.auth.signUpWith(Email) {
+                                email = email.value.trim()
+                                this.password = password.value
+                            }
+                        }
+                    } catch (_: Exception) {
+                        // Supabase Auth sign-up failed, continue with app registration
+                    }
                     _uiState.value = AuthUiState.Registered
                 } else {
                     val user = withContext(Dispatchers.IO) {
                         repository.login(username.value.trim(), password.value)
                             ?: throw IllegalArgumentException("Wrong username or password.")
+                    }
+                    // Sign in with Supabase Auth for RLS
+                    try {
+                        withContext(Dispatchers.IO) {
+                            SupabaseClientHolder.client.auth.signInWith(Email) {
+                                email = user.email
+                                this.password = password.value
+                            }
+                        }
+                    } catch (_: Exception) {
+                        // Supabase Auth sign-in failed, continue with app login
                     }
                     session.currentUserId = user.id
                     _currentUser.value = user

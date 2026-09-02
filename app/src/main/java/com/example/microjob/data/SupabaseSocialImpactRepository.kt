@@ -6,8 +6,9 @@ import com.example.microjob.model.PointsHistoryEntry
 import com.example.microjob.model.UserPoints
 import com.example.microjob.model.VoucherItem
 import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.postgrest.from
-import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -16,6 +17,45 @@ class SupabaseSocialImpactRepository(
 ) : SocialImpactRepository {
 
     private val client: SupabaseClient by lazy { SupabaseClientHolder.client }
+
+    /**
+     * Sign in with Supabase Auth using email/password.
+     * This creates an authenticated session so RLS policies work.
+     * Called once when the user logs into the app.
+     */
+    suspend fun signIn(email: String, password: String): Boolean {
+        return try {
+            client.auth.signInWith(Email) {
+                this.email = email
+                this.password = password
+            }
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    /**
+     * Sign up a new user with Supabase Auth.
+     */
+    suspend fun signUp(email: String, password: String): Boolean {
+        return try {
+            client.auth.signUpWith(Email) {
+                this.email = email
+                this.password = password
+            }
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    /**
+     * Check if user is currently authenticated.
+     */
+    fun isAuthenticated(): Boolean {
+        return client.auth.currentSessionOrNull() != null
+    }
 
     override suspend fun getDonationHistory(userId: Long): List<DonationRecord> {
         return try {
@@ -67,7 +107,7 @@ class SupabaseSocialImpactRepository(
             val existing = getUserPoints(userId)
             if (existing != null) {
                 client.from("user_points")
-                    .update(mapOf("points" to points, "user_id" to userId)) {
+                    .update(mapOf("points" to points)) {
                         filter { eq("user_id", userId) }
                     }
             } else {
