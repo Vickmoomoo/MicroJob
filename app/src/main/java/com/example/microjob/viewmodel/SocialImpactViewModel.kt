@@ -59,14 +59,14 @@ class SocialImpactViewModel(
             _uiState.value = _uiState.value.copy(isLoading = true)
             try {
                 val communityImpact = withContext(Dispatchers.IO) { repository.getCommunityImpact() }
-                val donations = withContext(Dispatchers.IO) { repository.getDonationHistory(userId) }
+                val allDonations = withContext(Dispatchers.IO) { repository.getAllDonationHistory() }
                 val vouchers = withContext(Dispatchers.IO) { repository.getVouchers() }
                 val userPoints = withContext(Dispatchers.IO) { repository.getUserPoints(userId) }
                 val pointsHistory = withContext(Dispatchers.IO) { repository.getPointsHistory(userId) }
                 _uiState.value = _uiState.value.copy(
                     peopleHelped = communityImpact?.peopleHelped ?: 0,
                     totalDonated = communityImpact?.totalDonated ?: "RM 0",
-                    donationHistory = donations.ifEmpty { sampleDonations },
+                    donationHistory = allDonations.ifEmpty { sampleDonations },
                     voucherList = vouchers.ifEmpty { sampleVouchers },
                     userPoints = userPoints?.points ?: 0,
                     pointsHistory = pointsHistory,

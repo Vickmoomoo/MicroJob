@@ -21,11 +21,28 @@ class SupabaseSocialImpactRepository(
 
     override suspend fun getCommunityImpact(): CommunityImpact? {
         return try {
-            client.from("community_impact")
+            // Calculate total donated from actual donation records
+            val allDonations = client.from("donation_history")
                 .select()
-                .decodeList<CommunityImpactDto>()
-                .firstOrNull()
-                ?.let { CommunityImpact(id = it.id, peopleHelped = it.peopleHelped, totalDonated = it.totalDonated) }
+                .decodeList<DonationRecordDto>()
+            
+            val totalDonated = allDonations.sumOf { record ->
+                record.amount.replace("RM ", "").replace(",", "").toDoubleOrNull() ?: 0.0
+            }
+            
+            val peopleHelped = allDonations.map { it.userId }.distinct().size
+            
+            val formattedTotal = if (totalDonated >= 1000) {
+                "RM ${"%,.0f".format(totalDonated)}"
+            } else {
+                "RM ${"%.0f".format(totalDonated)}"
+            }
+            
+            CommunityImpact(
+                id = 1,
+                peopleHelped = peopleHelped,
+                totalDonated = formattedTotal
+            )
         } catch (e: Exception) {
             null
         }
@@ -89,6 +106,17 @@ class SupabaseSocialImpactRepository(
         return try {
             client.from("donation_history")
                 .select { filter { eq("user_id", userId) } }
+                .decodeList<DonationRecordDto>()
+                .map { it.toDonationRecord() }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    override suspend fun getAllDonationHistory(): List<DonationRecord> {
+        return try {
+            client.from("donation_history")
+                .select()
                 .decodeList<DonationRecordDto>()
                 .map { it.toDonationRecord() }
         } catch (e: Exception) {

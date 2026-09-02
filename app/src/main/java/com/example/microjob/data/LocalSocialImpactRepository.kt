@@ -52,7 +52,32 @@ class LocalSocialImpactRepository(
         }
     }
 
+    override suspend fun getAllDonationHistory(): List<DonationRecord> {
+        // Get all donations from all users stored locally
+        val allJson = prefs.getString("all_donations", null)
+        return if (allJson != null) {
+            try {
+                val arr = JSONArray(allJson)
+                (0 until arr.length()).map { i ->
+                    val obj = arr.getJSONObject(i)
+                    DonationRecord(
+                        id = obj.getLong("id"),
+                        userId = obj.getLong("userId"),
+                        organization = obj.getString("organization"),
+                        date = obj.getString("date"),
+                        amount = obj.getString("amount")
+                    )
+                }
+            } catch (_: Exception) {
+                sampleDonations
+            }
+        } else {
+            sampleDonations
+        }
+    }
+
     override suspend fun addDonationHistory(record: DonationRecord) {
+        // Save to user-specific list
         val current = getDonationHistory(record.userId).toMutableList()
         current.add(record)
         val arr = JSONArray()
@@ -67,6 +92,22 @@ class LocalSocialImpactRepository(
             arr.put(obj)
         }
         prefs.edit().putString("donations_${record.userId}", arr.toString()).apply()
+        
+        // Also save to all_donations list
+        val allCurrent = getAllDonationHistory().toMutableList()
+        allCurrent.add(record)
+        val allArr = JSONArray()
+        allCurrent.forEach { r ->
+            val obj = org.json.JSONObject().apply {
+                put("id", r.id)
+                put("userId", r.userId)
+                put("organization", r.organization)
+                put("date", r.date)
+                put("amount", r.amount)
+            }
+            allArr.put(obj)
+        }
+        prefs.edit().putString("all_donations", allArr.toString()).apply()
     }
 
     override suspend fun getVouchers(): List<VoucherItem> {

@@ -10,6 +10,7 @@ interface SocialImpactRepository {
     suspend fun getCommunityImpact(): CommunityImpact?
     suspend fun updateCommunityImpact(peopleHelped: Int, totalDonated: String)
     suspend fun getDonationHistory(userId: Long): List<DonationRecord>
+    suspend fun getAllDonationHistory(): List<DonationRecord>
     suspend fun addDonationHistory(record: DonationRecord)
     suspend fun getVouchers(): List<VoucherItem>
     suspend fun getUserPoints(userId: Long): UserPoints?
