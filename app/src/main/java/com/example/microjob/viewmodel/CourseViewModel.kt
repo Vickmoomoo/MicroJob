@@ -1,6 +1,10 @@
 package com.example.microjob.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.microjob.data.SessionManager
+import com.example.microjob.data.SupabaseCourseRepository
 import com.example.microjob.model.Certificate
 import com.example.microjob.model.Course
 import com.example.microjob.model.CourseCategory
@@ -8,27 +12,87 @@ import com.example.microjob.model.sampleCourseCategories
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.util.Locale
+import kotlinx.coroutines.launch
 
-class CourseViewModel : ViewModel() {
+class CourseViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val _categories = MutableStateFlow(sampleCourseCategories)
+    private val session = SessionManager(application)
+
+    private val _categories = MutableStateFlow<List<CourseCategory>>(sampleCourseCategories)
     val categories: StateFlow<List<CourseCategory>> = _categories.asStateFlow()
 
     private val _certificates = MutableStateFlow<List<Certificate>>(emptyList())
     val certificates: StateFlow<List<Certificate>> = _certificates.asStateFlow()
 
-    // Track watched episodes per course: courseId -> set of episode numbers
     private val _watchedEpisodes = MutableStateFlow<Map<Int, Set<Int>>>(emptyMap())
     val watchedEpisodes: StateFlow<Map<Int, Set<Int>>> = _watchedEpisodes.asStateFlow()
 
-    // Track test completion per course: courseId -> Boolean
     private val _testCompleted = MutableStateFlow<Map<Int, Boolean>>(emptyMap())
     val testCompleted: StateFlow<Map<Int, Boolean>> = _testCompleted.asStateFlow()
 
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    init {
+        loadFromSupabase()
+    }
+
+    private fun loadFromSupabase() {
+        val userId = session.currentUserId ?: return
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                // Load categories + courses
+                val cats = SupabaseCourseRepository.getCategories()
+                if (cats.isNotEmpty()) {
+                    _categories.value = cats
+                }
+
+                // Load user progress
+                val progressList = SupabaseCourseRepository.getAllProgress(userId)
+                val watched = mutableMapOf<Int, Set<Int>>()
+                val tests = mutableMapOf<Int, Boolean>()
+
+                progressList.forEach { p ->
+                    if (p.watchedEpisodes.isNotEmpty()) {
+                        watched[p.courseId] = p.watchedEpisodes.toSet()
+                    }
+                    if (p.testCompleted) {
+                        tests[p.courseId] = true
+                    }
+                }
+                _watchedEpisodes.value = watched
+                _testCompleted.value = tests
+
+                // Update enrolled + progress on courses
+                _categories.value = _categories.value.map { cat ->
+                    cat.copy(
+                        courses = cat.courses.map { course ->
+                            val progress = progressList.find { it.courseId == course.id }
+                            if (progress != null) {
+                                course.copy(
+                                    enrolled = progress.enrolled,
+                                    progress = progress.progress
+                                )
+                            } else course
+                        }
+                    )
+                }
+
+                // Load certificates
+                _certificates.value = SupabaseCourseRepository.getCertificates(userId)
+            } catch (_: Exception) {
+                // Fallback to local sample data
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
     fun startCourse(courseId: Int) {
+        val userId = session.currentUserId
+
+        // Update local state immediately
         _categories.value = _categories.value.map { cat ->
             cat.copy(
                 courses = cat.courses.map { course ->
@@ -38,21 +102,55 @@ class CourseViewModel : ViewModel() {
                 }
             )
         }
+
+        // Sync to Supabase
+        if (userId != null) {
+            viewModelScope.launch {
+                try {
+                    SupabaseCourseRepository.startCourse(userId, courseId)
+                } catch (_: Exception) {}
+            }
+        }
     }
 
     fun markEpisodeWatched(courseId: Int, episode: Int) {
+        val userId = session.currentUserId
         val current = _watchedEpisodes.value[courseId] ?: emptySet()
         _watchedEpisodes.value = _watchedEpisodes.value + (courseId to (current + episode))
         recalculateProgress(courseId)
+
+        // Sync to Supabase
+        if (userId != null) {
+            val course = getCourseById(courseId)
+            viewModelScope.launch {
+                try {
+                    SupabaseCourseRepository.markEpisodeWatched(userId, courseId, episode, course?.lessons ?: 1)
+                } catch (_: Exception) {}
+            }
+        }
     }
 
     fun markTestCompleted(courseId: Int) {
+        val userId = session.currentUserId
         _testCompleted.value = _testCompleted.value + (courseId to true)
         recalculateProgress(courseId)
+
+        // Sync to Supabase
+        if (userId != null) {
+            val course = getCourseById(courseId)
+            viewModelScope.launch {
+                try {
+                    SupabaseCourseRepository.markTestCompleted(userId, courseId, course?.lessons ?: 1)
+                } catch (_: Exception) {}
+            }
+        }
     }
 
     fun isTestCompleted(courseId: Int): Boolean =
         _testCompleted.value[courseId] == true
+
+    fun getWatchedEpisodes(courseId: Int): Set<Int> =
+        _watchedEpisodes.value[courseId] ?: emptySet()
 
     private fun recalculateProgress(courseId: Int) {
         val course = getCourseById(courseId) ?: return
@@ -66,9 +164,6 @@ class CourseViewModel : ViewModel() {
 
         updateProgress(courseId, newProgress)
     }
-
-    fun getWatchedEpisodes(courseId: Int): Set<Int> =
-        _watchedEpisodes.value[courseId] ?: emptySet()
 
     fun updateProgress(courseId: Int, newProgress: Int) {
         val clampedProgress = newProgress.coerceIn(0, 100)
@@ -91,25 +186,38 @@ class CourseViewModel : ViewModel() {
         val exists = _certificates.value.any { it.courseTitle == course.title }
         if (exists) return
 
-        val dateStr = LocalDate.now().format(
-            DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)
-        )
-        val catPrefix = when (course.category) {
-            "Housekeeping" -> "HK"
-            "Caregiving" -> "CG"
-            "Delivery" -> "DL"
-            "Gardening" -> "GD"
-            "Digital" -> "DT"
-            "Soft Skills" -> "SS"
-            else -> "GN"
+        val userId = session.currentUserId ?: return
+
+        // Issue certificate via Supabase
+        viewModelScope.launch {
+            try {
+                val cert = SupabaseCourseRepository.issueCertificate(userId, course.id)
+                if (cert != null) {
+                    _certificates.value = _certificates.value + cert
+                }
+            } catch (_: Exception) {
+                // Fallback: local certificate
+                val dateStr = java.time.LocalDate.now().format(
+                    java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy", java.util.Locale.ENGLISH)
+                )
+                val catPrefix = when (course.category) {
+                    "Housekeeping" -> "HK"
+                    "Caregiving" -> "CG"
+                    "Delivery & Transport" -> "DL"
+                    "Gardening" -> "GD"
+                    "Digital Literacy & Applied Technology" -> "DT"
+                    "Soft Skills & Professional Ethics" -> "SS"
+                    else -> "GN"
+                }
+                val cert = Certificate(
+                    id = _certificates.value.size + 1,
+                    courseTitle = course.title,
+                    earnedDate = dateStr,
+                    credentialId = "MJ-${catPrefix}-2026-%03d".format(_certificates.value.size + 1)
+                )
+                _certificates.value = _certificates.value + cert
+            }
         }
-        val cert = Certificate(
-            id = _certificates.value.size + 1,
-            courseTitle = course.title,
-            earnedDate = dateStr,
-            credentialId = "MJ-${catPrefix}-2026-%03d".format(_certificates.value.size + 1)
-        )
-        _certificates.value = _certificates.value + cert
     }
 
     fun getAllCourses(): List<Course> =
@@ -117,4 +225,9 @@ class CourseViewModel : ViewModel() {
 
     fun getCourseById(courseId: Int): Course? =
         getAllCourses().find { it.id == courseId }
+
+    /** Force reload from Supabase. */
+    fun refresh() {
+        loadFromSupabase()
+    }
 }

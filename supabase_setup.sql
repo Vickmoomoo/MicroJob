@@ -6,6 +6,10 @@
 -- ============================================================
 
 -- ---------- 0. 清理旧表（重建全套） ----------
+drop table if exists course_certificates;
+drop table if exists course_progress;
+drop table if exists courses;
+drop table if exists course_categories;
 drop table if exists messages;
 drop table if exists conversations;
 drop table if exists reviews;
@@ -22,6 +26,48 @@ create table categories (
   id serial primary key,
   name text not null,
   emoji text not null
+);
+
+-- ---------- 1b. 课程分类 ----------
+create table course_categories (
+  id serial primary key,
+  name text not null,
+  emoji text not null
+);
+
+-- ---------- 1c. 课程 ----------
+create table courses (
+  id serial primary key,
+  category_id int not null references course_categories(id) on delete cascade,
+  title text not null,
+  emoji text not null,
+  lessons int not null default 1,
+  duration text not null default '1h',
+  description text not null default ''
+);
+
+-- ---------- 1d. 课程进度（用户维度） ----------
+create table course_progress (
+  id bigserial primary key,
+  user_id bigint not null references users(id) on delete cascade,
+  course_id int not null references courses(id) on delete cascade,
+  enrolled boolean not null default false,
+  progress int not null default 0,
+  watched_episodes int[] not null default '{}',
+  test_completed boolean not null default false,
+  created_at timestamptz not null default now(),
+  unique(user_id, course_id)
+);
+
+-- ---------- 1e. 课程证书 ----------
+create table course_certificates (
+  id bigserial primary key,
+  user_id bigint not null references users(id) on delete cascade,
+  course_id int not null references courses(id) on delete cascade,
+  earned_date text not null,
+  credential_id text not null unique,
+  created_at timestamptz not null default now(),
+  unique(user_id, course_id)
 );
 
 -- ---------- 2. 用户（对齐 User.kt） ----------
@@ -158,6 +204,10 @@ create table points_history (
 -- ---------- 7. RLS 策略（public 读 + authenticated 写，贴近朋友做法／正规） ----------
 -- 读：公开表谁都能看（anon + authenticated）；写：jobs/chat/users 等必须登录（authenticated）
 alter table categories   enable row level security;
+alter table course_categories enable row level security;
+alter table courses      enable row level security;
+alter table course_progress enable row level security;
+alter table course_certificates enable row level security;
 alter table jobs         enable row level security;
 alter table users        enable row level security;
 alter table reviews      enable row level security;
@@ -221,16 +271,23 @@ drop policy if exists "authenticated can delete jobs" on jobs;
 
 -- 读策略：公开表 public（anon + authenticated 谁都能读，首页不登录也能刷）
 create policy "public can read categories" on categories for select to anon, authenticated using (true);
+create policy "public can read course_categories" on course_categories for select to anon, authenticated using (true);
+create policy "public can read courses" on courses for select to anon, authenticated using (true);
 create policy "public can read vouchers"   on vouchers   for select to anon, authenticated using (true);
 create policy "public can read jobs"       on jobs       for select to anon, authenticated using (true);
 create policy "public can read users"      on users      for select to anon, authenticated using (true);
 create policy "public can read reviews"    on reviews    for select to anon, authenticated using (true);
--- 私有表：只有登录能读（messages / conversations / points / donation_history）
+-- 私有表：只有登录能读（messages / conversations / points / donation_history / course_progress / course_certificates）
 create policy "authenticated can read conversations" on conversations for select to authenticated using (true);
 create policy "authenticated can read messages"      on messages      for select to authenticated using (true);
 create policy "authenticated can read donation_history" on donation_history for select to authenticated using (true);
 create policy "authenticated can read user_points"   on user_points   for select to authenticated using (true);
 create policy "authenticated can read points_history" on points_history for select to authenticated using (true);
+create policy "authenticated can read course_progress" on course_progress for select to authenticated using (true);
+create policy "authenticated can insert course_progress" on course_progress for insert to authenticated with check (true);
+create policy "authenticated can update course_progress" on course_progress for update to authenticated using (true) with check (true);
+create policy "authenticated can read course_certificates" on course_certificates for select to authenticated using (true);
+create policy "authenticated can insert course_certificates" on course_certificates for insert to authenticated with check (true);
 
 -- 写策略：jobs / users / reviews / chat 必须登录（authenticated）
 create policy "authenticated can insert jobs" on jobs for insert to authenticated with check (true);
@@ -271,8 +328,11 @@ grant execute on function reset_password_by_security_question(text,text,text,tex
 
 -- ---------- 7b. Data API 权限（细粒度授权，贴近正规） ----------
 -- 公开读：anon 只能 select 公开表
-grant select on categories, vouchers, jobs, users, reviews to anon;
+grant select on categories, course_categories, courses, vouchers, jobs, users, reviews to anon;
 grant select, insert, update, delete on categories, vouchers, jobs, users, reviews to authenticated;
+-- 课程进度和证书：仅 authenticated
+grant select, insert, update on course_progress to authenticated;
+grant select, insert on course_certificates to authenticated;
 -- 私有表：仅 authenticated
 grant select, insert, update, delete on conversations, messages, donation_history, user_points, points_history to authenticated;
 grant all on all tables in schema public to service_role;
@@ -365,6 +425,46 @@ insert into donation_history (user_id, organization, date, amount) values
   (1, 'Children Education Fund', '03 Aug 2026', 'RM 300'),
   (1, 'Flood Relief Community', '15 Jul 2026', 'RM 1,000'),
   (1, 'Old Folks Home Support', '28 Jun 2026', 'RM 200');
+
+-- 课程分类
+insert into course_categories (name, emoji) values
+  ('Housekeeping', '🧹'),
+  ('Caregiving', '👶'),
+  ('Delivery & Transport', '🛵'),
+  ('Gardening', '🌿'),
+  ('Digital Literacy & Applied Technology', '💻'),
+  ('Soft Skills & Professional Ethics', '💬');
+
+-- 课程
+insert into courses (category_id, title, emoji, lessons, duration, description) values
+  -- Housekeeping
+  (1, 'Basic Cleaning Techniques', '🧹', 8, '2h 30m', 'Learn professional home cleaning methods.'),
+  (1, 'Kitchen Deep Cleaning', '🧹', 6, '2h', 'Master kitchen deep cleaning techniques.'),
+  (1, 'Laundry & Ironing Basics', '🧹', 5, '1h 30m', 'Proper laundry and ironing skills.'),
+  (1, 'Advanced Cleaning & Specialised Surface Care', '🧹', 10, '4h', 'Advanced cleaning techniques for marble, wood, glass and other special surfaces.'),
+  (1, 'Professional Organising & Decluttering', '🧹', 8, '3h', 'Professional tidying and space organisation methods (KonMari, etc).'),
+  -- Caregiving
+  (2, 'Elderly Care Fundamentals', '👶', 10, '4h', 'Essential skills for elderly care.'),
+  (2, 'Pet Grooming & Care', '🐾', 7, '2h 45m', 'How to groom and care for pets.'),
+  (2, 'Professional Confinement Nanny & Infant Care', '👶', 12, '5h', 'Newborn care, breastfeeding support, and confinement practices.'),
+  (2, 'Elderly & Dementia Care Certification', '👶', 14, '6h', 'Specialised care for elderly patients including dementia and Alzheimer''s.'),
+  (2, 'First Aid & CPR Certification', '🏥', 8, '3h', 'Basic first aid, CPR, and emergency response certification.'),
+  (2, 'Food Safety & Hygiene Certification', '🍽️', 6, '2h', 'Food handling, hygiene standards, and safety regulations.'),
+  -- Delivery & Transport
+  (3, 'Food Delivery Safety', '🛵', 5, '1h 15m', 'Safety guidelines for food delivery riders.'),
+  (3, 'Navigation & Route Planning', '🗺️', 6, '2h', 'Optimize your delivery routes.'),
+  -- Gardening
+  (4, 'Garden Maintenance Basics', '🌿', 7, '2h 15m', 'Maintain and beautify gardens.'),
+  (4, 'Indoor Plant Care', '🌱', 5, '1h 45m', 'Keep indoor plants healthy and thriving.'),
+  -- Digital Literacy
+  (5, 'Smart Home Operation & Troubleshooting', '💻', 8, '3h', 'Operate and troubleshoot smart home devices like speakers, cameras, and appliances.'),
+  (5, 'Digital Bookkeeping & Management', '📖', 6, '2h 30m', 'Use digital tools for expense tracking, invoicing, and financial management.'),
+  (5, 'Gig Platform Ordering & Operations', '📱', 7, '2h 45m', 'How to accept, manage and complete orders on gig economy platforms.'),
+  -- Soft Skills
+  (6, 'Customer Service Excellence', '💬', 6, '2h', 'Communicate professionally with clients.'),
+  (6, 'Workplace Communication & Etiquette', '💬', 5, '1h 45m', 'Professional communication and workplace manners.'),
+  (6, 'Time Management & Productivity', '⏰', 6, '2h', 'Manage your time effectively and boost productivity.'),
+  (6, 'Basic Foreign Language & Dialect', '🌍', 10, '4h', 'Learn essential phrases in English, Mandarin, Malay or other languages for daily work.');
 
 -- ============================================================
 -- 完成后在 Dashboard 复制两样东西填进 App：
