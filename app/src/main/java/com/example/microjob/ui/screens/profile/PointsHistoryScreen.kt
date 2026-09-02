@@ -35,7 +35,6 @@ fun PointsHistoryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                windowInsets = WindowInsets(0, 0, 0, 0),
                 title = { Text("Points History", fontSize = 18.sp, fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -112,26 +111,49 @@ fun PointsHistoryItem(entry: PointsHistoryEntry) {
     val surface = MaterialTheme.colorScheme.surface
     val onSurface = MaterialTheme.colorScheme.onSurface
     val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+    val outline = MaterialTheme.colorScheme.outline
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
+            .border(1.dp, outline.copy(alpha = 0.3f))
             .background(surface)
             .padding(14.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column {
-            Text(entry.source, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = onSurface)
+        // Left column: Job/Source name
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                entry.source,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = onSurface
+            )
             Spacer(Modifier.height(2.dp))
-            Text(entry.date, fontSize = 12.sp, color = onSurfaceVariant)
+            Text(
+                entry.date,
+                fontSize = 12.sp,
+                color = onSurfaceVariant
+            )
         }
-        Text(
-            text = if (entry.isEarned) "+${entry.points}" else "${entry.points}",
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = if (entry.isEarned) Color(0xFF10B981) else Color(0xFFE4002B)
-        )
+        
+        Spacer(Modifier.width(12.dp))
+        
+        // Right column: Points earned/redeemed
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                text = if (entry.isEarned) "+${entry.points}" else "${entry.points}",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (entry.isEarned) Color(0xFF10B981) else Color(0xFFE4002B)
+            )
+            Text(
+                text = "pts",
+                fontSize = 11.sp,
+                color = onSurfaceVariant
+            )
+        }
     }
 }
