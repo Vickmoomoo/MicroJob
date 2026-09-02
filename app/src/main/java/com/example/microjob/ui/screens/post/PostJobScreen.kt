@@ -102,7 +102,6 @@ fun PostJobScreen(
     val jobType by vm.jobType.collectAsStateWithLifecycle()
     val paymentMethod by vm.paymentMethod.collectAsStateWithLifecycle()
     val bank by vm.bank.collectAsStateWithLifecycle()
-    val requireGps by vm.requireGps.collectAsStateWithLifecycle()
     val toolsRequired by vm.toolsRequired.collectAsStateWithLifecycle()
     val donationAmount by vm.donationAmount.collectAsStateWithLifecycle()
     val addressDetail by vm.addressDetail.collectAsStateWithLifecycle()
@@ -301,25 +300,6 @@ fun PostJobScreen(
                 onDateChange = { vm.scheduledDateMillis.value = it },
                 onTimeChange = { h, m -> vm.scheduledHour.value = h; vm.scheduledMinute.value = m }
             )
-
-            // GPS requirement switch
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Require location sharing", style = MaterialTheme.typography.bodyLarge)
-                    Text(
-                        "Worker must share their location while working",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Switch(
-                    checked = requireGps,
-                    onCheckedChange = { vm.requireGps.value = it }
-                )
-            }
 
             // Voluntary donation to the MicroJob fund (funds free courses) —
             // same style as the GPS row.
