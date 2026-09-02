@@ -166,10 +166,12 @@ class AuthViewModel(
                     }
                     // Sign up with Supabase Auth for RLS
                     try {
+                        val regEmail = email.value.trim()
+                        val regPassword = password.value
                         withContext(Dispatchers.IO) {
                             SupabaseClientHolder.client.auth.signUpWith(Email) {
-                                email = email.value.trim()
-                                this.password = password.value
+                                email = regEmail
+                                password = regPassword
                             }
                         }
                     } catch (_: Exception) {
@@ -183,10 +185,12 @@ class AuthViewModel(
                     }
                     // Sign in with Supabase Auth for RLS
                     try {
+                        val loginEmail = user.email
+                        val loginPassword = password.value
                         withContext(Dispatchers.IO) {
                             SupabaseClientHolder.client.auth.signInWith(Email) {
-                                email = user.email
-                                this.password = password.value
+                                email = loginEmail
+                                password = loginPassword
                             }
                         }
                     } catch (_: Exception) {
