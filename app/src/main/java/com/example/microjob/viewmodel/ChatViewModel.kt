@@ -558,6 +558,36 @@ class ChatViewModel(
                         // Review persistence is secondary; ignore failures.
                     }
 
+                    // Record donation and update community impact if job has donation
+                    try {
+                        val socialImpactRepo = RepositoryProvider.socialImpactRepository(getApplication())
+                        if (updated.donationAmount > 0) {
+                            val me = session.currentUserId
+                            if (me != null) {
+                                // Insert donation record
+                                socialImpactRepo.addDonationHistory(
+                                    com.example.microjob.model.DonationRecord(
+                                        userId = me,
+                                        organization = "MicroJob Fund",
+                                        date = java.time.LocalDate.now().toString(),
+                                        amount = "RM ${"%.2f".format(updated.donationAmount)}"
+                                    )
+                                )
+                            }
+                            // Update community impact
+                            val impact = socialImpactRepo.getCommunityImpact()
+                            val newPeopleHelped = (impact?.peopleHelped ?: 0) + 1
+                            val currentDonated = impact?.totalDonated?.replace("RM ", "")?.replace(",", "")?.toDoubleOrNull() ?: 0.0
+                            val newTotalDonated = currentDonated + updated.donationAmount
+                            socialImpactRepo.updateCommunityImpact(
+                                peopleHelped = newPeopleHelped,
+                                totalDonated = "RM ${"%.0f".format(newTotalDonated)}"
+                            )
+                        }
+                    } catch (_: Exception) {
+                        // Donation recording is secondary; ignore failures.
+                    }
+
                     onJobCompleted(updated.title, updated.price)
                     onReleased()
                 }

@@ -52,6 +52,23 @@ class LocalSocialImpactRepository(
         }
     }
 
+    override suspend fun addDonationHistory(record: DonationRecord) {
+        val current = getDonationHistory(record.userId).toMutableList()
+        current.add(record)
+        val arr = JSONArray()
+        current.forEach { r ->
+            val obj = org.json.JSONObject().apply {
+                put("id", r.id)
+                put("userId", r.userId)
+                put("organization", r.organization)
+                put("date", r.date)
+                put("amount", r.amount)
+            }
+            arr.put(obj)
+        }
+        prefs.edit().putString("donations_${record.userId}", arr.toString()).apply()
+    }
+
     override suspend fun getVouchers(): List<VoucherItem> {
         val json = prefs.getString("vouchers", null) ?: return sampleVouchers
         return try {

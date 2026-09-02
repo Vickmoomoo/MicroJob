@@ -96,6 +96,18 @@ class SupabaseSocialImpactRepository(
         }
     }
 
+    override suspend fun addDonationHistory(record: DonationRecord) {
+        try {
+            client.from("donation_history")
+                .insert(DonationRecordInput(
+                    userId = record.userId,
+                    organization = record.organization,
+                    date = record.date,
+                    amount = record.amount
+                ))
+        } catch (_: Exception) {}
+    }
+
     override suspend fun getVouchers(): List<VoucherItem> {
         return try {
             client.from("vouchers")
@@ -170,6 +182,14 @@ private data class CommunityImpactDto(
 private data class CommunityImpactInput(
     @SerialName("people_helped") val peopleHelped: Int,
     @SerialName("total_donated") val totalDonated: String
+)
+
+@Serializable
+private data class DonationRecordInput(
+    @SerialName("user_id") val userId: Long,
+    val organization: String,
+    val date: String,
+    val amount: String
 )
 
 @Serializable
