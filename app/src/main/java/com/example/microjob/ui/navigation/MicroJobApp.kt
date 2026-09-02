@@ -360,7 +360,7 @@ fun MicroJobApp() {
                         navController.navigate(MicroJobRoutes.userProfile(userId))
                     },
                     onJobCompleted = { jobTitle, jobPrice ->
-                        val points = (jobPrice * 0.5).toInt().coerceAtLeast(200)
+                        val points = jobPrice.toInt().coerceAtMost(500)
                         socialImpactVm.earnPoints("Completed: $jobTitle", points)
                     },
                     onOpenReview = { jobId ->

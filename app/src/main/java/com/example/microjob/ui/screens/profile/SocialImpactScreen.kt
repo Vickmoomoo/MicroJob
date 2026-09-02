@@ -100,11 +100,11 @@ fun SocialImpactScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    StatColumn(
-                        value = "${uiState.peopleHelped}",
-                        label = "People Helped",
-                        color = primary
-                    )
+                        StatColumn(
+                            value = "${uiState.peopleHelped}",
+                            label = "Donated to Charity",
+                            color = primary
+                        )
                     StatColumn(
                         value = uiState.totalDonated,
                         label = "Total Donated",
