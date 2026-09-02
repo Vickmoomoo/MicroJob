@@ -82,6 +82,11 @@ class SocialImpactViewModel(
         }
     }
 
+    /** Refresh data from repository - call after donations are recorded */
+    fun refreshData() {
+        loadData()
+    }
+
     private fun loadGameCount() {
         val userId = currentUserId ?: return
         val keyPrefix = "user_${userId}_"

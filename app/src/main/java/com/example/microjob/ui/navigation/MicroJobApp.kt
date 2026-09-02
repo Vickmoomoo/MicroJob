@@ -715,6 +715,10 @@ fun MicroJobApp() {
                 popExitTransition = { fadeOut(animationSpec = tween(120)) },
                 route = MicroJobRoutes.SOCIAL_IMPACT
             ) {
+                // Refresh data every time user navigates to Social Impact
+                LaunchedEffect(currentRoute) {
+                    socialImpactVm.refreshData()
+                }
                 val socialImpactState by socialImpactVm.uiState.collectAsStateWithLifecycle()
                 SocialImpactScreen(
                     uiState = socialImpactState,
@@ -731,6 +735,9 @@ fun MicroJobApp() {
                 popExitTransition = { fadeOut(animationSpec = tween(120)) },
                 route = MicroJobRoutes.DONATION_HISTORY
             ) {
+                LaunchedEffect(currentRoute) {
+                    socialImpactVm.refreshData()
+                }
                 val socialImpactState by socialImpactVm.uiState.collectAsStateWithLifecycle()
                 AllDonationsScreen(
                     donations = socialImpactState.donationHistory,
@@ -759,6 +766,9 @@ fun MicroJobApp() {
                 route = MicroJobRoutes.VOUCHER_DETAIL,
                 arguments = listOf(navArgument("voucherIndex") { type = NavType.IntType })
             ) { entry ->
+                LaunchedEffect(currentRoute) {
+                    socialImpactVm.refreshData()
+                }
                 val index = entry.arguments?.getInt("voucherIndex") ?: return@composable
                 val socialImpactState by socialImpactVm.uiState.collectAsStateWithLifecycle()
                 val voucher = socialImpactState.voucherList.getOrNull(index) ?: return@composable
@@ -776,6 +786,9 @@ fun MicroJobApp() {
                 popExitTransition = { fadeOut(animationSpec = tween(120)) },
                 route = MicroJobRoutes.POINTS_HISTORY
             ) {
+                LaunchedEffect(currentRoute) {
+                    socialImpactVm.refreshData()
+                }
                 val socialImpactState by socialImpactVm.uiState.collectAsStateWithLifecycle()
                 PointsHistoryScreen(
                     userPoints = socialImpactState.userPoints,
