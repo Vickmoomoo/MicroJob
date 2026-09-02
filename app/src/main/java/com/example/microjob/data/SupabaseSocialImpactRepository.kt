@@ -21,7 +21,7 @@ class SupabaseSocialImpactRepository(
 
     override suspend fun getCommunityImpact(): CommunityImpact? {
         return try {
-            // Calculate total donated from actual donation records
+            // Calculate from actual donation records
             val allDonations = client.from("donation_history")
                 .select()
                 .decodeList<DonationRecordDto>()
@@ -30,7 +30,8 @@ class SupabaseSocialImpactRepository(
                 record.amount.replace("RM ", "").replace(",", "").toDoubleOrNull() ?: 0.0
             }
             
-            val peopleHelped = allDonations.map { it.userId }.distinct().size
+            // Count total donations (each donation = 1 person helped)
+            val peopleHelped = allDonations.size
             
             val formattedTotal = if (totalDonated >= 1000) {
                 "RM ${"%,.0f".format(totalDonated)}"
