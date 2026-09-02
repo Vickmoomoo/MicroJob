@@ -199,8 +199,8 @@ fun MicroJobApp() {
                 MicroJobBottomBar(
                     currentRoute = currentRoute,
                     onNavigate = { route ->
-                        // Profile and Messages need a login; other tabs navigate normally.
-                        if (route == MicroJobRoutes.PROFILE || route == MicroJobRoutes.MESSAGES) {
+                        // Profile, Messages and Social Impact need a login; other tabs navigate normally.
+                        if (route == MicroJobRoutes.PROFILE || route == MicroJobRoutes.MESSAGES || route == MicroJobRoutes.SOCIAL_IMPACT) {
                             if (currentUser != null) {
                                 navController.navigateToTab(route)
                             } else {

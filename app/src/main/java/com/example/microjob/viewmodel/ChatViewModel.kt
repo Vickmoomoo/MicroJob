@@ -67,10 +67,27 @@ class ChatViewModel(
     init {
         loadUsers()
         startInboxObserving()
+        startGlobalJobObserving()
     }
 
     /** Global inbox realtime job for unread badge + conversation list. */
     private var inboxObserveJob: kotlinx.coroutines.Job? = null
+
+    /** Global job-change realtime so invite/payment cards stay in sync even outside detail. */
+    private var globalJobObserveJob: kotlinx.coroutines.Job? = null
+
+    private fun startGlobalJobObserving() {
+        globalJobObserveJob?.cancel()
+        globalJobObserveJob = viewModelScope.launch {
+            try {
+                repository.observeJobChanges().collect { refreshCachedJobs() }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // best-effort
+            }
+        }
+    }
 
     /** Starts (or restarts) the global inbox realtime subscription. */
     fun startInboxObserving() {
@@ -220,13 +237,41 @@ class ChatViewModel(
             try {
                 repository.observeMessages(conversationId).collect {
                     loadMessagesInto(conversationId)
+                    // When the user is still viewing this conversation, the new message is already seen.
+                    // Mark as read immediately so the red dot does not linger after leaving.
+                    val me = session.currentUserId
+                    if (me != null && _activeConversation.value?.id == conversationId) {
+                        try {
+                            withContext(Dispatchers.IO) { repository.markAsRead(conversationId, me) }
+                        } catch (_: Exception) { }
+                        // Optimistically clear local badge for instant UI feedback
+                        _conversations.value = _conversations.value.map { conv ->
+                            if (conv.id == conversationId) conv.copy(unreadCounts = conv.unreadCounts - me) else conv
+                        }
+                    }
                     refreshUnreadCount()
+                    loadConversations()
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
                 // realtime is best-effort; the manual load above still works
             }
+        }
+    }
+
+    /** Marks a conversation as read for the current user (called on leaving ChatDetail). */
+    fun markConversationRead(conversationId: String) {
+        viewModelScope.launch {
+            val me = session.currentUserId ?: return@launch
+            try {
+                withContext(Dispatchers.IO) { repository.markAsRead(conversationId, me) }
+            } catch (_: Exception) { }
+            _conversations.value = _conversations.value.map { conv ->
+                if (conv.id == conversationId) conv.copy(unreadCounts = conv.unreadCounts - me) else conv
+            }
+            refreshUnreadCount()
+            loadConversations()
         }
     }
 
@@ -456,7 +501,9 @@ class ChatViewModel(
             try {
                 val updated = withContext(Dispatchers.IO) { repository.releasePayment(jobId) }
                 if (updated != null) {
-                    _jobCache.value = _jobCache.value - jobId
+                    // Keep the released job in cache so both sides can show
+                    // "This release payment has been paid out." (was previously removed, causing owner side not to show).
+                    _jobCache.value = _jobCache.value + (jobId to updated)
 
                     // Persist reviews (best-effort, never block the payment itself).
                     try {

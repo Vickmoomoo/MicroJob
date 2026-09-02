@@ -119,6 +119,12 @@ fun ChatDetailScreen(
     }
     androidx.compose.runtime.DisposableEffect(otherUserId) {
         onDispose {
+            // Both users were inside detail and have seen messages – mark as read so
+            // the red dot does not remain on the Chat home / bottom bar after leaving.
+            vm.activeConversation.value?.id?.let { vm.markConversationRead(it) }
+            convId?.let { id ->
+                if (id != vm.activeConversation.value?.id) vm.markConversationRead(id)
+            }
             // Cancel per-conversation realtime so the channel can unsubscribe cleanly
             // before a new channel with the same conversationId is created on re-enter.
             // Global inbox realtime (for badge/list) stays alive in the ViewModel.
