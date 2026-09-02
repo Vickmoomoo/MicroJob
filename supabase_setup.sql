@@ -3,6 +3,7 @@
 -- 在 Supabase Dashboard → SQL Editor 里整体运行一次即可。
 -- 覆盖：6 张表 + RLS 策略 + Data API GRANT + Storage 桶 + Realtime。
 -- 开头 DROP 旧表；每个 policy 前有 drop if exists，重复跑不会报错。
+-- 注意：本文件仍会在最前面重建旧表，运行前请确认是否接受清除现有数据。
 -- ============================================================
 
 -- ---------- 0. 清理旧表（重建全套） ----------
@@ -14,6 +15,7 @@ drop table if exists messages;
 drop table if exists conversations;
 drop table if exists reviews;
 drop table if exists points_history;
+drop table if exists profile_activities;
 drop table if exists user_points;
 drop table if exists donation_history;
 drop table if exists vouchers;
@@ -26,6 +28,28 @@ create table categories (
   id serial primary key,
   name text not null,
   emoji text not null
+);
+
+-- ---------- 2. 用户（must exist before course/user foreign keys） ----------
+create table users (
+  id bigserial primary key,
+  name text not null,
+  username text not null unique,
+  password text not null,
+  email text not null unique,
+  security_question text not null default '',
+  security_answer text not null default '',
+  bio text not null default '',
+  avatar_url text not null default '',
+  region text not null default '',
+  skills text[] not null default '{}',
+  birthdate text not null default '',
+  phone_number text not null default '',
+  show_email boolean not null default false,
+  show_birthdate boolean not null default false,
+  show_phone_number boolean not null default false,
+  show_avatar boolean not null default true,
+  created_at timestamptz not null default now()
 );
 
 -- ---------- 1b. 课程分类 ----------
@@ -68,28 +92,6 @@ create table course_certificates (
   credential_id text not null unique,
   created_at timestamptz not null default now(),
   unique(user_id, course_id)
-);
-
--- ---------- 2. 用户（对齐 User.kt） ----------
-create table users (
-  id bigserial primary key,
-  name text not null,
-  username text not null unique,
-  password text not null,
-  email text not null unique,
-  security_question text not null default '',
-  security_answer text not null default '',
-  bio text not null default '',
-  avatar_url text not null default '',
-  region text not null default '',
-  skills text[] not null default '{}',
-  birthdate text not null default '',
-  phone_number text not null default '',
-  show_email boolean not null default false,
-  show_birthdate boolean not null default false,
-  show_phone_number boolean not null default false,
-  show_avatar boolean not null default true,
-  created_at timestamptz not null default now()
 );
 
 -- ---------- 3. 工作（对齐 Job.kt） ----------
@@ -425,6 +427,118 @@ insert into donation_history (user_id, organization, date, amount) values
   (1, 'Children Education Fund', '03 Aug 2026', 'RM 300'),
   (1, 'Flood Relief Community', '15 Jul 2026', 'RM 1,000'),
   (1, 'Old Folks Home Support', '28 Jun 2026', 'RM 200');
+
+-- ============================================================
+-- Profile additions
+-- ============================================================
+-- These statements are also safe when applied to an existing database,
+-- but the reset section at the top of this file is not non-destructive.
+
+alter table public.users
+  add column if not exists auth_user_id uuid;
+
+create unique index if not exists users_auth_user_id_key
+  on public.users (auth_user_id)
+  where auth_user_id is not null;
+
+update public.users app_user
+set auth_user_id = auth_user.id
+from auth.users auth_user
+where app_user.auth_user_id is null
+  and lower(app_user.email) = lower(auth_user.email);
+
+create or replace view public.public_profiles as
+select
+  u.id,
+  u.name,
+  u.username,
+  u.bio,
+  u.avatar_url,
+  u.region,
+  u.skills,
+  u.show_avatar,
+  case when u.auth_user_id = (select auth.uid()) or u.show_email then u.email else '' end as email,
+  case when u.auth_user_id = (select auth.uid()) or u.show_birthdate then u.birthdate else '' end as birthdate,
+  case when u.auth_user_id = (select auth.uid()) or u.show_phone_number then u.phone_number else '' end as phone_number,
+  u.show_email,
+  u.show_birthdate,
+  u.show_phone_number,
+  u.created_at
+from public.users u;
+
+grant select on public.public_profiles to anon, authenticated;
+
+drop policy if exists "public can read users" on public.users;
+drop policy if exists "authenticated can read users" on public.users;
+drop policy if exists "authenticated can read own profile row" on public.users;
+create policy "authenticated can read own profile row"
+  on public.users for select
+  to authenticated
+  using (auth_user_id = (select auth.uid()));
+
+drop policy if exists "authenticated can update users" on public.users;
+drop policy if exists "authenticated can update own profile" on public.users;
+create policy "authenticated can update own profile"
+  on public.users for update
+  to authenticated
+  using (auth_user_id = (select auth.uid()))
+  with check (auth_user_id = (select auth.uid()));
+
+create table if not exists public.profile_activities (
+  id bigserial primary key,
+  user_id bigint not null references public.users(id) on delete cascade,
+  body text not null default '' check (char_length(body) <= 2000),
+  photo_url text not null default '',
+  created_at timestamptz not null default now(),
+  constraint profile_activities_has_content check (char_length(trim(body)) > 0 or photo_url <> '')
+);
+
+create index if not exists profile_activities_user_created_idx
+  on public.profile_activities (user_id, created_at desc);
+
+alter table public.profile_activities enable row level security;
+drop policy if exists "public can read profile activities" on public.profile_activities;
+drop policy if exists "owners can insert profile activities" on public.profile_activities;
+drop policy if exists "owners can delete profile activities" on public.profile_activities;
+create policy "public can read profile activities"
+  on public.profile_activities for select
+  to anon, authenticated using (true);
+create policy "owners can insert profile activities"
+  on public.profile_activities for insert
+  to authenticated
+  with check (user_id = (select id from public.users where auth_user_id = (select auth.uid())));
+create policy "owners can delete profile activities"
+  on public.profile_activities for delete
+  to authenticated
+  using (user_id = (select id from public.users where auth_user_id = (select auth.uid())));
+
+grant select on public.profile_activities to anon, authenticated;
+grant insert, delete on public.profile_activities to authenticated;
+grant usage, select on sequence public.profile_activities_id_seq to authenticated;
+
+insert into storage.buckets (id, name, public)
+values ('profile-activity-images', 'profile-activity-images', true)
+on conflict (id) do nothing;
+
+drop policy if exists "public can read profile activity images" on storage.objects;
+create policy "public can read profile activity images"
+  on storage.objects for select
+  to anon, authenticated
+  using (bucket_id = 'profile-activity-images');
+
+drop policy if exists "owners can upload profile activity images" on storage.objects;
+create policy "owners can upload profile activity images"
+  on storage.objects for insert
+  to authenticated
+  with check (
+    bucket_id = 'profile-activity-images'
+    and (storage.foldername(name))[1] = 'activities'
+    and (storage.foldername(name))[2] = (
+      select id::text from public.users where auth_user_id = (select auth.uid())
+    )
+  );
+
+notify pgrst, 'reload schema';
 
 -- 课程分类
 insert into course_categories (name, emoji) values

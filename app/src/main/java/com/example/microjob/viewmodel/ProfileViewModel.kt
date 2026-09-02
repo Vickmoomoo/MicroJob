@@ -6,8 +6,11 @@ import androidx.lifecycle.viewModelScope
 import com.example.microjob.data.JobRepository
 import com.example.microjob.data.RepositoryProvider
 import com.example.microjob.data.SessionManager
+import com.example.microjob.data.SupabaseConfig
+import com.example.microjob.data.SupabaseProfileActivityRepository
 import com.example.microjob.model.Job
 import com.example.microjob.model.Review
+import com.example.microjob.model.ProfileActivity
 import com.example.microjob.model.User
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -17,6 +20,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 
 data class ProfileUiState(
     val user: User? = null,
@@ -25,6 +29,7 @@ data class ProfileUiState(
     val postedJobs: List<Job> = emptyList(),
     val acceptedJobs: List<Job> = emptyList(),
     val averageRating: Double? = null,
+    val activities: List<ProfileActivity> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
 )
@@ -38,6 +43,9 @@ class ProfileViewModel(
     constructor(application: Application) : this(application, RepositoryProvider.jobRepository(application))
 
     private val sessionManager = SessionManager(application)
+    private val activityPreferences = application.getSharedPreferences("profile_activities", 0)
+    private val activityJson = Json { ignoreUnknownKeys = true }
+    private val cloudActivities = if (SupabaseConfig.isConfigured) SupabaseProfileActivityRepository(application) else null
 
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
@@ -65,6 +73,14 @@ class ProfileViewModel(
                 val acceptedJobs = withContext(Dispatchers.IO) {
                     repository.getAcceptedJobs(userId)
                 }
+                val activities = withContext(Dispatchers.IO) {
+                    try {
+                        cloudActivities?.getForUser(userId) ?: readActivities(userId)
+                    } catch (_: Exception) {
+                        // Keep the profile usable while the migration is being applied.
+                        readActivities(userId)
+                    }
+                }
 
                 val avgRating = if (reviews.isNotEmpty()) {
                     reviews.map { it.rating }.average()
@@ -78,6 +94,7 @@ class ProfileViewModel(
                         postedJobs = postedJobs,
                         acceptedJobs = acceptedJobs,
                         averageRating = avgRating,
+                        activities = activities,
                         isLoading = false
                     )
                 }
@@ -117,6 +134,74 @@ class ProfileViewModel(
             val updated = user.copy(avatarUrl = avatarUrl)
             withContext(Dispatchers.IO) { repository.updateUser(updated) }
             _uiState.update { it.copy(user = updated) }
+        }
+    }
+
+    fun addActivity(text: String, photoUri: String) {
+        val userId = sessionManager.currentUserId ?: return
+        if (text.isBlank() && photoUri.isBlank()) return
+        val activity = ProfileActivity(
+            id = System.currentTimeMillis(),
+            userId = userId,
+            text = text.trim(),
+            photoUri = photoUri,
+            createdAt = java.time.OffsetDateTime.now().toString()
+        )
+        viewModelScope.launch {
+            try {
+                val updated = if (cloudActivities != null) {
+                    listOf(cloudActivities.add(activity)) + _uiState.value.activities
+                } else {
+                    val local = listOf(activity) + readActivities(userId)
+                    writeActivities(userId, local)
+                    local
+                }
+                _uiState.update { it.copy(activities = updated, error = null) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = e.message ?: "Unable to publish activity") }
+            }
+        }
+    }
+
+    fun deleteActivity(activityId: Long) {
+        val userId = sessionManager.currentUserId ?: return
+        viewModelScope.launch {
+            try {
+                if (cloudActivities != null) {
+                    cloudActivities.delete(activityId)
+                } else {
+                    writeActivities(userId, readActivities(userId).filterNot { it.id == activityId })
+                }
+                _uiState.update { it.copy(activities = it.activities.filterNot { activity -> activity.id == activityId }) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = e.message ?: "Unable to delete activity") }
+            }
+        }
+    }
+
+    private fun readActivities(userId: Long): List<ProfileActivity> = try {
+        activityPreferences.getString("activities_$userId", null)?.let {
+            activityJson.decodeFromString<List<ProfileActivity>>(it)
+        } ?: emptyList()
+    } catch (_: Exception) {
+        emptyList()
+    }
+
+    private fun writeActivities(userId: Long, activities: List<ProfileActivity>) {
+        activityPreferences.edit()
+            .putString("activities_$userId", activityJson.encodeToString(activities))
+            .apply()
+    }
+
+    /** Saves the editable profile fields in one operation. */
+    fun updateProfile(updated: User) {
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) { repository.updateUser(updated) }
+                _uiState.update { it.copy(user = updated, error = null) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = e.message ?: "Unable to update profile") }
+            }
         }
     }
 

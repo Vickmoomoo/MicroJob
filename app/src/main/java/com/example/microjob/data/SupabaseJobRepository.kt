@@ -74,7 +74,7 @@ class SupabaseJobRepository(private val context: Context) : JobRepository {
         .decodeSingleOrNull<Job>()
 
     override suspend fun getUser(id: Long): User? = client
-        .from("users")
+        .from("public_profiles")
         .select { filter { eq("id", id) }; limit(1L) }
         .decodeSingleOrNull<User>()
 
@@ -120,7 +120,7 @@ class SupabaseJobRepository(private val context: Context) : JobRepository {
         securityQuestion: String,
         securityAnswer: String
     ): User {
-        val existing = client.from("users").select {
+        val existing = client.from("public_profiles").select {
             filter {
                 or { ilike("username", username); ilike("email", email) }
             }
@@ -131,11 +131,13 @@ class SupabaseJobRepository(private val context: Context) : JobRepository {
         if (existing.any { it.email.equals(email, ignoreCase = true) }) {
             throw IllegalArgumentException("Email already registered.")
         }
+        var authUserId: String? = null
         try {
             client.auth.signUpWith(Email) {
                 this.email = email.trim()
                 this.password = password
             }
+            authUserId = client.auth.currentUserOrNull()?.id
         } catch (e: Exception) {
             val msg = e.message ?: ""
             if (msg.contains("already registered", ignoreCase = true) || msg.contains("User already", ignoreCase = true)) {
@@ -149,9 +151,14 @@ class SupabaseJobRepository(private val context: Context) : JobRepository {
             email = email.trim(),
             securityQuestion = securityQuestion,
             securityAnswer = securityAnswer.trim(),
-            createdAt = OffsetDateTime.now().toString()
+            createdAt = OffsetDateTime.now().toString(),
+            authUserId = authUserId
         )
-        return client.from("users").insert(input) { select() }.decodeSingle<User>()
+        client.from("users").insert(input)
+        return client.from("public_profiles").select {
+            filter { ilike("username", username.trim()) }
+            limit(1L)
+        }.decodeSingle<User>()
     }
 
     override suspend fun login(username: String, password: String): User? {
@@ -159,7 +166,7 @@ class SupabaseJobRepository(private val context: Context) : JobRepository {
         val email = if (isEmail) {
             username.trim()
         } else {
-            val profile = client.from("users").select {
+            val profile = client.from("public_profiles").select {
                 filter { ilike("username", username.trim()) }
                 limit(1L)
             }.decodeSingleOrNull<User>() ?: return null
@@ -171,12 +178,9 @@ class SupabaseJobRepository(private val context: Context) : JobRepository {
                 this.password = password
             }
         } catch (_: Exception) {
-            return client.from("users").select {
-                filter { ilike("username", username.trim()); eq("password", password) }
-                limit(1L)
-            }.decodeSingleOrNull<User>()
+            return null
         }
-        return client.from("users").select {
+        return client.from("public_profiles").select {
             filter { ilike("email", email) }
             limit(1L)
         }.decodeSingleOrNull<User>()
@@ -400,7 +404,9 @@ class SupabaseJobRepository(private val context: Context) : JobRepository {
         @SerialName("security_answer")
         val securityAnswer: String = "",
         @SerialName("created_at")
-        val createdAt: String
+        val createdAt: String,
+        @SerialName("auth_user_id")
+        val authUserId: String? = null
     )
 
     @Serializable

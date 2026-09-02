@@ -74,7 +74,7 @@ class AuthViewModel(
                 if (authUser?.email != null) {
                     val profile = try {
                         withContext(Dispatchers.IO) {
-                            SupabaseClientHolder.client.from("users").select {
+                            SupabaseClientHolder.client.from("public_profiles").select {
                                 filter { eq("email", authUser.email!!) }
                                 limit(1L)
                             }.decodeSingleOrNull<User>()
