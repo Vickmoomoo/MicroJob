@@ -1,6 +1,7 @@
 package com.example.microjob.data
 
 import android.content.Context
+import com.example.microjob.model.CommunityImpact
 import com.example.microjob.model.DonationRecord
 import com.example.microjob.model.PointsHistoryEntry
 import com.example.microjob.model.UserPoints
@@ -14,6 +15,23 @@ class LocalSocialImpactRepository(
 ) : SocialImpactRepository {
 
     private val prefs = context.getSharedPreferences("social_impact_local", 0)
+
+    override suspend fun getCommunityImpact(): CommunityImpact? {
+        val peopleHelped = prefs.getInt("community_people_helped", -1)
+        return if (peopleHelped >= 0) {
+            CommunityImpact(
+                peopleHelped = peopleHelped,
+                totalDonated = prefs.getString("community_total_donated", "RM 0") ?: "RM 0"
+            )
+        } else null
+    }
+
+    override suspend fun updateCommunityImpact(peopleHelped: Int, totalDonated: String) {
+        prefs.edit()
+            .putInt("community_people_helped", peopleHelped)
+            .putString("community_total_donated", totalDonated)
+            .apply()
+    }
 
     override suspend fun getDonationHistory(userId: Long): List<DonationRecord> {
         val json = prefs.getString("donations_$userId", null) ?: return sampleDonations

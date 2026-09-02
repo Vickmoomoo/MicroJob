@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.microjob.data.RepositoryProvider
+import com.example.microjob.model.CommunityImpact
 import com.example.microjob.model.DonationRecord
 import com.example.microjob.model.PointsHistoryEntry
 import com.example.microjob.model.UserPoints
@@ -57,11 +58,14 @@ class SocialImpactViewModel(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             try {
+                val communityImpact = withContext(Dispatchers.IO) { repository.getCommunityImpact() }
                 val donations = withContext(Dispatchers.IO) { repository.getDonationHistory(userId) }
                 val vouchers = withContext(Dispatchers.IO) { repository.getVouchers() }
                 val userPoints = withContext(Dispatchers.IO) { repository.getUserPoints(userId) }
                 val pointsHistory = withContext(Dispatchers.IO) { repository.getPointsHistory(userId) }
                 _uiState.value = _uiState.value.copy(
+                    peopleHelped = communityImpact?.peopleHelped ?: 0,
+                    totalDonated = communityImpact?.totalDonated ?: "RM 0",
                     donationHistory = donations.ifEmpty { sampleDonations },
                     voucherList = vouchers.ifEmpty { sampleVouchers },
                     userPoints = userPoints?.points ?: 0,

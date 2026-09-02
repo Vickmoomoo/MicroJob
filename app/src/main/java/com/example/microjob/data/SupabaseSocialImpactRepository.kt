@@ -1,6 +1,7 @@
 package com.example.microjob.data
 
 import android.content.Context
+import com.example.microjob.model.CommunityImpact
 import com.example.microjob.model.DonationRecord
 import com.example.microjob.model.PointsHistoryEntry
 import com.example.microjob.model.UserPoints
@@ -17,6 +18,33 @@ class SupabaseSocialImpactRepository(
 ) : SocialImpactRepository {
 
     private val client: SupabaseClient by lazy { SupabaseClientHolder.client }
+
+    override suspend fun getCommunityImpact(): CommunityImpact? {
+        return try {
+            client.from("community_impact")
+                .select()
+                .decodeList<CommunityImpactDto>()
+                .firstOrNull()
+                ?.let { CommunityImpact(id = it.id, peopleHelped = it.peopleHelped, totalDonated = it.totalDonated) }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    override suspend fun updateCommunityImpact(peopleHelped: Int, totalDonated: String) {
+        try {
+            val existing = getCommunityImpact()
+            if (existing != null) {
+                client.from("community_impact")
+                    .update(mapOf("people_helped" to peopleHelped, "total_donated" to totalDonated)) {
+                        filter { eq("id", existing.id) }
+                    }
+            } else {
+                client.from("community_impact")
+                    .insert(CommunityImpactInput(peopleHelped = peopleHelped, totalDonated = totalDonated))
+            }
+        } catch (_: Exception) {}
+    }
 
     /**
      * Sign in with Supabase Auth using email/password.
@@ -130,6 +158,19 @@ class SupabaseSocialImpactRepository(
         } catch (_: Exception) {}
     }
 }
+
+@Serializable
+private data class CommunityImpactDto(
+    val id: Long = 1,
+    @SerialName("people_helped") val peopleHelped: Int = 0,
+    @SerialName("total_donated") val totalDonated: String = "RM 0"
+)
+
+@Serializable
+private data class CommunityImpactInput(
+    @SerialName("people_helped") val peopleHelped: Int,
+    @SerialName("total_donated") val totalDonated: String
+)
 
 @Serializable
 private data class DonationRecordDto(

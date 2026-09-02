@@ -15,6 +15,13 @@ fun safeColor(hex: Long): Color {
 }
 
 @Serializable
+data class CommunityImpact(
+    val id: Long = 1,
+    @SerialName("people_helped") val peopleHelped: Int = 0,
+    @SerialName("total_donated") val totalDonated: String = "RM 0"
+)
+
+@Serializable
 data class DonationRecord(
     val id: Long = 0,
     @SerialName("user_id") val userId: Long = 0,
