@@ -494,6 +494,7 @@ class ChatViewModel(
         jobId: Int,
         workerRating: Float = 0f,
         workerComment: String = "",
+        workerDonation: Double = 0.0,
         onReleased: () -> Unit,
         onJobCompleted: (jobTitle: String, jobPrice: Double) -> Unit = { _, _ -> }
     ) {
@@ -558,27 +559,48 @@ class ChatViewModel(
                         // Review persistence is secondary; ignore failures.
                     }
 
-                    // Record donation and update community impact if job has donation
+                    // Record donation and update community impact
                     try {
                         val socialImpactRepo = RepositoryProvider.socialImpactRepository(getApplication())
+                        val me = session.currentUserId
+                        var totalDonation = 0.0
+
+                        // Record poster's donation
                         if (updated.donationAmount > 0) {
-                            val me = session.currentUserId
                             if (me != null) {
-                                // Insert donation record
                                 socialImpactRepo.addDonationHistory(
                                     com.example.microjob.model.DonationRecord(
-                                        userId = me,
+                                        userId = updated.posterId,
                                         organization = "MicroJob Fund",
                                         date = java.time.LocalDate.now().toString(),
                                         amount = "RM ${"%.2f".format(updated.donationAmount)}"
                                     )
                                 )
                             }
-                            // Update community impact
+                            totalDonation += updated.donationAmount
+                        }
+
+                        // Record worker's donation
+                        if (workerDonation > 0) {
+                            if (me != null) {
+                                socialImpactRepo.addDonationHistory(
+                                    com.example.microjob.model.DonationRecord(
+                                        userId = me,
+                                        organization = "MicroJob Fund",
+                                        date = java.time.LocalDate.now().toString(),
+                                        amount = "RM ${"%.2f".format(workerDonation)}"
+                                    )
+                                )
+                            }
+                            totalDonation += workerDonation
+                        }
+
+                        // Update community impact
+                        if (totalDonation > 0) {
                             val impact = socialImpactRepo.getCommunityImpact()
                             val newPeopleHelped = (impact?.peopleHelped ?: 0) + 1
                             val currentDonated = impact?.totalDonated?.replace("RM ", "")?.replace(",", "")?.toDoubleOrNull() ?: 0.0
-                            val newTotalDonated = currentDonated + updated.donationAmount
+                            val newTotalDonated = currentDonated + totalDonation
                             socialImpactRepo.updateCommunityImpact(
                                 peopleHelped = newPeopleHelped,
                                 totalDonated = "RM ${"%.0f".format(newTotalDonated)}"

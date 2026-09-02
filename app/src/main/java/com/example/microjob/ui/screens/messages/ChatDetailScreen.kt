@@ -498,11 +498,12 @@ fun ChatDetailScreen(
         SettlePaymentDialog(
             job = job,
             currentUserId = myId,
-            onClaim = { jobId, rating, comment ->
+            onClaim = { jobId, rating, comment, donation ->
                 vm.releaseJobPayment(
                     jobId = jobId,
                     workerRating = rating,
                     workerComment = comment,
+                    workerDonation = donation,
                     onReleased = { showSettleDialog = false },
                     onJobCompleted = onJobCompleted
                 )
@@ -1073,7 +1074,7 @@ private fun RatingStars(
 private fun SettlePaymentDialog(
     job: Job?,
     currentUserId: Long,
-    onClaim: (Int, Float, String) -> Unit,
+    onClaim: (Int, Float, String, Double) -> Unit,
     workerMatchRate: Double = 0.025,
     onDismiss: () -> Unit,
 ) {
@@ -1206,7 +1207,7 @@ private fun SettlePaymentDialog(
 
         // Confirm / receive
         Button(
-            onClick = { onClaim(job.id, workerRating, workerComment) },
+            onClick = { onClaim(job.id, workerRating, workerComment, donation) },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Confirm & Receive RM%.2f".format(netPay))
