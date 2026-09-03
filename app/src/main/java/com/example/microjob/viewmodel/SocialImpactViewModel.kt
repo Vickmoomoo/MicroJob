@@ -18,6 +18,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Locale
+import java.util.UUID
 
 data class SocialImpactUiState(
     val userPoints: Int = 0,
@@ -112,10 +114,12 @@ class SocialImpactViewModel(
         return true
     }
 
-    fun redeemVoucher(voucher: VoucherItem) {
+    fun redeemVoucher(voucher: VoucherItem): String? {
         val current = _uiState.value
         val cost = voucher.pointsRequired
-        if (current.userPoints >= cost) {
+        if (current.userPoints < cost) return null
+        val promoCode = "MJ-${voucher.brand.replace("[^A-Za-z0-9]".toRegex(), "").uppercase(Locale.ROOT)}-${UUID.randomUUID().toString().replace("-", "").take(8).uppercase(Locale.ROOT)}"
+        run {
             val newPoints = current.userPoints - cost
             _uiState.value = current.copy(
                 userPoints = newPoints,
@@ -126,7 +130,7 @@ class SocialImpactViewModel(
                     isEarned = false
                 )
             )
-            val userId = currentUserId ?: return
+            val userId = currentUserId ?: return@run
             viewModelScope.launch {
                 withContext(Dispatchers.IO) {
                     repository.upsertUserPoints(userId, newPoints)
@@ -140,6 +144,7 @@ class SocialImpactViewModel(
                 }
             }
         }
+        return promoCode
     }
 
     fun earnPoints(source: String, points: Int) {

@@ -19,6 +19,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import com.example.microjob.model.VoucherItem
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -27,7 +29,7 @@ fun VoucherDetailScreen(
     voucher: VoucherItem,
     userPoints: Int,
     onBack: () -> Unit,
-    onRedeem: (VoucherItem) -> Unit
+    onRedeem: (VoucherItem) -> String?
 ) {
     val background = MaterialTheme.colorScheme.background
     val surface = MaterialTheme.colorScheme.surface
@@ -36,6 +38,8 @@ fun VoucherDetailScreen(
     val primary = MaterialTheme.colorScheme.primary
     var showConfirmDialog by remember { mutableStateOf(false) }
     var showSuccessDialog by remember { mutableStateOf(false) }
+    var redeemedPromoCode by remember { mutableStateOf<String?>(null) }
+    val clipboardManager = LocalClipboardManager.current
     val canAfford = userPoints >= voucher.pointsRequired
 
     Scaffold(
@@ -228,8 +232,8 @@ fun VoucherDetailScreen(
                 TextButton(
                     onClick = {
                         showConfirmDialog = false
+                        redeemedPromoCode = onRedeem(voucher)
                         showSuccessDialog = true
-                        onRedeem(voucher)
                     }
                 ) {
                     Text("Confirm", color = Color(0xFF10B981))
@@ -256,6 +260,31 @@ fun VoucherDetailScreen(
                         text = "You have successfully redeemed ${voucher.title}",
                         textAlign = TextAlign.Center
                     )
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        text = "Enter this promo code in the official ${voucher.brand} app:",
+                        textAlign = TextAlign.Center,
+                        fontSize = 13.sp,
+                        color = onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = redeemedPromoCode.orEmpty(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(primary.copy(alpha = 0.1f))
+                            .padding(12.dp),
+                        textAlign = TextAlign.Center,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = primary
+                    )
+                    TextButton(onClick = {
+                        redeemedPromoCode?.let { clipboardManager.setText(AnnotatedString(it)) }
+                    }) {
+                        Text("Copy promo code")
+                    }
                 }
             },
             confirmButton = {
