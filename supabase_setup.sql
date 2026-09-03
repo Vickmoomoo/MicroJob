@@ -285,11 +285,31 @@ create policy "authenticated can read messages"      on messages      for select
 create policy "authenticated can read donation_history" on donation_history for select to authenticated using (true);
 create policy "authenticated can read user_points"   on user_points   for select to authenticated using (true);
 create policy "authenticated can read points_history" on points_history for select to authenticated using (true);
-create policy "authenticated can read course_progress" on course_progress for select to authenticated using (true);
-create policy "authenticated can insert course_progress" on course_progress for insert to authenticated with check (true);
-create policy "authenticated can update course_progress" on course_progress for update to authenticated using (true) with check (true);
-create policy "authenticated can read course_certificates" on course_certificates for select to authenticated using (true);
-create policy "authenticated can insert course_certificates" on course_certificates for insert to authenticated with check (true);
+
+-- course_progress：用户只能操作自己的进度
+drop policy if exists "authenticated can read course_progress" on course_progress;
+drop policy if exists "authenticated can insert course_progress" on course_progress;
+drop policy if exists "authenticated can update course_progress" on course_progress;
+create policy "authenticated can read own course_progress" on course_progress
+  for select to authenticated
+  using (user_id = (select id from public.users where auth_user_id = (select auth.uid())));
+create policy "authenticated can insert own course_progress" on course_progress
+  for insert to authenticated
+  with check (user_id = (select id from public.users where auth_user_id = (select auth.uid())));
+create policy "authenticated can update own course_progress" on course_progress
+  for update to authenticated
+  using (user_id = (select id from public.users where auth_user_id = (select auth.uid())))
+  with check (user_id = (select id from public.users where auth_user_id = (select auth.uid())));
+
+-- course_certificates：用户只能读取和插入自己的证书
+drop policy if exists "authenticated can read course_certificates" on course_certificates;
+drop policy if exists "authenticated can insert course_certificates" on course_certificates;
+create policy "authenticated can read own course_certificates" on course_certificates
+  for select to authenticated
+  using (user_id = (select id from public.users where auth_user_id = (select auth.uid())));
+create policy "authenticated can insert own course_certificates" on course_certificates
+  for insert to authenticated
+  with check (user_id = (select id from public.users where auth_user_id = (select auth.uid())));
 
 -- 写策略：jobs / users / reviews / chat 必须登录（authenticated）
 create policy "authenticated can insert jobs" on jobs for insert to authenticated with check (true);
