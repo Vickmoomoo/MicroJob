@@ -108,6 +108,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
 
     fun startCourse(courseId: Int) {
         val userId = session.currentUserId
+        android.util.Log.d("CourseVM", "startCourse: userId=$userId, courseId=$courseId")
 
         // Update local state immediately
         _categories.value = _categories.value.map { cat ->
@@ -125,7 +126,10 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             viewModelScope.launch {
                 try {
                     SupabaseCourseRepository.startCourse(userId, courseId)
-                } catch (_: Exception) {}
+                    android.util.Log.d("CourseVM", "startCourse SUCCESS")
+                } catch (e: Exception) {
+                    android.util.Log.e("CourseVM", "startCourse FAILED", e)
+                }
             }
         }
     }
@@ -157,9 +161,15 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             val course = getCourseById(courseId)
             viewModelScope.launch {
                 try {
+                    android.util.Log.d("CourseVM", "markTestCompleted: userId=$userId, courseId=$courseId, lessons=${course?.lessons}")
                     SupabaseCourseRepository.markTestCompleted(userId, courseId, course?.lessons ?: 1)
-                } catch (_: Exception) {}
+                    android.util.Log.d("CourseVM", "markTestCompleted SUCCESS")
+                } catch (e: Exception) {
+                    android.util.Log.e("CourseVM", "markTestCompleted FAILED", e)
+                }
             }
+        } else {
+            android.util.Log.e("CourseVM", "markTestCompleted: userId is NULL")
         }
     }
 
