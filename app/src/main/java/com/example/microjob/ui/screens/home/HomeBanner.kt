@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.dp
 import com.example.microjob.model.SampleData
 
 /**
- * Carousel banner on the Home screen. Highlights the SDG goal (NO POVERTY)
+ * Carousel banner on the Home screen. Highlights the MicroJob platform
  * with a swipeable pager and indicator dots.
  */
 @Composable

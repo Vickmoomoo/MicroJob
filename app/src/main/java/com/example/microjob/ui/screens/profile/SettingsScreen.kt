@@ -76,7 +76,7 @@ fun SettingsScreen(
     val preferences = remember(context) { AppPreferences.getInstance(context) }
     val theme by preferences.theme.collectAsStateWithLifecycle()
     val language by preferences.language.collectAsStateWithLifecycle()
-    val copy = settingsCopy(language)
+    val copy = settingsCopy()
     val scope = rememberCoroutineScope()
     var showPasswordDialog by remember { mutableStateOf(false) }
 
@@ -130,7 +130,7 @@ fun SettingsScreen(
                 SettingsDropdown(copy.theme, theme, listOf(AppPreferences.THEME_SYSTEM, AppPreferences.THEME_LIGHT, AppPreferences.THEME_DARK)) {
                     preferences.setTheme(it)
                 }
-                SettingsDropdown(copy.language, language, listOf(AppPreferences.LANGUAGE_ENGLISH, AppPreferences.LANGUAGE_CHINESE, AppPreferences.LANGUAGE_MALAY)) {
+                SettingsDropdown(copy.language, language, listOf(AppPreferences.LANGUAGE_ENGLISH)) {
                     preferences.setLanguage(it)
                 }
                 Text(copy.languageSaved, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -249,26 +249,10 @@ private data class SettingsCopy(
     val confirmPassword: String, val passwordMismatch: String, val save: String, val cancel: String
 )
 
-private fun settingsCopy(language: String): SettingsCopy = when (language) {
-    AppPreferences.LANGUAGE_CHINESE -> SettingsCopy(
-        "设置", "您的账户", "账户", "用户详情", "编辑您的个人资料", "电子邮件", "未添加", "隐私",
-        "显示电子邮件", "允许其他用户查看您的电子邮件", "显示电话号码", "允许其他用户查看您的电话",
-        "显示出生日期", "允许其他用户查看您的出生日期", "显示个人照片", "在公开资料中显示您的照片",
-        "外观", "主题", "语言", "语言设置已保存", "安全", "更改密码", "更新您的账户密码", "关于",
-        "版本", "小任务，创造更多机会", "当前密码", "新密码", "确认密码", "密码不匹配", "保存", "取消"
-    )
-    AppPreferences.LANGUAGE_MALAY -> SettingsCopy(
-        "Tetapan", "Akaun anda", "Akaun", "Butiran pengguna", "Edit maklumat profil", "Alamat e-mel", "Belum ditambah", "Privasi",
-        "Tunjukkan e-mel", "Benarkan pengguna lain melihat e-mel", "Tunjukkan nombor telefon", "Benarkan pengguna lain melihat telefon",
-        "Tunjukkan tarikh lahir", "Benarkan pengguna lain melihat tarikh lahir", "Tunjukkan foto profil", "Papar foto di profil awam",
-        "Penampilan", "Tema", "Bahasa", "Pilihan bahasa telah disimpan", "Keselamatan", "Tukar kata laluan", "Kemas kini kata laluan akaun", "Tentang",
-        "Versi", "Kerja kecil, peluang bermakna", "Kata laluan semasa", "Kata laluan baharu", "Sahkan kata laluan", "Kata laluan tidak sepadan", "Simpan", "Batal"
-    )
-    else -> SettingsCopy(
+private fun settingsCopy(): SettingsCopy = SettingsCopy(
         "Settings", "Your account", "Account", "User Details", "Edit your profile information", "Email address", "Not added", "Privacy",
         "Show email address", "Allow other users to see your email", "Show phone number", "Allow other users to see your phone",
         "Show birthdate", "Allow other users to see your birthdate", "Show profile photo", "Display your photo on public profiles",
         "Appearance", "Theme", "Language", "Language changes are saved", "Security", "Change password", "Update your account password", "About",
         "Version", "Small jobs, meaningful opportunities", "Current password", "New password", "Confirm password", "Passwords do not match", "Save", "Cancel"
     )
-}

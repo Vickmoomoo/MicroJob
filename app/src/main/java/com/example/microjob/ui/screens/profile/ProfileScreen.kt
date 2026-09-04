@@ -43,7 +43,6 @@ import androidx.compose.material3.Text
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,6 +55,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.Lifecycle
 import coil.compose.AsyncImage
 import com.example.microjob.model.User
 import com.example.microjob.viewmodel.ProfileViewModel
@@ -89,7 +90,7 @@ fun ProfileScreen(
 ) {
     val state by vm.uiState.collectAsStateWithLifecycle()
 
-    LaunchedEffect(userId) {
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         vm.loadProfile(userId)
     }
 

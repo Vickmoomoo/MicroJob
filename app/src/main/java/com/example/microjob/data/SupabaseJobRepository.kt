@@ -113,6 +113,12 @@ class SupabaseJobRepository(private val context: Context) : JobRepository {
         return supabaseFileUrl(path)
     }
 
+    suspend fun uploadProfileImage(userId: Long, bytes: ByteArray, extension: String): String {
+        val path = "profiles/$userId-${System.currentTimeMillis()}.$extension"
+        client.storage.from("job-images").upload(path, bytes)
+        return supabaseFileUrl(path)
+    }
+
     override suspend fun registerUser(
         username: String,
         password: String,

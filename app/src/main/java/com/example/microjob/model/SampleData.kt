@@ -60,7 +60,7 @@ object SampleData {
 
     val banners = listOf(
         PromoBanner(
-            title = "NO POVERTY",
+            title = "MICROJOB",
             subtitle = "BUILDING A FUTURE OF EQUALITY AND PROSPERITY",
             startColor = Color(0xFF1E88E5),
             endColor = Color(0xFF43A047),

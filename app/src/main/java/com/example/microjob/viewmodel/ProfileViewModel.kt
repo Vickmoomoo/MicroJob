@@ -1,16 +1,18 @@
 package com.example.microjob.viewmodel
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.microjob.data.JobRepository
 import com.example.microjob.data.RepositoryProvider
 import com.example.microjob.data.SessionManager
 import com.example.microjob.data.SupabaseConfig
+import com.example.microjob.data.SupabaseJobRepository
 import com.example.microjob.data.SupabaseProfileActivityRepository
 import com.example.microjob.model.Job
-import com.example.microjob.model.Review
 import com.example.microjob.model.ProfileActivity
+import com.example.microjob.model.Review
 import com.example.microjob.model.User
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -131,14 +133,32 @@ class ProfileViewModel(
     fun updateAvatar(avatarUrl: String) {
         val user = _uiState.value.user ?: return
         viewModelScope.launch {
-            val updated = user.copy(avatarUrl = avatarUrl)
-            withContext(Dispatchers.IO) { repository.updateUser(updated) }
-            _uiState.update { it.copy(user = updated) }
+            try {
+                val sharedAvatarUrl = if (avatarUrl.startsWith("content://") && repository is SupabaseJobRepository) {
+                    val uri = Uri.parse(avatarUrl)
+                    val bytes = getApplication<Application>().contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                        ?: throw IllegalArgumentException("Unable to read selected profile photo")
+                    val extension = getApplication<Application>().contentResolver.getType(uri)
+                        ?.substringAfterLast('/')
+                        ?.takeIf { it.isNotBlank() }
+                        ?: "jpg"
+                    withContext(Dispatchers.IO) {
+                        repository.uploadProfileImage(user.id, bytes, extension)
+                    }
+                } else {
+                    avatarUrl
+                }
+                val updated = user.copy(avatarUrl = sharedAvatarUrl)
+                withContext(Dispatchers.IO) { repository.updateUser(updated) }
+                _uiState.update { it.copy(user = updated) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = e.message ?: "Unable to update profile photo") }
+            }
         }
     }
 
     fun addActivity(text: String, photoUri: String) {
-        val userId = sessionManager.currentUserId ?: return
+        val userId = _uiState.value.user?.id ?: sessionManager.currentUserId ?: return
         if (text.isBlank() && photoUri.isBlank()) return
         val activity = ProfileActivity(
             id = System.currentTimeMillis(),
@@ -147,18 +167,36 @@ class ProfileViewModel(
             photoUri = photoUri,
             createdAt = java.time.OffsetDateTime.now().toString()
         )
+
+        // Update the visible profile before waiting for Supabase or local storage.
+        _uiState.update {
+            it.copy(activities = listOf(activity) + it.activities, error = null)
+        }
+
         viewModelScope.launch {
             try {
-                val updated = if (cloudActivities != null) {
-                    listOf(cloudActivities.add(activity)) + _uiState.value.activities
+                if (cloudActivities != null) {
+                    val savedActivity = cloudActivities.add(activity)
+                    _uiState.update { state ->
+                        state.copy(
+                            activities = state.activities.map {
+                                if (it.id == activity.id) savedActivity else it
+                            },
+                            error = null
+                        )
+                    }
                 } else {
-                    val local = listOf(activity) + readActivities(userId)
-                    writeActivities(userId, local)
-                    local
+                    writeActivities(userId, listOf(activity) + readActivities(userId))
                 }
-                _uiState.update { it.copy(activities = updated, error = null) }
+                // Keep the optimistic activity visible; the state already reflects the post.
             } catch (e: Exception) {
-                _uiState.update { it.copy(error = e.message ?: "Unable to publish activity") }
+                // Keep the post visible even when the remote service is unavailable.
+                writeActivities(userId, listOf(activity) + readActivities(userId))
+                _uiState.update {
+                    it.copy(
+                        error = e.message ?: "Unable to publish activity"
+                    )
+                }
             }
         }
     }

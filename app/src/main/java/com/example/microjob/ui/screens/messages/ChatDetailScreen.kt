@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -71,6 +73,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -78,6 +81,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.microjob.data.LibreTranslateRepository
@@ -86,6 +90,7 @@ import com.example.microjob.model.Message
 import com.example.microjob.model.TranslationLanguage
 import com.example.microjob.viewmodel.ChatViewModel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 /**
  * The chat detail screen: a full conversation between the logged-in user and
@@ -1082,6 +1087,8 @@ private fun SettlePaymentDialog(
     var showDonationInfo by remember { mutableStateOf(false) }
     var workerRating by remember { mutableStateOf(5f) }
     var workerComment by remember { mutableStateOf("") }
+    val settlementScrollState = rememberScrollState()
+    val settlementScope = rememberCoroutineScope()
 
     if (job == null) {
         AlertDialog(
@@ -1124,10 +1131,24 @@ private fun SettlePaymentDialog(
 
     // Wrap the settlement UI in a Dialog so it has its own scrim background
     // and does not just float over the chat screen.
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .imePadding(),
+            contentAlignment = Alignment.Center
+        ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .heightIn(max = 620.dp)
+                .verticalScroll(settlementScrollState)
                 .clip(RoundedCornerShape(24.dp))
                 .background(MaterialTheme.colorScheme.surface)
                 .padding(20.dp),
@@ -1192,7 +1213,17 @@ private fun SettlePaymentDialog(
         OutlinedTextField(
             value = workerComment,
             onValueChange = { workerComment = it },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { focusState ->
+                    if (focusState.isFocused) {
+                        settlementScope.launch {
+                            // Wait for the keyboard to resize the dialog, then show the review field.
+                            delay(300)
+                            settlementScrollState.scrollTo(settlementScrollState.maxValue)
+                        }
+                    }
+                },
             label = { Text("Review for owner (optional)") },
             placeholder = { Text("Great poster!") },
             minLines = 2,
@@ -1211,6 +1242,7 @@ private fun SettlePaymentDialog(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Confirm & Receive RM%.2f".format(netPay))
+        }
         }
         }
     }

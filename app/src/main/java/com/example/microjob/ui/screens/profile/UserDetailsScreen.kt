@@ -3,6 +3,7 @@ package com.example.microjob.ui.screens.profile
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,9 +18,12 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -57,15 +61,22 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.Lifecycle
 import com.example.microjob.model.User
 import com.example.microjob.viewmodel.ProfileViewModel
 import com.example.microjob.viewmodel.ProfileUiState
 import coil.compose.AsyncImage
+import java.time.format.DateTimeFormatter
 import java.time.OffsetDateTime
+import java.util.Locale
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private val predefinedSkills = listOf(
     "Cleaning", "Delivery", "Digital Marketing", "Graphic Design", "Gardening",
@@ -79,6 +90,23 @@ fun UserDetailsScreen(vm: ProfileViewModel, onBack: () -> Unit) {
     val state by vm.uiState.collectAsStateWithLifecycle()
     val user = state.user ?: return
     var editing by remember { mutableStateOf(false) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        vm.loadProfile(user.id)
+    }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val profilePhotoPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (_: SecurityException) {
+                // Some document providers do not support persistable permissions.
+            }
+            vm.updateAvatar(uri.toString())
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -102,12 +130,15 @@ fun UserDetailsScreen(vm: ProfileViewModel, onBack: () -> Unit) {
                 onSave = { vm.updateProfile(it); editing = false }
             )
         } else {
-            ViewProfileContent(
-                user = user,
-                state = state,
-                modifier = Modifier.padding(padding),
-                onPublishActivity = vm::addActivity,
-                onDeleteActivity = vm::deleteActivity
+             ViewProfileContent(
+                 user = user,
+                 state = state,
+                 modifier = Modifier.padding(padding),
+                 onChangePhoto = if (state.isMyProfile) {
+                     { profilePhotoPicker.launch(arrayOf("image/*")) }
+                 } else null,
+                 onPublishActivity = vm::addActivity,
+                 onDeleteActivity = vm::deleteActivity
             )
         }
     }
@@ -118,6 +149,7 @@ private fun ViewProfileContent(
     user: User,
     state: ProfileUiState,
     modifier: Modifier,
+    onChangePhoto: (() -> Unit)?,
     onPublishActivity: (String, String) -> Unit,
     onDeleteActivity: (Long) -> Unit
 ) {
@@ -127,9 +159,9 @@ private fun ViewProfileContent(
     val completedJobs = state.acceptedJobs.count { it.status == "COMPLETED" }
     val completeness = profileCompleteness(user)
 
-    Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).background(MaterialTheme.colorScheme.background)) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 18.dp), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
-            ProfileAvatar(user)
+    Column(modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).background(MaterialTheme.colorScheme.background)) {
+         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 18.dp), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+             ProfileAvatar(user, onChangePhoto)
             Spacer(Modifier.height(10.dp))
             Text(user.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text("@${user.username}", color = MaterialTheme.colorScheme.primary)
@@ -179,7 +211,11 @@ private fun ViewProfileContent(
             Text("Activity", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             if (state.isMyProfile) ActivityComposer(onPublish = onPublishActivity)
             if (state.activities.isEmpty()) Text("No activities yet.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            state.activities.forEach { activity -> ActivityCard(activity.text, activity.photoUri, state.isMyProfile) { onDeleteActivity(activity.id) } }
+            state.activities.forEach { activity ->
+                ActivityCard(activity.text, activity.photoUri, activity.createdAt, user.avatarUrl, user.name, state.isMyProfile) {
+                    onDeleteActivity(activity.id)
+                }
+            }
         }
         Spacer(Modifier.height(28.dp))
     }
@@ -247,6 +283,8 @@ private fun EditProfileContent(user: User, modifier: Modifier, onCancel: () -> U
 private fun ActivityComposer(onPublish: (String, String) -> Unit) {
     var text by remember { mutableStateOf("") }
     var photoUri by remember { mutableStateOf("") }
+    val bringIntoViewRequester = remember { BringIntoViewRequester() }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) photoUri = uri.toString()
     }
@@ -261,7 +299,17 @@ private fun ActivityComposer(onPublish: (String, String) -> Unit) {
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .bringIntoViewRequester(bringIntoViewRequester)
+                        .onFocusChanged { focusState ->
+                            if (focusState.isFocused) {
+                                scope.launch {
+                                    delay(200)
+                                    bringIntoViewRequester.bringIntoView()
+                                }
+                            }
+                        },
                     label = { Text("What's on your mind?") },
                     placeholder = { Text("Share something with your community") },
                     shape = RoundedCornerShape(14.dp),
@@ -283,13 +331,51 @@ private fun ActivityComposer(onPublish: (String, String) -> Unit) {
 }
 
 @Composable
-private fun ActivityCard(text: String, photoUri: String, canDelete: Boolean, onDelete: () -> Unit) {
+private fun ActivityCard(
+    text: String,
+    photoUri: String,
+    createdAt: String,
+    avatarUrl: String,
+    userName: String,
+    canDelete: Boolean,
+    onDelete: () -> Unit
+) {
+    var avatarLoadFailed by remember(avatarUrl) { mutableStateOf(false) }
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                Box(Modifier.size(38.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer))
+                if (avatarUrl.isNotBlank() && !avatarLoadFailed) {
+                    AsyncImage(
+                        model = avatarUrl,
+                        contentDescription = "Profile photo",
+                        modifier = Modifier.size(38.dp).clip(CircleShape),
+                        contentScale = ContentScale.Crop,
+                        onError = { avatarLoadFailed = true }
+                    )
+                } else {
+                    Box(
+                        Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = androidx.compose.ui.Alignment.Center
+                    ) {
+                        Text(
+                            userName.firstOrNull()?.uppercase() ?: "?",
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
                 Spacer(Modifier.width(10.dp))
-                Text("Activity update", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                Column(Modifier.weight(1f)) {
+                    Text("Activity update", fontWeight = FontWeight.SemiBold)
+                    Text(
+                        formatActivityDate(createdAt),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 if (canDelete) {
                     IconButton(onClick = onDelete) { Icon(Icons.Filled.Delete, "Delete activity") }
                 }
@@ -303,10 +389,24 @@ private fun ActivityCard(text: String, photoUri: String, canDelete: Boolean, onD
 }
 
 @Composable
-private fun ProfileAvatar(user: User) {
-    Box(Modifier.size(104.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = androidx.compose.ui.Alignment.Center) {
-        if (user.avatarUrl.isNotBlank()) {
-            AsyncImage(user.avatarUrl, "Profile photo", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+private fun ProfileAvatar(user: User, onChangePhoto: (() -> Unit)?) {
+    var avatarLoadFailed by remember(user.avatarUrl) { mutableStateOf(false) }
+    Box(
+        Modifier
+            .size(104.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.primaryContainer)
+            .then(if (onChangePhoto != null) Modifier.clickable(onClick = onChangePhoto) else Modifier),
+        contentAlignment = androidx.compose.ui.Alignment.Center
+    ) {
+        if (user.avatarUrl.isNotBlank() && !avatarLoadFailed) {
+            AsyncImage(
+                user.avatarUrl,
+                "Profile photo",
+                Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+                onError = { avatarLoadFailed = true }
+            )
         } else {
             Text(user.name.firstOrNull()?.uppercase() ?: "?", style = MaterialTheme.typography.displayMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
         }
@@ -359,4 +459,12 @@ private fun memberSince(createdAt: String): String = try {
     OffsetDateTime.parse(createdAt).year.toString()
 } catch (_: Exception) {
     createdAt.take(4).ifBlank { "Unknown" }
+}
+
+private fun formatActivityDate(createdAt: String): String = try {
+    OffsetDateTime.parse(createdAt).format(
+        DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a", Locale.getDefault())
+    )
+} catch (_: Exception) {
+    "Just now"
 }

@@ -13,8 +13,6 @@ class AppPreferences private constructor(context: Context) {
         const val THEME_LIGHT = "Light"
         const val THEME_DARK = "Dark"
         const val LANGUAGE_ENGLISH = "English"
-        const val LANGUAGE_CHINESE = "Chinese"
-        const val LANGUAGE_MALAY = "Malay"
 
         @Volatile
         private var INSTANCE: AppPreferences? = null
@@ -32,7 +30,11 @@ class AppPreferences private constructor(context: Context) {
     private val _theme = MutableStateFlow(prefs.getString("theme", THEME_SYSTEM) ?: THEME_SYSTEM)
     val theme: StateFlow<String> = _theme.asStateFlow()
 
-    private val _language = MutableStateFlow(prefs.getString("language", LANGUAGE_ENGLISH) ?: LANGUAGE_ENGLISH)
+    private val _language = MutableStateFlow(
+        prefs.getString("language", LANGUAGE_ENGLISH)
+            ?.takeIf { it == LANGUAGE_ENGLISH }
+            ?: LANGUAGE_ENGLISH
+    )
     val language: StateFlow<String> = _language.asStateFlow()
 
     fun setTheme(value: String) {
@@ -41,7 +43,8 @@ class AppPreferences private constructor(context: Context) {
     }
 
     fun setLanguage(value: String) {
-        prefs.edit().putString("language", value).apply()
-        _language.value = value
+        val language = value.takeIf { it == LANGUAGE_ENGLISH } ?: LANGUAGE_ENGLISH
+        prefs.edit().putString("language", language).apply()
+        _language.value = language
     }
 }

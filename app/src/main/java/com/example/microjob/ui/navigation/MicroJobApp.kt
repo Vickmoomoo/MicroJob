@@ -446,7 +446,6 @@ fun MicroJobApp() {
                 arguments = listOf(navArgument("userId") { type = NavType.LongType })
             ) { entry ->
                 val userId = entry.arguments?.getLong("userId") ?: return@composable
-                LaunchedEffect(userId) { profileVm.loadProfile(userId) }
                 UserDetailsScreen(
                     vm = profileVm,
                     onBack = { navController.popBackStack() }
