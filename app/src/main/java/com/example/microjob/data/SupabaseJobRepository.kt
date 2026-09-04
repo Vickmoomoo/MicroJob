@@ -120,7 +120,7 @@ class SupabaseJobRepository(private val context: Context) : JobRepository {
         securityQuestion: String,
         securityAnswer: String
     ): User {
-        val existing = client.from("public_profiles").select {
+        val existing = client.from("users").select {
             filter {
                 or { ilike("username", username); ilike("email", email) }
             }
@@ -155,7 +155,7 @@ class SupabaseJobRepository(private val context: Context) : JobRepository {
             authUserId = authUserId
         )
         client.from("users").insert(input)
-        return client.from("public_profiles").select {
+        return client.from("users").select {
             filter { ilike("username", username.trim()) }
             limit(1L)
         }.decodeSingle<User>()
@@ -166,7 +166,7 @@ class SupabaseJobRepository(private val context: Context) : JobRepository {
         val email = if (isEmail) {
             username.trim()
         } else {
-            val profile = client.from("public_profiles").select {
+            val profile = client.from("users").select {
                 filter { ilike("username", username.trim()) }
                 limit(1L)
             }.decodeSingleOrNull<User>() ?: return null
@@ -180,7 +180,7 @@ class SupabaseJobRepository(private val context: Context) : JobRepository {
         } catch (_: Exception) {
             return null
         }
-        return client.from("public_profiles").select {
+        return client.from("users").select {
             filter { ilike("email", email) }
             limit(1L)
         }.decodeSingleOrNull<User>()

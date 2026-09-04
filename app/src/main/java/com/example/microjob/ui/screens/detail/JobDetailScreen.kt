@@ -152,7 +152,7 @@ private fun JobDetailContent(
     job: Job,
     poster: User?,
     innerPadding: androidx.compose.foundation.layout.PaddingValues,
-    onContactPoster: (com.example.microjob.model.User?) -> Unit,
+    onContactPoster: (User?) -> Unit,
     onPosterClick: (Long) -> Unit = {},
     currentUserId: Long? = null,
 ) {
@@ -385,8 +385,6 @@ private fun PosterRow(poster: User?, onClick: () -> Unit = {}) {
             .clickable(onClick = onClick),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Avatar placeholder: circle with the first letter of the name.
-        // TODO: replace with real photo from avatarUrl when images are supported.
         Box(
             modifier = Modifier
                 .size(44.dp)

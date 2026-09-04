@@ -30,7 +30,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -97,11 +96,11 @@ fun LoginScreen(
     // snackbar, and only then clear the state (clearing earlier would cancel
     // this effect and the snackbar would never appear).
     LaunchedEffect(uiState) {
-        if (uiState is AuthUiState.Registered) {
+        if (uiState == AuthUiState.Registered) {
             vm.switchToLoginAfterRegister()
             snackbarHostState.showSnackbar("Account created! Please log in.")
             vm.clearUiState()
-        } else if (uiState is AuthUiState.PasswordReset) {
+        } else if (uiState == AuthUiState.PasswordReset) {
             vm.switchToLoginAfterPasswordReset()
             snackbarHostState.showSnackbar("Password reset successfully.")
             vm.clearUiState()
