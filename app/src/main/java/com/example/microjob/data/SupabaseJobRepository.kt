@@ -168,30 +168,36 @@ class SupabaseJobRepository(private val context: Context) : JobRepository {
     }
 
     override suspend fun login(username: String, password: String): User? {
-        val profile = client.from("users").select {
-            filter {
-                or {
-                    ilike("username", username.trim())
-                    ilike("email", username.trim())
-                }
-            }
-            limit(1L)
-        }.decodeSingleOrNull<User>() ?: return null
-
-        // The app user record is the source of truth for this demo's login.
-        // Supabase Auth may still contain the old password after recovery.
-        if (profile.password != password) return null
-
+        // Look up the app user first so the latest public.users password can
+        // be used when a password reset has not updated Supabase Auth yet.
+        val target: User = if (username.contains("@")) {
+            client.from("users").select {
+                filter { ilike("email", username.trim()) }
+                limit(1L)
+            }.decodeSingleOrNull<User>()
+        } else {
+            client.from("users").select {
+                filter { ilike("username", username.trim()) }
+                limit(1L)
+            }.decodeSingleOrNull<User>()
+        } ?: return null
+        val email = target.email
         try {
             client.auth.signInWith(Email) {
-                this.email = profile.email
+                this.email = email
                 this.password = password
             }
-        } catch (e: Exception) {
-            // App login still succeeds; Auth is only used for cloud-session/RLS access.
-            android.util.Log.w("SupabaseJobRepository", "Supabase Auth sign-in failed: ${e.message}")
+        } catch (_: Exception) {
+            // Forgot-password currently updates public.users only. Accept the
+            // latest public.users password as a fallback when Auth still has
+            // the old password.
+            if (target.password == password) return target
+            return null
         }
-        return profile
+        return client.from("users").select {
+            filter { ilike("email", email) }
+            limit(1L)
+        }.decodeSingleOrNull<User>() ?: target
     }
 
     override suspend fun resetPassword(
