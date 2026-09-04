@@ -54,6 +54,9 @@ class ProfileViewModel(
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
 
+    /** Ids deleted during this session; a stale in-flight cloud fetch must not re-add them. */
+    private val deletedActivityIds = mutableSetOf<Long>()
+
     /** Loads a profile for the given user id. */
     fun loadProfile(userId: Long) {
         viewModelScope.launch {
@@ -115,15 +118,17 @@ class ProfileViewModel(
                 } else null
 
                 _uiState.update {
-                    // Preserve just-posted optimistic items (temp id = currentTimeMillis,
-                    // far larger than DB bigserial ids) that the cloud list doesn't
-                    // include yet, otherwise a concurrent loadProfile wipes the new post
-                    // and it only reappears after quitting + reopening.
+                    // Cloud fetch may be stale (started before the user posted).
+                    // Union it with anything already on screen that the fetched
+                    // list doesn't contain yet, instead of overwriting — otherwise
+                    // a just-posted activity disappears until re-entering.
                     val cloudIds = activities.map { it.id }.toSet()
-                    val pending = it.activities.filter { a ->
-                        a.userId == userId && a.id > 1_000_000_000_000L && a.id !in cloudIds
+                    val deletedIds = deletedActivityIds.toSet()
+                    val localOnly = it.activities.filter { a ->
+                        a.userId == userId && a.id !in cloudIds && a.id !in deletedIds
                     }
-                    val merged = (pending + activities).sortedByDescending { a -> a.id }
+                    val visibleCloud = activities.filterNot { a -> a.id in deletedIds }
+                    val merged = (localOnly + visibleCloud).sortedByDescending { a -> a.id }
                     it.copy(
                         user = user,
                         isMyProfile = isMyProfile,
@@ -224,7 +229,7 @@ class ProfileViewModel(
                             ?.takeIf { it.isNotBlank() }
                             ?: "jpg"
                         finalPhoto = withContext(Dispatchers.IO) {
-                            cloudActivities.uploadActivityImage(bytes, extension)
+                            cloudActivities.uploadActivityImage(userId, bytes, extension)
                         }
                     }
                     val savedActivity = cloudActivities.add(activity.copy(photoUri = finalPhoto))
@@ -252,6 +257,7 @@ class ProfileViewModel(
             } catch (e: Exception) {
                 // Upload/cloud failed: drop the optimistic item so no broken
                 // content:// image stays on screen.
+                android.util.Log.e("ProfileVM", "addActivity FAILED", e)
                 _uiState.update { state ->
                     state.copy(
                         activities = state.activities.filterNot { it.id == activity.id },
@@ -264,6 +270,8 @@ class ProfileViewModel(
 
     fun deleteActivity(activityId: Long) {
         val userId = sessionManager.currentUserId ?: return
+        // Remember immediately so a stale loadProfile finishing later can't resurrect it.
+        deletedActivityIds.add(activityId)
         viewModelScope.launch {
             try {
                 if (cloudActivities != null) {

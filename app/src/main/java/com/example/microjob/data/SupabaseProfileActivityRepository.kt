@@ -3,7 +3,6 @@ package com.example.microjob.data
 import android.content.Context
 import com.example.microjob.model.ProfileActivity
 import io.github.jan.supabase.SupabaseClient
-import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.storage.storage
@@ -36,17 +35,17 @@ class SupabaseProfileActivityRepository(
                 userId = activity.userId,
                 text = activity.text,
                 photoUri = activity.photoUri
-            ))
+            )) { select() }
             .decodeSingle<ProfileActivityDto>()
         return result.toProfileActivity()
     }
 
-    /** Uploads an activity photo to the public bucket and returns its public URL. */
-    suspend fun uploadActivityImage(bytes: ByteArray, extension: String): String {
+    /** Uploads an activity photo to the public bucket and returns its public URL.
+     *  [userId] must be the numeric public.users.id — the storage policy checks
+     *  folder[2] against it, not the Auth uuid. */
+    suspend fun uploadActivityImage(userId: Long, bytes: ByteArray, extension: String): String {
         val cleanExt = extension.substringAfterLast('/').takeIf { it.isNotBlank() } ?: "jpg"
-        val authUserId = client.auth.currentUserOrNull()?.id
-            ?: throw IllegalStateException("You must be signed in to upload an activity photo.")
-        val path = "activities/$authUserId/${System.currentTimeMillis()}.$cleanExt"
+        val path = "activities/$userId/${System.currentTimeMillis()}.$cleanExt"
         client.storage.from("profile-activity-images").upload(path, bytes)
         return supabaseActivityFileUrl(path)
     }
