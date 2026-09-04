@@ -102,7 +102,7 @@ fun SocialImpactScreen(
                 ) {
                         StatColumn(
                             value = "${uiState.peopleHelped}",
-                            label = "Donated to Charity",
+                            label = "Fund Raising",
                             color = primary
                         )
                     StatColumn(
