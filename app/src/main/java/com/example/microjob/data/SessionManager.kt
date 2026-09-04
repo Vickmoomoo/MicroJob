@@ -26,13 +26,27 @@ class SessionManager(context: Context) {
             }
         }
 
+    /** Email of the current user, retained for the profile when the public
+     * profile view masks email because the Auth session is unavailable. */
+    var currentUserEmail: String?
+        get() = prefs.getString(KEY_USER_EMAIL, null)
+        set(value) {
+            prefs.edit {
+                if (value.isNullOrBlank()) remove(KEY_USER_EMAIL) else putString(KEY_USER_EMAIL, value)
+            }
+        }
+
     val isLoggedIn: Boolean get() = currentUserId != null
 
     fun logout() {
-        prefs.edit { remove(KEY_USER_ID) }
+        prefs.edit {
+            remove(KEY_USER_ID)
+            remove(KEY_USER_EMAIL)
+        }
     }
 
     companion object {
         private const val KEY_USER_ID = "current_user_id"
+        private const val KEY_USER_EMAIL = "current_user_email"
     }
 }

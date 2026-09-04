@@ -82,6 +82,7 @@ class AuthViewModel(
                     } catch (_: Exception) { null }
                     if (profile != null) {
                         session.currentUserId = profile.id
+                        if (profile.email.isNotBlank()) session.currentUserEmail = profile.email
                         _currentUser.value = profile
                         return@launch
                     }
@@ -89,6 +90,7 @@ class AuthViewModel(
                 val id = session.currentUserId ?: return@launch
                 val user = withContext(Dispatchers.IO) { repository.getUser(id) }
                 if (user != null) {
+                    session.currentUserEmail = user.email
                     _currentUser.value = user
                 } else {
                     session.currentUserId = null
@@ -199,6 +201,7 @@ class AuthViewModel(
                         // Continue with app login but warn that cloud sync won't work
                     }
                     session.currentUserId = user.id
+                    session.currentUserEmail = user.email
                     _currentUser.value = user
                     _uiState.value = AuthUiState.Idle
                 }

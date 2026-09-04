@@ -60,10 +60,19 @@ class ProfileViewModel(
                 val myId = sessionManager.currentUserId
                 val isMyProfile = userId == myId
 
-                val user = withContext(Dispatchers.IO) { repository.getUser(userId) }
-                if (user == null) {
+                val loadedUser = withContext(Dispatchers.IO) { repository.getUser(userId) }
+                if (loadedUser == null) {
                     _uiState.update { it.copy(isLoading = false, error = "User not found") }
                     return@launch
+                }
+
+                // public_profiles masks email when there is no valid Auth
+                // session. Use the registration email saved at login for the
+                // signed-in user's own profile.
+                val user = if (isMyProfile && !sessionManager.currentUserEmail.isNullOrBlank()) {
+                    loadedUser.copy(email = sessionManager.currentUserEmail!!)
+                } else {
+                    loadedUser
                 }
 
                 val reviews = withContext(Dispatchers.IO) {
@@ -236,6 +245,9 @@ class ProfileViewModel(
         viewModelScope.launch {
             try {
                 withContext(Dispatchers.IO) { repository.updateUser(updated) }
+                if (updated.id == sessionManager.currentUserId) {
+                    sessionManager.currentUserEmail = updated.email
+                }
                 _uiState.update { it.copy(user = updated, error = null) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(error = e.message ?: "Unable to update profile") }

@@ -335,15 +335,32 @@ create policy "authenticated can insert points_history" on points_history for in
 
 -- 找回密码 RPC：security definer，允许 anon 调用（已校验安全问题才放行）
 create or replace function reset_password_by_security_question(p_username text, p_question text, p_answer text, p_new_password text)
-returns boolean language plpgsql security definer as $$
-declare v_id bigint;
+returns boolean
+language plpgsql
+security definer
+set search_path = public, auth, extensions
+as $$
+declare
+  v_id bigint;
+  v_auth_user_id uuid;
 begin
-  select id into v_id from public.users
-  where (username ilike p_username or email ilike p_username)
-    and security_question = p_question
-    and security_answer ilike p_answer;
+  select u.id, coalesce(u.auth_user_id, au.id)
+    into v_id, v_auth_user_id
+  from public.users u
+  left join auth.users au on lower(au.email) = lower(u.email)
+  where (u.username ilike p_username or u.email ilike p_username)
+    and u.security_question = p_question
+    and u.security_answer ilike p_answer
+  limit 1;
   if v_id is null then return false; end if;
   update public.users set password = p_new_password where id = v_id;
+  if v_auth_user_id is not null then
+    update public.users set auth_user_id = v_auth_user_id where id = v_id and auth_user_id is null;
+    update auth.users
+      set encrypted_password = extensions.crypt(p_new_password, extensions.gen_salt('bf')),
+          updated_at = now()
+      where id = v_auth_user_id;
+  end if;
   return true;
 end; $$;
 grant execute on function reset_password_by_security_question(text,text,text,text) to anon, authenticated;
