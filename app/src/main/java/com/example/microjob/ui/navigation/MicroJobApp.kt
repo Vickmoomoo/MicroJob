@@ -129,6 +129,7 @@ fun MicroJobApp() {
         if (userId != null) {
             socialImpactVm.setUserId(userId)
         }
+        courseVm.refreshIfUserChanged()
     }
 
     // Show a welcome snackbar right after login, then go back to Home.
