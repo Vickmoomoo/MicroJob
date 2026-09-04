@@ -185,21 +185,8 @@ class AuthViewModel(
                         repository.login(username.value.trim(), password.value)
                             ?: throw IllegalArgumentException("Wrong username or password.")
                     }
-                    // Sign in with Supabase Auth for RLS
-                    try {
-                        val loginEmail = user.email
-                        val loginPassword = password.value
-                        withContext(Dispatchers.IO) {
-                            SupabaseClientHolder.client.auth.signInWith(Email) {
-                                email = loginEmail
-                                password = loginPassword
-                            }
-                        }
-                    } catch (e: Exception) {
-                        // Supabase Auth sign-in failed
-                        android.util.Log.e("AuthViewModel", "Supabase Auth sign-in failed: ${e.message}")
-                        // Continue with app login but warn that cloud sync won't work
-                    }
+                    // SupabaseJobRepository has already established the Auth
+                    // session. Local mode intentionally has no cloud session.
                     session.currentUserId = user.id
                     session.currentUserEmail = user.email
                     _currentUser.value = user

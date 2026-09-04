@@ -447,6 +447,7 @@ fun MicroJobApp() {
             ) { entry ->
                 val userId = entry.arguments?.getLong("userId") ?: return@composable
                 UserDetailsScreen(
+                    userId = userId,
                     vm = profileVm,
                     onBack = { navController.popBackStack() }
                 )

@@ -188,10 +188,8 @@ class SupabaseJobRepository(private val context: Context) : JobRepository {
                 this.password = password
             }
         } catch (_: Exception) {
-            // Forgot-password currently updates public.users only. Accept the
-            // latest public.users password as a fallback when Auth still has
-            // the old password.
-            if (target.password == password) return target
+            // Supabase Auth is the only source of truth for authentication.
+            // Never log in using the password stored in public.users.
             return null
         }
         return client.from("users").select {
@@ -217,7 +215,6 @@ class SupabaseJobRepository(private val context: Context) : JobRepository {
             limit(1L)
         }.decodeSingleOrNull<User>()
         if (target == null) return PasswordResetResult.INVALID_DETAILS
-        if (target.password == newPassword) return PasswordResetResult.SAME_AS_CURRENT_PASSWORD
         try {
             client.postgrest.rpc(
                 "reset_password_by_security_question",
@@ -228,17 +225,14 @@ class SupabaseJobRepository(private val context: Context) : JobRepository {
                     "p_new_password" to newPassword
                 )
             )
-        } catch (_: Exception) {
-            client.from("users").update({ set("password", newPassword) }) {
-                filter { eq("id", target.id) }
-            }
+        } catch (e: Exception) {
+            // Do not report success if Auth could not be updated. Updating
+            // only public.users would make the next Auth-only login fail.
+            throw IllegalStateException(
+                "Password reset could not be completed. Please try again.",
+                e
+            )
         }
-        try {
-            val currentUser = try { client.auth.currentUserOrNull() } catch (_: Exception) { null }
-            if (currentUser?.email?.equals(target.email, ignoreCase = true) == true) {
-                client.auth.updateUser { password = newPassword }
-            }
-        } catch (_: Exception) {}
         return PasswordResetResult.SUCCESS
     }
 

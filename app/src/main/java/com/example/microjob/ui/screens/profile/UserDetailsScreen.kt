@@ -86,13 +86,13 @@ private val predefinedSkills = listOf(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun UserDetailsScreen(vm: ProfileViewModel, onBack: () -> Unit) {
+fun UserDetailsScreen(userId: Long, vm: ProfileViewModel, onBack: () -> Unit) {
     val state by vm.uiState.collectAsStateWithLifecycle()
-    val user = state.user ?: return
     var editing by remember { mutableStateOf(false) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        vm.loadProfile(user.id)
+        vm.loadProfile(userId)
     }
+    val user = state.user ?: return
     val context = androidx.compose.ui.platform.LocalContext.current
     val profilePhotoPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {

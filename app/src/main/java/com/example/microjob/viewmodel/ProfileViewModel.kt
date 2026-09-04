@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.microjob.data.JobRepository
 import com.example.microjob.data.RepositoryProvider
 import com.example.microjob.data.SessionManager
+import com.example.microjob.data.SupabaseClientHolder
 import com.example.microjob.data.SupabaseConfig
 import com.example.microjob.data.SupabaseJobRepository
 import com.example.microjob.data.SupabaseProfileActivityRepository
@@ -14,6 +15,7 @@ import com.example.microjob.model.Job
 import com.example.microjob.model.ProfileActivity
 import com.example.microjob.model.Review
 import com.example.microjob.model.User
+import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -66,11 +68,26 @@ class ProfileViewModel(
                     return@launch
                 }
 
-                // public_profiles masks email when there is no valid Auth
-                // session. Use the registration email saved at login for the
-                // signed-in user's own profile.
-                val user = if (isMyProfile && !sessionManager.currentUserEmail.isNullOrBlank()) {
-                    loadedUser.copy(email = sessionManager.currentUserEmail!!)
+                // public_profiles can mask email during a session restore. For
+                // my own profile, prefer the registration email from Auth and
+                // retain it locally as a fallback across rotation/recreation.
+                val authEmail = if (isMyProfile && SupabaseConfig.isConfigured) {
+                    try {
+                        withContext(Dispatchers.IO) {
+                            SupabaseClientHolder.client.auth.currentUserOrNull()?.email
+                        }
+                    } catch (_: Exception) {
+                        null
+                    }
+                } else {
+                    null
+                }
+                val registeredEmail = authEmail ?: sessionManager.currentUserEmail
+                if (!registeredEmail.isNullOrBlank()) {
+                    sessionManager.currentUserEmail = registeredEmail
+                }
+                val user = if (isMyProfile && !registeredEmail.isNullOrBlank()) {
+                    loadedUser.copy(email = registeredEmail)
                 } else {
                     loadedUser
                 }

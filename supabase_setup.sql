@@ -353,13 +353,17 @@ begin
     and u.security_answer ilike p_answer
   limit 1;
   if v_id is null then return false; end if;
+  if v_auth_user_id is null then
+    raise exception 'This account is not linked to Supabase Auth.';
+  end if;
   update public.users set password = p_new_password where id = v_id;
-  if v_auth_user_id is not null then
-    update public.users set auth_user_id = v_auth_user_id where id = v_id and auth_user_id is null;
-    update auth.users
-      set encrypted_password = extensions.crypt(p_new_password, extensions.gen_salt('bf')),
-          updated_at = now()
-      where id = v_auth_user_id;
+  update public.users set auth_user_id = v_auth_user_id where id = v_id and auth_user_id is null;
+  update auth.users
+    set encrypted_password = extensions.crypt(p_new_password, extensions.gen_salt('bf')),
+        updated_at = now()
+    where id = v_auth_user_id;
+  if not found then
+    raise exception 'Supabase Auth account could not be updated.';
   end if;
   return true;
 end; $$;
