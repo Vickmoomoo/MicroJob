@@ -303,12 +303,13 @@ create policy "authenticated can update own course_progress" on course_progress
   using (user_id = (select id from public.users where auth_user_id = (select auth.uid())))
   with check (user_id = (select id from public.users where auth_user_id = (select auth.uid())));
 
--- course_certificates：用户只能读取和插入自己的证书
+-- course_certificates：证书可公开查看，但只能由本人插入
 drop policy if exists "authenticated can read course_certificates" on course_certificates;
+drop policy if exists "authenticated can read own course_certificates" on course_certificates;
 drop policy if exists "authenticated can insert course_certificates" on course_certificates;
-create policy "authenticated can read own course_certificates" on course_certificates
-  for select to authenticated
-  using (user_id = (select id from public.users where auth_user_id = (select auth.uid())));
+drop policy if exists "public can read course_certificates" on course_certificates;
+create policy "public can read course_certificates" on course_certificates
+  for select to anon, authenticated using (true);
 create policy "authenticated can insert own course_certificates" on course_certificates
   for insert to authenticated
   with check (user_id = (select id from public.users where auth_user_id = (select auth.uid())));
@@ -375,8 +376,9 @@ grant execute on function reset_password_by_security_question(text,text,text,tex
 -- 公开读：anon 只能 select 公开表
 grant select on categories, course_categories, courses, vouchers, jobs, users, reviews to anon;
 grant select, insert, update, delete on categories, vouchers, jobs, users, reviews to authenticated;
--- 课程进度和证书：仅 authenticated
+-- 课程进度仅 authenticated；证书允许 public read
 grant select, insert, update on course_progress to authenticated;
+grant select on course_certificates to anon;
 grant select, insert on course_certificates to authenticated;
 -- 私有表：仅 authenticated
 grant select, insert, update, delete on conversations, messages, donation_history, user_points, points_history to authenticated;
@@ -576,9 +578,7 @@ create policy "owners can upload profile activity images"
   with check (
     bucket_id = 'profile-activity-images'
     and (storage.foldername(name))[1] = 'activities'
-    and (storage.foldername(name))[2] = (
-      select id::text from public.users where auth_user_id = (select auth.uid())
-    )
+    and (storage.foldername(name))[2] = (select auth.uid()::text)
   );
 
 notify pgrst, 'reload schema';

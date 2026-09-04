@@ -276,14 +276,16 @@ private fun ProfileContent(
                 }
             }
 
-            // Badge icon (top-right)
-            IconButton(onClick = { onNavigateToPointsHistory() }) {
-                Icon(
-                    imageVector = Icons.Filled.Badge,
-                    contentDescription = "Badge",
-                    modifier = Modifier.size(32.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
+            // Point History belongs to the signed-in user's profile only.
+            if (isMyProfile) {
+                IconButton(onClick = { onNavigateToPointsHistory() }) {
+                    Icon(
+                        imageVector = Icons.Filled.Badge,
+                        contentDescription = "Badge",
+                        modifier = Modifier.size(32.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
 
@@ -379,7 +381,7 @@ private fun ProfileContent(
         } else {
             ProfileMenuItem(Icons.Filled.Badge, "User Details") { onNavigateToUserDetails() }
             ProfileMenuItem(Icons.Filled.Star, "Reviews") { onNavigateToReviews() }
-            ProfileMenuItem(Icons.Filled.School, "Course and Certificate") { onNavigateToCertificates() }
+            ProfileMenuItem(Icons.Filled.School, "Certificates") { onNavigateToCertificates() }
         }
 
         // --- Logout (my profile only) ---

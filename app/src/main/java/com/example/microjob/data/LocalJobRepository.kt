@@ -147,6 +147,7 @@ class LocalJobRepository(private val context: Context) : JobRepository {
         val jobs = readJobs().toMutableList()
         val index = jobs.indexOfFirst { it.id == jobId }
         if (index == -1) return null
+        if (jobs[index].paymentStatus == "RELEASED") return null
         val updated = jobs[index].copy(
             status = "COMPLETED",
             paymentStatus = "RELEASED"

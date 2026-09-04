@@ -12,6 +12,7 @@ import com.example.microjob.model.sampleCourseCategories
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class CourseViewModel(application: Application) : AndroidViewModel(application) {
@@ -34,6 +35,7 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     private var lastUserId: Long? = null
+    private var loadJob: Job? = null
 
     init {
         loadFromSupabase()
@@ -54,10 +56,16 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     private fun loadFromSupabase() {
+        loadJob?.cancel()
         val userId = session.currentUserId ?: return
         lastUserId = userId
-        viewModelScope.launch {
+        loadJob = viewModelScope.launch {
             _isLoading.value = true
+            // Snapshot local state BEFORE overwriting categories, so a refresh right
+            // after watching doesn't lose the just-watched episodes.
+            val localWatchedSnapshot = _watchedEpisodes.value
+            val localTestsSnapshot = _testCompleted.value
+            val localCoursesSnapshot = getAllCourses().associateBy { it.id }
             try {
                 // Load categories + courses
                 val cats = SupabaseCourseRepository.getCategories()
@@ -71,6 +79,13 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                 progressList.forEach { p ->
                     android.util.Log.d("CourseVM", "  progress: courseId=${p.courseId}, enrolled=${p.enrolled}, progress=${p.progress}, test=${p.testCompleted}")
                 }
+                // Merge DB state with local in-memory state instead of overwriting.
+                // refresh() can run right after markEpisodeWatched() while the Supabase
+                // write is still in flight; overwriting would revert the circle.
+                val localWatched = localWatchedSnapshot
+                val localTests = localTestsSnapshot
+                val localCourses = localCoursesSnapshot
+
                 val watched = mutableMapOf<Int, Set<Int>>()
                 val tests = mutableMapOf<Int, Boolean>()
 
@@ -82,18 +97,40 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                         tests[p.courseId] = true
                     }
                 }
+                // Union local (possibly newer) watches with DB watches.
+                localWatched.forEach { (courseId, episodes) ->
+                    watched[courseId] = (watched[courseId] ?: emptySet()) + episodes
+                }
+                localTests.forEach { (courseId, done) ->
+                    if (done) tests[courseId] = true
+                }
                 _watchedEpisodes.value = watched
                 _testCompleted.value = tests
 
-                // Update enrolled + progress on courses
+                // Update enrolled + progress on courses.
+                // enrolled = DB OR local (don't unenroll on stale refresh).
+                // progress = max(DB, local, recomputed from merged watches).
                 _categories.value = _categories.value.map { cat ->
                     cat.copy(
                         courses = cat.courses.map { course ->
                             val progress = progressList.find { it.courseId == course.id }
-                            if (progress != null) {
+                            val local = localCourses[course.id]
+                            if (progress != null || local != null) {
+                                val enrolled = (progress?.enrolled == true) || (local?.enrolled == true)
+                                val mergedWatchedCount = (watched[course.id] ?: emptySet()).size
+                                val mergedTestDone = tests[course.id] == true
+                                val videoPercent = if (course.lessons > 0) {
+                                    ((mergedWatchedCount.toFloat() / course.lessons) * 100).toInt().coerceIn(0, 100)
+                                } else 0
+                                val recomputed = (videoPercent * 0.8 + (if (mergedTestDone) 100 else 0) * 0.2).toInt().coerceIn(0, 100)
+                                val mergedProgress = maxOf(
+                                    progress?.progress ?: 0,
+                                    local?.progress ?: 0,
+                                    if (enrolled) recomputed else 0
+                                )
                                 course.copy(
-                                    enrolled = progress.enrolled,
-                                    progress = progress.progress
+                                    enrolled = enrolled,
+                                    progress = mergedProgress
                                 )
                             } else course
                         }
@@ -104,6 +141,22 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
                 _certificates.value = SupabaseCourseRepository.getCertificates(userId)
             } catch (e: Exception) {
                 android.util.Log.e("CourseVM", "loadFromSupabase FAILED", e)
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    /** Loads only a profile owner's completed certificates for public viewing. */
+    fun loadCertificatesForUser(userId: Long) {
+        loadJob?.cancel()
+        _certificates.value = emptyList()
+        loadJob = viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                _certificates.value = SupabaseCourseRepository.getCertificates(userId)
+            } catch (e: Exception) {
+                android.util.Log.e("CourseVM", "loadCertificatesForUser FAILED", e)
             } finally {
                 _isLoading.value = false
             }
@@ -149,9 +202,15 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
             val course = getCourseById(courseId)
             viewModelScope.launch {
                 try {
+                    android.util.Log.d("CourseVM", "markEpisodeWatched: userId=$userId, courseId=$courseId, episode=$episode")
                     SupabaseCourseRepository.markEpisodeWatched(userId, courseId, episode, course?.lessons ?: 1)
-                } catch (_: Exception) {}
+                    android.util.Log.d("CourseVM", "markEpisodeWatched SUCCESS")
+                } catch (e: Exception) {
+                    android.util.Log.e("CourseVM", "markEpisodeWatched FAILED", e)
+                }
             }
+        } else {
+            android.util.Log.e("CourseVM", "markEpisodeWatched: userId is NULL")
         }
     }
 
@@ -182,6 +241,19 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
 
     fun getWatchedEpisodes(courseId: Int): Set<Int> =
         _watchedEpisodes.value[courseId] ?: emptySet()
+
+    /** Single source of truth for list/detail circles: same 80/20 formula as detail screen. */
+    fun getDisplayProgress(course: Course): Int {
+        if (!course.enrolled) return 0
+        val watchedCount = (_watchedEpisodes.value[course.id] ?: emptySet()).size
+        val videoPercent = if (course.lessons > 0) {
+            ((watchedCount.toFloat() / course.lessons) * 100).toInt().coerceIn(0, 100)
+        } else 0
+        val testPercent = if (_testCompleted.value[course.id] == true) 100 else 0
+        val recomputed = (videoPercent * 0.8 + testPercent * 0.2).toInt().coerceIn(0, 100)
+        // Take max so a stale course.progress never hides a newly watched episode.
+        return maxOf(course.progress, recomputed)
+    }
 
     private fun recalculateProgress(courseId: Int) {
         val course = getCourseById(courseId) ?: return

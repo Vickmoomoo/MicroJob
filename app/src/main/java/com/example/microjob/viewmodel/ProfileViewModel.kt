@@ -108,13 +108,22 @@ class ProfileViewModel(
                         // Keep the profile usable while the migration is being applied.
                         readActivities(userId)
                     }
-                }
+                }.sortedByDescending { it.id }
 
                 val avgRating = if (reviews.isNotEmpty()) {
                     reviews.map { it.rating }.average()
                 } else null
 
                 _uiState.update {
+                    // Preserve just-posted optimistic items (temp id = currentTimeMillis,
+                    // far larger than DB bigserial ids) that the cloud list doesn't
+                    // include yet, otherwise a concurrent loadProfile wipes the new post
+                    // and it only reappears after quitting + reopening.
+                    val cloudIds = activities.map { it.id }.toSet()
+                    val pending = it.activities.filter { a ->
+                        a.userId == userId && a.id > 1_000_000_000_000L && a.id !in cloudIds
+                    }
+                    val merged = (pending + activities).sortedByDescending { a -> a.id }
                     it.copy(
                         user = user,
                         isMyProfile = isMyProfile,
@@ -122,7 +131,7 @@ class ProfileViewModel(
                         postedJobs = postedJobs,
                         acceptedJobs = acceptedJobs,
                         averageRating = avgRating,
-                        activities = activities,
+                        activities = merged,
                         isLoading = false
                     )
                 }
@@ -202,12 +211,37 @@ class ProfileViewModel(
         viewModelScope.launch {
             try {
                 if (cloudActivities != null) {
-                    val savedActivity = cloudActivities.add(activity)
+                    // A content:// URI only works on this device. Upload it so
+                    // everyone (including yourself after restart) loads a public URL.
+                    var finalPhoto = activity.photoUri
+                    if (finalPhoto.startsWith("content://")) {
+                        val uri = Uri.parse(finalPhoto)
+                        val bytes = withContext(Dispatchers.IO) {
+                            getApplication<Application>().contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                        } ?: throw IllegalArgumentException("Unable to read selected activity photo")
+                        val extension = getApplication<Application>().contentResolver.getType(uri)
+                            ?.substringAfterLast('/')
+                            ?.takeIf { it.isNotBlank() }
+                            ?: "jpg"
+                        finalPhoto = withContext(Dispatchers.IO) {
+                            cloudActivities.uploadActivityImage(bytes, extension)
+                        }
+                    }
+                    val savedActivity = cloudActivities.add(activity.copy(photoUri = finalPhoto))
                     _uiState.update { state ->
-                        state.copy(
-                            activities = state.activities.map {
+                        val hasTemp = state.activities.any { it.id == activity.id }
+                        val alreadyHasSaved = state.activities.any { it.id == savedActivity.id }
+                        val merged = when {
+                            hasTemp -> state.activities.map {
                                 if (it.id == activity.id) savedActivity else it
-                            },
+                            }
+                            // loadProfile wiped the optimistic item while upload was in
+                            // flight: prepend so this post is visible without re-entering.
+                            alreadyHasSaved -> state.activities
+                            else -> listOf(savedActivity) + state.activities
+                        }
+                        state.copy(
+                            activities = merged.sortedByDescending { it.id },
                             error = null
                         )
                     }
@@ -216,10 +250,11 @@ class ProfileViewModel(
                 }
                 // Keep the optimistic activity visible; the state already reflects the post.
             } catch (e: Exception) {
-                // Keep the post visible even when the remote service is unavailable.
-                writeActivities(userId, listOf(activity) + readActivities(userId))
-                _uiState.update {
-                    it.copy(
+                // Upload/cloud failed: drop the optimistic item so no broken
+                // content:// image stays on screen.
+                _uiState.update { state ->
+                    state.copy(
+                        activities = state.activities.filterNot { it.id == activity.id },
                         error = e.message ?: "Unable to publish activity"
                     )
                 }

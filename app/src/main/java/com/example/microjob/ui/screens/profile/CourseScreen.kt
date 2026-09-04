@@ -40,23 +40,40 @@ private val green = Color(0xFF10B981)
 fun CourseScreen(
     onBack: () -> Unit,
     onStartCourse: (Int) -> Unit = {},
-    vm: CourseViewModel = viewModel()
+    vm: CourseViewModel = viewModel(),
+    certificateUserId: Long? = null,
 ) {
     val categories by vm.categories.collectAsStateWithLifecycle()
     val certificates by vm.certificates.collectAsStateWithLifecycle()
+    val isLoading by vm.isLoading.collectAsStateWithLifecycle()
+    // Collect these so the Certificates circle recomposes as soon as an episode
+    // is watched (same source as CourseDetailScreen's overallProgress).
+    val watchedEpisodes by vm.watchedEpisodes.collectAsStateWithLifecycle()
+    val testCompletedMap by vm.testCompleted.collectAsStateWithLifecycle()
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("Courses", "Certificates")
 
-    // Check for user changes when screen becomes visible
-    LaunchedEffect(Unit) {
-        vm.refreshIfUserChanged()
+    // Reload the current user's full course data when opening the own screen;
+    // public profiles use an isolated certificate-only view instead.
+    LaunchedEffect(certificateUserId) {
+        if (certificateUserId == null) {
+            vm.refresh()
+        } else {
+            vm.loadCertificatesForUser(certificateUserId)
+        }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 windowInsets = WindowInsets(0, 0, 0, 0),
-                title = { Text("Course and Certificates", fontSize = 18.sp, fontWeight = FontWeight.SemiBold) },
+                title = {
+                    Text(
+                        if (certificateUserId == null) "Course and Certificates" else "Certificates",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -71,26 +88,41 @@ fun CourseScreen(
                 .padding(paddingValues)
                 .background(MaterialTheme.colorScheme.background)
         ) {
-            TabRow(
-                selectedTabIndex = selectedTab,
-                containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = primaryBlue
-            ) {
-                tabs.forEachIndexed { index, title ->
-                    Tab(
-                        selected = selectedTab == index,
-                        onClick = { selectedTab = index },
-                        text = {
-                            Text(
-                                text = title,
-                                fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal
-                            )
-                        }
+            if (certificateUserId != null) {
+                if (isLoading) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = primaryBlue)
+                    }
+                } else {
+                    CertificateList(
+                        certificates = certificates,
+                        startedCourses = emptyList(),
+                        onCourseClick = {},
+                        emptyTitle = "No Certificates Yet",
+                        emptyDescription = "This user has not earned any certificates yet."
                     )
                 }
-            }
+            } else {
+                TabRow(
+                    selectedTabIndex = selectedTab,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = primaryBlue
+                ) {
+                    tabs.forEachIndexed { index, title ->
+                        Tab(
+                            selected = selectedTab == index,
+                            onClick = { selectedTab = index },
+                            text = {
+                                Text(
+                                    text = title,
+                                    fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        )
+                    }
+                }
 
-            when (selectedTab) {
+                when (selectedTab) {
                 0 -> {
                     // Only show courses not yet started
                     val filteredCategories = categories.map { cat ->
@@ -107,15 +139,23 @@ fun CourseScreen(
                     )
                 }
                 1 -> {
-                    // Started courses (in progress, exclude completed) + completed certificates
+                    // Started courses (in progress, exclude completed) + completed certificates.
+                    // Use the same 80/20 realtime formula as detail screen so the circle
+                    // updates immediately after watching, even before Supabase sync.
+                    // Reading watchedEpisodes/testCompletedMap above subscribes this
+                    // composable to those flows for instant recomposition.
+                    @Suppress("UNUSED_EXPRESSION")
+                    listOf(watchedEpisodes, testCompletedMap)
                     val startedCourses = categories.flatMap { cat ->
-                        cat.courses.filter { it.enrolled && it.progress < 100 }
+                        cat.courses.filter { it.enrolled && vm.getDisplayProgress(it) < 100 }
                     }
                     CertificateList(
                         certificates = certificates,
                         startedCourses = startedCourses,
-                        onCourseClick = onStartCourse
+                        onCourseClick = onStartCourse,
+                        getDisplayProgress = { vm.getDisplayProgress(it) }
                     )
+                }
                 }
             }
         }
@@ -357,7 +397,14 @@ private fun CourseRow(
 }
 
 @Composable
-private fun CertificateList(certificates: List<Certificate>, startedCourses: List<Course>, onCourseClick: (Int) -> Unit) {
+private fun CertificateList(
+    certificates: List<Certificate>,
+    startedCourses: List<Course>,
+    onCourseClick: (Int) -> Unit,
+    emptyTitle: String = "No Courses Yet",
+    emptyDescription: String = "Start a course to see it here.",
+    getDisplayProgress: (Course) -> Int = { it.progress }
+) {
     val hasContent = certificates.isNotEmpty() || startedCourses.isNotEmpty()
 
     if (!hasContent) {
@@ -370,10 +417,10 @@ private fun CertificateList(certificates: List<Certificate>, startedCourses: Lis
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("\uD83C\uDFC6", fontSize = 48.sp)
                 Spacer(Modifier.height(12.dp))
-                Text("No Courses Yet", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text(emptyTitle, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "Start a course to see it here.",
+                    emptyDescription,
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
@@ -397,7 +444,11 @@ private fun CertificateList(certificates: List<Certificate>, startedCourses: Lis
                     )
                 }
                 items(startedCourses) { course ->
-                    StartedCourseCard(course = course, onClick = { onCourseClick(course.id) })
+                    StartedCourseCard(
+                        course = course,
+                        displayProgress = getDisplayProgress(course),
+                        onClick = { onCourseClick(course.id) }
+                    )
                 }
             }
 
@@ -474,7 +525,7 @@ private fun CertificateCard(cert: Certificate) {
 }
 
 @Composable
-private fun StartedCourseCard(course: Course, onClick: () -> Unit) {
+private fun StartedCourseCard(course: Course, displayProgress: Int, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -512,22 +563,22 @@ private fun StartedCourseCard(course: Course, onClick: () -> Unit) {
                 )
             }
             Spacer(Modifier.width(12.dp))
-            // Circular progress indicator
+            // Circular progress indicator (same realtime value as detail screen)
             Box(
                 contentAlignment = Alignment.Center
             ) {
                 CircularProgressIndicator(
-                    progress = { course.progress / 100f },
+                    progress = { displayProgress / 100f },
                     modifier = Modifier.size(48.dp),
-                    color = if (course.progress == 100) green else primaryBlue,
+                    color = if (displayProgress == 100) green else primaryBlue,
                     trackColor = MaterialTheme.colorScheme.outlineVariant,
                     strokeWidth = 4.dp
                 )
                 Text(
-                    text = "${course.progress}%",
+                    text = "$displayProgress%",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = if (course.progress == 100) green else primaryBlue
+                    color = if (displayProgress == 100) green else primaryBlue
                 )
             }
         }

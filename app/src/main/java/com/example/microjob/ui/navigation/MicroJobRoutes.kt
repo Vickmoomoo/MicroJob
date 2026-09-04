@@ -115,6 +115,10 @@ object MicroJobRoutes {
     const val COURSE_DETAIL = "course_detail/{courseId}"
     fun courseDetail(courseId: Int) = "course_detail/$courseId"
 
+    /** Read-only certificates for a profile. */
+    const val USER_CERTIFICATES = "user_certificates/{userId}"
+    fun userCertificates(userId: Long) = "user_certificates/$userId"
+
     /** Video player page. Route pattern: "video_player/{courseId}/{episode}/{totalEpisodes}" */
     const val VIDEO_PLAYER = "video_player/{courseId}/{episode}/{totalEpisodes}"
     fun videoPlayer(courseId: Int, episode: Int, totalEpisodes: Int) = "video_player/$courseId/$episode/$totalEpisodes"

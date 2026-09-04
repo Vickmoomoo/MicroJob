@@ -302,32 +302,6 @@ class PostJobViewModel(
                 val finalJob = job.copy(images = imageUrls)
                 val created = withContext(Dispatchers.IO) { repository.postJob(finalJob) }
 
-                // 4. Record poster's donation and update community impact
-                if (donation > 0) {
-                    try {
-                        val socialImpactRepo = RepositoryProvider.socialImpactRepository(getApplication())
-                        val userId = session.currentUserId
-                        if (userId != null) {
-                            socialImpactRepo.addDonationHistory(
-                                com.example.microjob.model.DonationRecord(
-                                    userId = userId,
-                                    organization = "MicroJob Fund",
-                                    date = java.time.LocalDate.now().toString(),
-                                    amount = "RM ${"%.2f".format(donation)}"
-                                )
-                            )
-                        }
-                        val impact = socialImpactRepo.getCommunityImpact()
-                        val newPeopleHelped = (impact?.peopleHelped ?: 0) + 1
-                        val currentDonated = impact?.totalDonated?.replace("RM ", "")?.replace(",", "")?.toDoubleOrNull() ?: 0.0
-                        val newTotalDonated = currentDonated + donation
-                        socialImpactRepo.updateCommunityImpact(
-                            peopleHelped = newPeopleHelped,
-                            totalDonated = "RM ${"%.0f".format(newTotalDonated)}"
-                        )
-                    } catch (_: Exception) {}
-                }
-
                 // Keep the submitted form so "Undo" can bring it back for editing.
                 saveForm()
                 _uiState.value = PostJobUiState.Success(created.id)

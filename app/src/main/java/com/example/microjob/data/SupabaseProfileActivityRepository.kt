@@ -3,9 +3,15 @@ package com.example.microjob.data
 import android.content.Context
 import com.example.microjob.model.ProfileActivity
 import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.query.Order
+import io.github.jan.supabase.storage.storage
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+
+internal fun supabaseActivityFileUrl(path: String): String =
+    com.example.microjob.data.SupabaseConfig.SUPABASE_URL.trimEnd('/') + "/storage/v1/object/public/profile-activity-images/$path"
 
 class SupabaseProfileActivityRepository(
     private val context: Context
@@ -13,14 +19,15 @@ class SupabaseProfileActivityRepository(
     private val client: SupabaseClient by lazy { SupabaseClientHolder.client }
 
     suspend fun getForUser(userId: Long): List<ProfileActivity> {
-        return try {
-            client.from("profile_activities")
-                .select { filter { eq("user_id", userId) } }
-                .decodeList<ProfileActivityDto>()
-                .map { it.toProfileActivity() }
-        } catch (e: Exception) {
-            emptyList()
-        }
+        // Newest first so the latest post stays on top. Let errors propagate
+        // so loadProfile can fall back to local instead of wiping with empty.
+        return client.from("profile_activities")
+            .select {
+                filter { eq("user_id", userId) }
+                order("id", Order.DESCENDING)
+            }
+            .decodeList<ProfileActivityDto>()
+            .map { it.toProfileActivity() }
     }
 
     suspend fun add(activity: ProfileActivity): ProfileActivity {
@@ -32,6 +39,16 @@ class SupabaseProfileActivityRepository(
             ))
             .decodeSingle<ProfileActivityDto>()
         return result.toProfileActivity()
+    }
+
+    /** Uploads an activity photo to the public bucket and returns its public URL. */
+    suspend fun uploadActivityImage(bytes: ByteArray, extension: String): String {
+        val cleanExt = extension.substringAfterLast('/').takeIf { it.isNotBlank() } ?: "jpg"
+        val authUserId = client.auth.currentUserOrNull()?.id
+            ?: throw IllegalStateException("You must be signed in to upload an activity photo.")
+        val path = "activities/$authUserId/${System.currentTimeMillis()}.$cleanExt"
+        client.storage.from("profile-activity-images").upload(path, bytes)
+        return supabaseActivityFileUrl(path)
     }
 
     suspend fun delete(activityId: Long) {

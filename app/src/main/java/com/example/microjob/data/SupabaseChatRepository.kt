@@ -135,6 +135,7 @@ class       SupabaseChatRepository(private val context: Context) : ChatRepositor
                 { set("status", "COMPLETED"); set("payment_status", "RELEASED") }
             ) {
                 filter { eq("id", jobId) }
+                filter { neq("payment_status", "RELEASED") }
                 select()
             }
             .decodeSingleOrNull<Job>()

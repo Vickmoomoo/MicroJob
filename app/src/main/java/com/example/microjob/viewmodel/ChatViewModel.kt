@@ -486,6 +486,9 @@ class ChatViewModel(
         }
     }
 
+    /** Jobs currently being released; blocks double-tap duplicate donations. */
+    private val releasingJobs = mutableSetOf<Int>()
+
     /** Marks a job's payment as released (worker claims it); can't be claimed again.
      *  Also persists the two-sided reviews: worker → owner (from the settle sheet) and
      *  owner → worker (the newest PAYMENT_CARD's attached review wins, no matter which card was tapped).
@@ -498,8 +501,22 @@ class ChatViewModel(
         onReleased: () -> Unit,
         onJobCompleted: (jobTitle: String, jobPrice: Double) -> Unit = { _, _ -> }
     ) {
+        synchronized(releasingJobs) {
+            if (!releasingJobs.add(jobId)) return
+        }
         viewModelScope.launch {
             try {
+                // Idempotency: if the job is already RELEASED, refresh cache and
+                // return without inserting donations/reviews again.
+                val alreadyDone = withContext(Dispatchers.IO) {
+                    repository.getJob(jobId)?.paymentStatus == "RELEASED"
+                }
+                if (alreadyDone) {
+                    val fresh = withContext(Dispatchers.IO) { repository.getJob(jobId) }
+                    if (fresh != null) _jobCache.value = _jobCache.value + (jobId to fresh)
+                    onReleased()
+                    return@launch
+                }
                 val updated = withContext(Dispatchers.IO) { repository.releasePayment(jobId) }
                 if (updated != null) {
                     // Keep the released job in cache so both sides can show
@@ -615,6 +632,8 @@ class ChatViewModel(
                 }
             } catch (_: Exception) {
                 _error.value = "Could not release the payment."
+            } finally {
+                synchronized(releasingJobs) { releasingJobs.remove(jobId) }
             }
         }
     }

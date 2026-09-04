@@ -285,8 +285,19 @@ private fun ActivityComposer(onPublish: (String, String) -> Unit) {
     var photoUri by remember { mutableStateOf("") }
     val bringIntoViewRequester = remember { BringIntoViewRequester() }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val context = androidx.compose.ui.platform.LocalContext.current
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) photoUri = uri.toString()
+        if (uri != null) {
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (_: SecurityException) {
+                // Some document providers do not support persistable permissions.
+            }
+            photoUri = uri.toString()
+        }
     }
 
     Card(
