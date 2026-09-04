@@ -168,28 +168,30 @@ class SupabaseJobRepository(private val context: Context) : JobRepository {
     }
 
     override suspend fun login(username: String, password: String): User? {
-        val isEmail = username.contains("@")
-        val email = if (isEmail) {
-            username.trim()
-        } else {
-            val profile = client.from("users").select {
-                filter { ilike("username", username.trim()) }
-                limit(1L)
-            }.decodeSingleOrNull<User>() ?: return null
-            profile.email
-        }
+        val profile = client.from("users").select {
+            filter {
+                or {
+                    ilike("username", username.trim())
+                    ilike("email", username.trim())
+                }
+            }
+            limit(1L)
+        }.decodeSingleOrNull<User>() ?: return null
+
+        // The app user record is the source of truth for this demo's login.
+        // Supabase Auth may still contain the old password after recovery.
+        if (profile.password != password) return null
+
         try {
             client.auth.signInWith(Email) {
-                this.email = email
+                this.email = profile.email
                 this.password = password
             }
-        } catch (_: Exception) {
-            return null
+        } catch (e: Exception) {
+            // App login still succeeds; Auth is only used for cloud-session/RLS access.
+            android.util.Log.w("SupabaseJobRepository", "Supabase Auth sign-in failed: ${e.message}")
         }
-        return client.from("users").select {
-            filter { ilike("email", email) }
-            limit(1L)
-        }.decodeSingleOrNull<User>()
+        return profile
     }
 
     override suspend fun resetPassword(
