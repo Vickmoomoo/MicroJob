@@ -229,7 +229,7 @@ class ProfileViewModel(
                             ?.takeIf { it.isNotBlank() }
                             ?: "jpg"
                         finalPhoto = withContext(Dispatchers.IO) {
-                            cloudActivities.uploadActivityImage(userId, bytes, extension)
+                            cloudActivities.uploadActivityImage(bytes, extension)
                         }
                     }
                     val savedActivity = cloudActivities.add(activity.copy(photoUri = finalPhoto))
