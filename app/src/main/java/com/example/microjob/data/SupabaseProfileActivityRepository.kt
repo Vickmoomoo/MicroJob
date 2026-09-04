@@ -36,12 +36,14 @@ class SupabaseProfileActivityRepository(
                 userId = activity.userId,
                 text = activity.text,
                 photoUri = activity.photoUri
-            ))
+            )) { select() }
             .decodeSingle<ProfileActivityDto>()
         return result.toProfileActivity()
     }
 
-    /** Uploads an activity photo to the public bucket and returns its public URL. */
+    /** Uploads an activity photo to the public bucket and returns its public URL.
+     *  Path must use the Auth uuid: the live DB policy checks
+     *  (storage.foldername(name))[2] = auth.uid()::text. */
     suspend fun uploadActivityImage(bytes: ByteArray, extension: String): String {
         val cleanExt = extension.substringAfterLast('/').takeIf { it.isNotBlank() } ?: "jpg"
         val authUserId = client.auth.currentUserOrNull()?.id
