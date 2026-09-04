@@ -45,6 +45,30 @@ internal data class CourseCertificateRow(
     @SerialName("credential_id") val credentialId: String
 )
 
+@Serializable
+internal data class CourseProgressInsert(
+    @SerialName("user_id") val userId: Long,
+    @SerialName("course_id") val courseId: Int,
+    val enrolled: Boolean = true,
+    val progress: Int = 0
+)
+
+@Serializable
+internal data class CourseProgressUpdate(
+    val enrolled: Boolean? = null,
+    val progress: Int? = null,
+    @SerialName("watched_episodes") val watchedEpisodes: List<Int>? = null,
+    @SerialName("test_completed") val testCompleted: Boolean? = null
+)
+
+@Serializable
+internal data class CourseCertificateInsert(
+    @SerialName("user_id") val userId: Long,
+    @SerialName("course_id") val courseId: Int,
+    @SerialName("earned_date") val earnedDate: String,
+    @SerialName("credential_id") val credentialId: String
+)
+
 object SupabaseCourseRepository {
 
     private val client get() = SupabaseClientHolder.client
@@ -107,15 +131,10 @@ object SupabaseCourseRepository {
         val existing = getProgress(userId, courseId)
         if (existing == null) {
             client.from("course_progress")
-                .insert(mapOf(
-                    "user_id" to userId,
-                    "course_id" to courseId,
-                    "enrolled" to true,
-                    "progress" to 0
-                ))
+                .insert(CourseProgressInsert(userId = userId, courseId = courseId, enrolled = true, progress = 0))
         } else if (!existing.enrolled) {
             client.from("course_progress")
-                .update(mapOf("enrolled" to true)) {
+                .update(CourseProgressUpdate(enrolled = true)) {
                     filter {
                         eq("user_id", userId)
                         eq("course_id", courseId)
@@ -133,9 +152,9 @@ object SupabaseCourseRepository {
         val newProgress = (videoPercent * 0.8 + testPercent * 0.2).toInt().coerceIn(0, 100)
 
         client.from("course_progress")
-            .update(mapOf(
-                "watched_episodes" to watched,
-                "progress" to newProgress
+            .update(CourseProgressUpdate(
+                watchedEpisodes = watched,
+                progress = newProgress
             )) {
                 filter {
                     eq("user_id", userId)
@@ -151,9 +170,9 @@ object SupabaseCourseRepository {
         val newProgress = (videoPercent * 0.8 + 100 * 0.2).toInt().coerceIn(0, 100)
 
         client.from("course_progress")
-            .update(mapOf(
-                "test_completed" to true,
-                "progress" to newProgress
+            .update(CourseProgressUpdate(
+                testCompleted = true,
+                progress = newProgress
             )) {
                 filter {
                     eq("user_id", userId)
@@ -224,11 +243,11 @@ object SupabaseCourseRepository {
         val credentialId = "MJ-${catPrefix}-2026-%03d".format(certCount + 1)
 
         client.from("course_certificates")
-            .insert(mapOf(
-                "user_id" to userId,
-                "course_id" to courseId,
-                "earned_date" to dateStr,
-                "credential_id" to credentialId
+            .insert(CourseCertificateInsert(
+                userId = userId,
+                courseId = courseId,
+                earnedDate = dateStr,
+                credentialId = credentialId
             ))
 
         return Certificate(

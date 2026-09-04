@@ -193,8 +193,10 @@ class AuthViewModel(
                                 password = loginPassword
                             }
                         }
-                    } catch (_: Exception) {
-                        // Supabase Auth sign-in failed, continue with app login
+                    } catch (e: Exception) {
+                        // Supabase Auth sign-in failed
+                        android.util.Log.e("AuthViewModel", "Supabase Auth sign-in failed: ${e.message}")
+                        // Continue with app login but warn that cloud sync won't work
                     }
                     session.currentUserId = user.id
                     _currentUser.value = user
