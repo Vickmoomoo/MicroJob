@@ -11,7 +11,6 @@ import com.example.microjob.data.SupabaseClientHolder
 import com.example.microjob.model.SampleData
 import com.example.microjob.model.User
 import io.github.jan.supabase.auth.auth
-import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -165,19 +164,6 @@ class AuthViewModel(
                             securityQuestion = securityQuestion.value,
                             securityAnswer = securityAnswer.value.trim()
                         )
-                    }
-                    // Sign up with Supabase Auth for RLS
-                    try {
-                        val regEmail = email.value.trim()
-                        val regPassword = password.value
-                        withContext(Dispatchers.IO) {
-                            SupabaseClientHolder.client.auth.signUpWith(Email) {
-                                email = regEmail
-                                password = regPassword
-                            }
-                        }
-                    } catch (_: Exception) {
-                        // Supabase Auth sign-up failed, continue with app registration
                     }
                     _uiState.value = AuthUiState.Registered
                 } else {

@@ -7,6 +7,8 @@
 -- ============================================================
 
 -- ---------- 0. 清理旧表（重建全套） ----------
+drop trigger if exists on_auth_user_created on auth.users;
+drop function if exists public.handle_new_user();
 drop table if exists course_certificates;
 drop table if exists course_progress;
 drop table if exists courses;

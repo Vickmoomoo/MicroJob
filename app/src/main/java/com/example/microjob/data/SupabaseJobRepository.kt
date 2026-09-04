@@ -149,6 +149,10 @@ class SupabaseJobRepository(private val context: Context) : JobRepository {
             if (msg.contains("already registered", ignoreCase = true) || msg.contains("User already", ignoreCase = true)) {
                 throw IllegalArgumentException("Email already registered.")
             }
+            throw IllegalStateException(
+                "Supabase Auth registration failed. Please try again.",
+                e
+            )
         }
         val input = UserInput(
             name = username.trim(),
