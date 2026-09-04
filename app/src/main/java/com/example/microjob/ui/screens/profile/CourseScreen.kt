@@ -47,6 +47,11 @@ fun CourseScreen(
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("Courses", "Certificates")
 
+    // Check for user changes when screen becomes visible
+    LaunchedEffect(Unit) {
+        vm.refreshIfUserChanged()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(

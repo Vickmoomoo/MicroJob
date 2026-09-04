@@ -33,12 +33,29 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    private var lastUserId: Long? = null
+
     init {
         loadFromSupabase()
     }
 
+    /** Call this when the app resumes or user changes to refresh data. */
+    fun refreshIfUserChanged() {
+        val currentUserId = session.currentUserId
+        if (currentUserId != lastUserId) {
+            // Clear old data when user changes
+            _watchedEpisodes.value = emptyMap()
+            _testCompleted.value = emptyMap()
+            _certificates.value = emptyList()
+            _categories.value = sampleCourseCategories
+            lastUserId = currentUserId
+            loadFromSupabase()
+        }
+    }
+
     private fun loadFromSupabase() {
         val userId = session.currentUserId ?: return
+        lastUserId = userId
         viewModelScope.launch {
             _isLoading.value = true
             try {

@@ -41,6 +41,11 @@ fun CourseDetailScreen(
         categories.flatMap { it.courses }.find { it.id == courseId }
     }
 
+    // Check for user changes when screen becomes visible
+    LaunchedEffect(Unit) {
+        vm.refreshIfUserChanged()
+    }
+
     // Auto-start course when entering detail screen
     LaunchedEffect(courseId) {
         if (course != null && !course.enrolled) {
