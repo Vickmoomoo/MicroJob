@@ -67,6 +67,10 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
 
                 // Load user progress
                 val progressList = SupabaseCourseRepository.getAllProgress(userId)
+                android.util.Log.d("CourseVM", "loadFromSupabase: userId=$userId, progressCount=${progressList.size}")
+                progressList.forEach { p ->
+                    android.util.Log.d("CourseVM", "  progress: courseId=${p.courseId}, enrolled=${p.enrolled}, progress=${p.progress}, test=${p.testCompleted}")
+                }
                 val watched = mutableMapOf<Int, Set<Int>>()
                 val tests = mutableMapOf<Int, Boolean>()
 
@@ -98,8 +102,8 @@ class CourseViewModel(application: Application) : AndroidViewModel(application) 
 
                 // Load certificates
                 _certificates.value = SupabaseCourseRepository.getCertificates(userId)
-            } catch (_: Exception) {
-                // Fallback to local sample data
+            } catch (e: Exception) {
+                android.util.Log.e("CourseVM", "loadFromSupabase FAILED", e)
             } finally {
                 _isLoading.value = false
             }
