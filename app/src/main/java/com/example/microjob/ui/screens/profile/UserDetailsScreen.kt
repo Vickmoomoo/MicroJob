@@ -235,7 +235,7 @@ private fun EditProfileContent(user: User, modifier: Modifier, onCancel: () -> U
     var customSkill by remember { mutableStateOf("") }
 
     Column(
-        modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
+        modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text("Edit profile", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
@@ -261,7 +261,25 @@ private fun EditProfileContent(user: User, modifier: Modifier, onCancel: () -> U
             }
         }
         Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-            OutlinedTextField(customSkill, { customSkill = it }, label = { Text("Custom skill") }, modifier = Modifier.weight(1f), singleLine = true)
+            val skillBringIntoViewRequester = remember { BringIntoViewRequester() }
+            val skillScope = androidx.compose.runtime.rememberCoroutineScope()
+            OutlinedTextField(
+                customSkill,
+                { customSkill = it },
+                label = { Text("Custom skill") },
+                modifier = Modifier
+                    .weight(1f)
+                    .bringIntoViewRequester(skillBringIntoViewRequester)
+                    .onFocusChanged { focusState ->
+                        if (focusState.isFocused) {
+                            skillScope.launch {
+                                delay(200)
+                                skillBringIntoViewRequester.bringIntoView()
+                            }
+                        }
+                    },
+                singleLine = true
+            )
             Spacer(Modifier.width(8.dp))
             OutlinedButton(onClick = {
                 val value = customSkill.trim()
@@ -438,7 +456,27 @@ private fun InfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label
 
 @Composable
 private fun ProfileField(label: String, value: String, minLines: Int = 1, placeholder: String? = null, onValueChange: (String) -> Unit) {
-    OutlinedTextField(value, onValueChange, modifier = Modifier.fillMaxWidth(), label = { Text(label) }, placeholder = placeholder?.let { { Text(it) } }, minLines = minLines, singleLine = minLines == 1)
+    val bringIntoViewRequester = remember { BringIntoViewRequester() }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    OutlinedTextField(
+        value,
+        onValueChange,
+        modifier = Modifier
+            .fillMaxWidth()
+            .bringIntoViewRequester(bringIntoViewRequester)
+            .onFocusChanged { focusState ->
+                if (focusState.isFocused) {
+                    scope.launch {
+                        delay(200)
+                        bringIntoViewRequester.bringIntoView()
+                    }
+                }
+            },
+        label = { Text(label) },
+        placeholder = placeholder?.let { { Text(it) } },
+        minLines = minLines,
+        singleLine = minLines == 1
+    )
 }
 
 @Composable
