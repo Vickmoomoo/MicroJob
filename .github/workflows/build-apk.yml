@@ -33,10 +33,7 @@ jobs:
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           yes | "$SDKMANAGER" --licenses > /dev/null
           "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0" "platform-tools"
-          echo "=== stable platforms ==="
-          "$SDKMANAGER" --list 2>/dev/null | grep -i "platforms;" | head -20
-          echo "=== canary platforms ==="
-          "$SDKMANAGER" --list --channel=3 2>/dev/null | grep -i "platforms;" | head -20
+          # NOTE: compileSdk 37.1 preview platform is auto-provisioned by AGP during build
 
       - name: Build debug APK
         run: |
