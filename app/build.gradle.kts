@@ -6,7 +6,11 @@ plugins {
 
 android {
     namespace = "com.example.microjob"
-    compileSdk = 36
+    compileSdk {
+        version = release(37) {
+            minorApiLevel = 1
+        }
+    }
 
     defaultConfig {
         applicationId = "com.example.microjob"
