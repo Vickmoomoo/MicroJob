@@ -33,9 +33,10 @@ jobs:
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           yes | "$SDKMANAGER" --licenses > /dev/null
           "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0" "platform-tools"
-          # compileSdk 37.1 is still preview: install from canary channel (beta/dev fallback)
-          "$SDKMANAGER" --channel=3 "platforms;android-37" "build-tools;37.0.0" \
-            || "$SDKMANAGER" --channel=2 "platforms;android-37" "build-tools;37.0.0"
+          echo "=== stable platforms ==="
+          "$SDKMANAGER" --list 2>/dev/null | grep -i "platforms;" | head -20
+          echo "=== canary platforms ==="
+          "$SDKMANAGER" --list --channel=3 2>/dev/null | grep -i "platforms;" | head -20
 
       - name: Build debug APK
         run: |
