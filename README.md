@@ -4,6 +4,13 @@
 
 之前真实代码在 `Microjob` 分支，现已合并到 `main`，`main` 为唯一主线。
 
+## Creators
+
+- Ch'ng Wei Qi
+- Louis Seah Yik
+- Swee Hian A/L Sun Lai
+- Jason Choong Jie Sheng
+
 ## 功能
 
 - **找活 / 发活**：Home 刷任务流（`jobs` 表），详情页接单，中心 FAB 发任务，支持 onsite / remote、分类、地区、价格（RM）、图片
